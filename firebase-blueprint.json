@@ -1,0 +1,87 @@
+{
+  "entities": {
+    "CurriculumDocument": {
+      "title": "CurriculumDocument",
+      "description": "Dokumen kurikulum, silabus, ATP, Modul Ajar, Prota, Promes yang diunggah oleh guru",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string", "maxLength": 300 },
+        "originalFileName": { "type": "string", "maxLength": 255 },
+        "fileSize": { "type": "number" },
+        "fileType": { "type": "string", "maxLength": 20 },
+        "category": { "type": "string", "maxLength": 50 },
+        "subject": { "type": "string", "maxLength": 100 },
+        "grade": { "type": "string", "enum": ["7", "8", "9"] },
+        "semester": { "type": "string", "enum": ["ganjil", "genap"] },
+        "academicYear": { "type": "string", "maxLength": 20 },
+        "curriculumType": { "type": "string", "maxLength": 50 },
+        "teacherId": { "type": "string", "maxLength": 128 },
+        "teacherName": { "type": "string", "maxLength": 150 },
+        "teacherNip": { "type": "string", "maxLength": 50 },
+        "teacherEmail": { "type": "string", "maxLength": 150 },
+        "alokasiJp": { "type": "number" },
+        "competencies": { "type": "array" },
+        "uploadDate": { "type": "string" },
+        "lastModified": { "type": "string" },
+        "status": { "type": "string", "enum": ["diajukan", "perlu_revisi", "disetujui", "disahkan"] },
+        "supervisorNotes": { "type": "string", "maxLength": 1000 },
+        "verificationDate": { "type": "string" },
+        "verifiedBy": { "type": "string", "maxLength": 150 },
+        "approvalNumber": { "type": "string", "maxLength": 100 },
+        "contentPreview": { "type": "string", "maxLength": 2000 },
+        "tags": { "type": "array" }
+      },
+      "required": ["id", "title", "category", "subject", "grade", "semester", "academicYear", "status", "uploadDate"]
+    },
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Profil pengguna yang terafiliasi dengan Waka Kurikulum atau Guru Mata Pelajaran",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "role": { "type": "string", "enum": ["waka_kurikulum", "guru"] },
+        "teacherId": { "type": "string" },
+        "nip": { "type": "string" },
+        "subject": { "type": "string" }
+      },
+      "required": ["uid", "email", "role"]
+    },
+    "SchoolProfile": {
+      "title": "SchoolProfile",
+      "description": "Profil identitas sekolah, kepala sekolah, dan waka kurikulum",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "npsn": { "type": "string" },
+        "address": { "type": "string" },
+        "district": { "type": "string" },
+        "province": { "type": "string" },
+        "principalName": { "type": "string" },
+        "principalNip": { "type": "string" },
+        "curriculumViceName": { "type": "string" },
+        "curriculumViceNip": { "type": "string" },
+        "currentAcademicYear": { "type": "string" },
+        "currentSemester": { "type": "string" }
+      },
+      "required": ["id", "name", "npsn"]
+    }
+  },
+  "firestore": {
+    "/documents/{documentId}": {
+      "schema": "CurriculumDocument",
+      "description": "Koleksi seluruh berkas kurikulum sekolah"
+    },
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "Profil dan peran akses pengguna (Waka vs Guru)"
+    },
+    "/school_config/{configId}": {
+      "schema": "SchoolProfile",
+      "description": "Konfigurasi identitas sekolah dan logo"
+    }
+  }
+}

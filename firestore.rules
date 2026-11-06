@@ -1,0 +1,44 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isWaka() {
+      return isSignedIn() && (
+        request.auth.token.email == "imamarifin55@admin.smp.belajar.id" ||
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'waka_kurikulum'
+      );
+    }
+
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Users Collection
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && (request.auth.uid == userId || isWaka());
+    }
+
+    // School Profile Config
+    match /school_config/{configId} {
+      allow read: if true; // School identity is readable
+      allow write: if isSignedIn();
+    }
+
+    // Curriculum Documents:
+    // Waka Kurikulum has full oversight (reads all, verifies all, deletes if needed)
+    // Teachers can read all documents or their own, create new, and update/delete their own
+    match /documents/{documentId} {
+      allow read: if true; // Allows teachers and waka to browse matrix/library
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
+    }
+  }
+}

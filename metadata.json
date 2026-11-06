@@ -1,0 +1,6 @@
+{
+  "name": "ArsipKurikulum - Sistem Administrasi Kurikulum & Silabus Sekolah",
+  "description": "Aplikasi arsip dokumen kurikulum sekolah profesional dengan pengunggahan otomatis, ekstraksi metadata cerdas, dan pengkategorian silabus berbasis semester.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
