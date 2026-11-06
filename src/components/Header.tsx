@@ -14,6 +14,7 @@ interface HeaderProps {
   onRoleChange: (role: AppUserRole, teacherId?: string) => void;
   teachers: Teacher[];
   isCloudSynced: boolean;
+  onLogout?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -26,7 +27,8 @@ export const Header: React.FC<HeaderProps> = ({
   currentUser,
   onRoleChange,
   teachers,
-  isCloudSynced
+  isCloudSynced,
+  onLogout
 }) => {
   const getViewTitle = () => {
     switch (activeView) {
@@ -82,6 +84,7 @@ export const Header: React.FC<HeaderProps> = ({
             onRoleChange={onRoleChange}
             teachers={teachers}
             isCloudSynced={isCloudSynced}
+            onLogout={onLogout}
           />
 
           {currentUser.role === 'waka_kurikulum' && pendingCount > 0 && (

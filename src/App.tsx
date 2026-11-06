@@ -20,6 +20,7 @@ import {
 import { testFirestoreConnection, auth } from './services/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 
+import { LandingLoginPage } from './components/LandingLoginPage';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
 import { SchoolBanner } from './components/SchoolBanner';
@@ -75,12 +76,29 @@ export default function App() {
 
   const [teachers] = useState<Teacher[]>(INITIAL_TEACHERS);
 
+  // Session Auth State: If false, renders the Landing & Login Page
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('arsip_kurikulum_logged_in') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
   // User & Role State: 'waka_kurikulum' (Dashboard Utama) vs 'guru' (Hanya berkas sendiri)
-  const [currentUser, setCurrentUser] = useState<AppUser>({
-    uid: 'waka-01',
-    email: 'imamarifin55@admin.smp.belajar.id',
-    displayName: 'Waka Kurikulum',
-    role: 'waka_kurikulum'
+  const [currentUser, setCurrentUser] = useState<AppUser>(() => {
+    try {
+      const savedUser = localStorage.getItem('arsip_kurikulum_current_user');
+      if (savedUser) return JSON.parse(savedUser);
+    } catch {
+      // default
+    }
+    return {
+      uid: 'waka-01',
+      email: 'imamarifin55@admin.smp.belajar.id',
+      displayName: 'Waka Kurikulum',
+      role: 'waka_kurikulum'
+    };
   });
 
   const [isCloudSynced, setIsCloudSynced] = useState(true);
@@ -177,14 +195,52 @@ export default function App() {
     }, 3500);
   };
 
+  const handleLandingLogin = (role: AppUserRole, teacherId?: string) => {
+    const matched = teachers.find(t => t.id === teacherId);
+    const newUser: AppUser = {
+      uid: role === 'waka_kurikulum' ? 'waka-01' : (matched?.id || 'guru-01'),
+      email: role === 'waka_kurikulum' ? 'imamarifin55@admin.smp.belajar.id' : (matched?.email || 'guru@smp.belajar.id'),
+      displayName: role === 'waka_kurikulum' ? 'Waka Kurikulum' : (matched?.name || 'Guru Pengampu'),
+      role,
+      teacherId: role === 'guru' ? (teacherId || teachers[0].id) : undefined
+    };
+
+    setCurrentUser(newUser);
+    setIsAuthenticated(true);
+    try {
+      localStorage.setItem('arsip_kurikulum_logged_in', 'true');
+      localStorage.setItem('arsip_kurikulum_current_user', JSON.stringify(newUser));
+    } catch (e) {
+      console.warn(e);
+    }
+
+    showToast(`Selamat datang di SIM Arsip Kurikulum sebagai ${newUser.displayName}.`);
+  };
+
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    try {
+      localStorage.removeItem('arsip_kurikulum_logged_in');
+    } catch (e) {
+      console.warn(e);
+    }
+    showToast('Anda telah keluar dari sesi.');
+  };
+
   const handleRoleChange = (role: AppUserRole, teacherId?: string) => {
     const matched = teachers.find(t => t.id === teacherId);
-    setCurrentUser(prev => ({
-      ...prev,
+    const updatedUser: AppUser = {
+      ...currentUser,
       role,
       teacherId,
       displayName: role === 'waka_kurikulum' ? 'Waka Kurikulum' : (matched?.name || 'Guru Pengampu')
-    }));
+    };
+    setCurrentUser(updatedUser);
+    try {
+      localStorage.setItem('arsip_kurikulum_current_user', JSON.stringify(updatedUser));
+    } catch (e) {
+      console.warn(e);
+    }
 
     if (role === 'guru') {
       showToast(`Beralih ke Portal Guru: ${matched?.name || 'Guru'}. Hanya menampilkan berkas Anda.`);
@@ -403,6 +459,26 @@ export default function App() {
   const genapCount = visibleDocuments.filter(d => d.semester === 'genap' && d.academicYear === academicYear).length;
   const pendingCount = visibleDocuments.filter(d => d.status === 'diajukan').length;
 
+  // If user is not yet logged in, show the comprehensive Landing & Login Page
+  if (!isAuthenticated) {
+    return (
+      <>
+        {toastMessage && (
+          <div className="fixed bottom-5 right-5 z-50 bg-slate-900 text-white text-xs font-medium px-4 py-3 rounded-xl shadow-lg border border-slate-700 flex items-center gap-2 animate-in fade-in slide-in-from-bottom-3 duration-200">
+            <span className="w-2 h-2 rounded-full bg-emerald-400" />
+            <span>{toastMessage}</span>
+          </div>
+        )}
+        <LandingLoginPage
+          profile={profile}
+          teachers={teachers}
+          onSelectRole={handleLandingLogin}
+          isCloudSynced={isCloudSynced}
+        />
+      </>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex font-sans">
       {/* Toast Alert */}
@@ -447,6 +523,7 @@ export default function App() {
           onRoleChange={handleRoleChange}
           teachers={teachers}
           isCloudSynced={isCloudSynced}
+          onLogout={handleLogout}
         />
 
         {/* Content Viewport */}

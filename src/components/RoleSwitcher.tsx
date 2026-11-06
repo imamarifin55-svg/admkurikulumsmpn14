@@ -12,13 +12,15 @@ interface RoleSwitcherProps {
   onRoleChange: (role: AppUserRole, teacherId?: string) => void;
   teachers: Teacher[];
   isCloudSynced: boolean;
+  onLogout?: () => void;
 }
 
 export const RoleSwitcher: React.FC<RoleSwitcherProps> = ({
   currentUser,
   onRoleChange,
   teachers,
-  isCloudSynced
+  isCloudSynced,
+  onLogout
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isAuthLoading, setIsAuthLoading] = useState(false);
@@ -193,7 +195,7 @@ export const RoleSwitcher: React.FC<RoleSwitcherProps> = ({
             </div>
 
             {/* Google Login with belajar.id */}
-            <div className="pt-2 border-t border-slate-100">
+            <div className="pt-2 border-t border-slate-100 space-y-1.5">
               <button
                 type="button"
                 onClick={handleGoogleLogin}
@@ -203,6 +205,20 @@ export const RoleSwitcher: React.FC<RoleSwitcherProps> = ({
                 <LogIn className="w-3.5 h-3.5" />
                 <span>Masuk Akun Google / belajar.id</span>
               </button>
+
+              {onLogout && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleLogout();
+                    onLogout();
+                  }}
+                  className="w-full flex items-center justify-center gap-1.5 py-1.5 px-3 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg text-xs font-medium transition-colors"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  <span>Keluar ke Halaman Utama (Landing)</span>
+                </button>
+              )}
             </div>
           </div>
         </>
