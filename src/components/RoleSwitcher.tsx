@@ -1,10 +1,8 @@
 import React, { useState } from 'react';
 import { 
-  ShieldCheck, UserCheck, LogIn, LogOut, ChevronDown, Check
+  ShieldCheck, UserCheck, LogOut, ChevronDown, Check
 } from 'lucide-react';
 import { AppUser, AppUserRole, Teacher } from '../types/curriculum';
-import { auth, googleProvider } from '../services/firebase';
-import { signInWithPopup } from 'firebase/auth';
 
 interface RoleSwitcherProps {
   currentUser: AppUser;
@@ -22,22 +20,8 @@ export const RoleSwitcher: React.FC<RoleSwitcherProps> = ({
   wakaName
 }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [isAuthLoading, setIsAuthLoading] = useState(false);
 
-  const isWakaAccount = currentUser.email === 'imamarifin55@admin.smp.belajar.id';
-
-  const handleSwitchGoogleAccount = async () => {
-    try {
-      setIsAuthLoading(true);
-      await signInWithPopup(auth, googleProvider);
-    } catch (err) {
-      console.warn('Google account switch cancelled or failed:', err);
-    } finally {
-      setIsAuthLoading(false);
-      setIsOpen(false);
-    }
-  };
-
+  const isWakaSession = (currentUser.baseRole || currentUser.role) === 'waka_kurikulum';
   const selectedTeacher = teachers.find(t => t.id === currentUser.teacherId);
 
   return (
@@ -63,10 +47,12 @@ export const RoleSwitcher: React.FC<RoleSwitcherProps> = ({
 
         <div className="hidden sm:block min-w-0 pr-1">
           <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 leading-none">
-            {currentUser.role === 'waka_kurikulum' ? 'Mode Waka Kurikulum' : 'Portal Guru'}
+            {currentUser.role === 'waka_kurikulum' ? 'Waka Kurikulum' : 'Portal Guru'}
           </div>
           <div className="text-xs font-bold text-slate-800 truncate max-w-[150px]">
-            {currentUser.role === 'waka_kurikulum' ? (wakaName || 'Dashboard Utama') : selectedTeacher?.name || currentUser.displayName}
+            {currentUser.role === 'waka_kurikulum'
+              ? (currentUser.displayName || wakaName || 'Waka Kurikulum')
+              : (selectedTeacher?.name || currentUser.displayName)}
           </div>
         </div>
 
@@ -81,14 +67,16 @@ export const RoleSwitcher: React.FC<RoleSwitcherProps> = ({
             onClick={() => setIsOpen(false)} 
           />
           <div className="absolute right-0 top-full mt-2 w-72 rounded-2xl bg-white border border-slate-200 shadow-xl z-50 p-2.5 space-y-2 text-xs">
-            {/* Connected Account Info */}
+            {/* Connected User Info */}
             <div className="px-2.5 py-2 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between gap-2">
               <div className="min-w-0">
                 <div className="font-bold text-slate-800 text-[11px] truncate">
-                  {currentUser.email}
+                  {currentUser.displayName}
                 </div>
-                <div className="text-[10px] text-emerald-700 font-medium">
-                  Sinkronisasi Cloud Real-Time Aktif
+                <div className="text-[10px] text-emerald-700 font-medium truncate">
+                  {currentUser.role === 'waka_kurikulum'
+                    ? 'Waka Kurikulum · Cloud Aktif'
+                    : `${selectedTeacher?.subject || 'Guru Pengampu'} · Cloud Aktif`}
                 </div>
               </div>
               <span className="text-[9px] font-mono px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 font-bold shrink-0">
@@ -96,8 +84,8 @@ export const RoleSwitcher: React.FC<RoleSwitcherProps> = ({
               </span>
             </div>
 
-            {/* Waka Admin Role Switcher (available for Waka account) */}
-            {isWakaAccount && (
+            {/* Waka Admin Role Switcher (available when logged in as Waka Kurikulum) */}
+            {isWakaSession && (
               <>
                 <div>
                   <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 px-2 py-1">
@@ -178,27 +166,17 @@ export const RoleSwitcher: React.FC<RoleSwitcherProps> = ({
             )}
 
             {/* Account Actions */}
-            <div className="pt-2 border-t border-slate-100 space-y-1.5">
-              <button
-                type="button"
-                onClick={handleSwitchGoogleAccount}
-                disabled={isAuthLoading}
-                className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-semibold shadow-xs transition-colors cursor-pointer"
-              >
-                <LogIn className="w-3.5 h-3.5" />
-                <span>{isAuthLoading ? 'Memproses...' : 'Ganti Akun Google / belajar.id'}</span>
-              </button>
-
+            <div className="pt-2 border-t border-slate-100">
               <button
                 type="button"
                 onClick={() => {
                   setIsOpen(false);
                   onLogout();
                 }}
-                className="w-full flex items-center justify-center gap-1.5 py-1.5 px-3 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg text-xs font-medium transition-colors cursor-pointer"
+                className="w-full flex items-center justify-center gap-1.5 py-2 px-3 text-rose-600 hover:bg-rose-50 rounded-xl text-xs font-semibold transition-colors cursor-pointer"
               >
                 <LogOut className="w-3.5 h-3.5" />
-                <span>Keluar Akun</span>
+                <span>Keluar / Ganti Pengguna</span>
               </button>
             </div>
           </div>

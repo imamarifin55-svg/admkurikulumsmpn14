@@ -152,11 +152,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 ? 'bg-emerald-500/20 text-emerald-300 border-emerald-400/40'
                 : 'bg-indigo-500/20 text-indigo-200 border-indigo-400/40'
             }`}>
-              {isGuru ? (currentTeacher?.name?.charAt(0) || 'G') : (profile.curriculumViceName?.charAt(0) || 'W')}
+              {isGuru
+                ? ((currentTeacher?.name || currentUser.displayName)?.charAt(0) || 'G')
+                : ((currentUser.displayName || profile.curriculumViceName)?.charAt(0) || 'W')}
             </div>
             <div className="min-w-0 flex-1">
               <div className="text-xs font-bold text-white tracking-wide truncate">
-                {isGuru ? currentTeacher?.name : profile.curriculumViceName}
+                {isGuru ? (currentTeacher?.name || currentUser.displayName) : (currentUser.displayName || profile.curriculumViceName)}
               </div>
               <div className={`text-[11px] font-semibold truncate ${
                 isGuru ? 'text-emerald-400' : 'text-indigo-300'
@@ -164,7 +166,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 {isGuru ? `Guru ${currentTeacher?.subject || 'Mata Pelajaran'}` : 'Waka Kurikulum & Supervisi'}
               </div>
               <div className="text-[10px] text-slate-400 font-mono truncate">
-                NIP. {isGuru ? currentTeacher?.nip : profile.curriculumViceNip}
+                NIP. {isGuru ? (currentTeacher?.nip || '-') : profile.curriculumViceNip}
               </div>
             </div>
           </div>

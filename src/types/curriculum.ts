@@ -73,6 +73,7 @@ export interface AppUser {
   email: string;
   displayName: string;
   role: AppUserRole;
+  baseRole?: AppUserRole;
   teacherId?: string;
   nip?: string;
   subject?: string;

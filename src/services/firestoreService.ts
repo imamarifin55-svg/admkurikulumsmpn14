@@ -64,8 +64,6 @@ export async function seedFirestoreIfEmpty(seed: {
   teachers: Teacher[];
   categories: CategoryItem[];
 }): Promise<boolean> {
-  if (!auth.currentUser || !auth.currentUser.emailVerified) return false;
-
   try {
     const profileRef = doc(db, 'school_config', 'profile');
     const [profileSnap, docsSnap, teachersSnap, categoriesSnap] = await Promise.all([

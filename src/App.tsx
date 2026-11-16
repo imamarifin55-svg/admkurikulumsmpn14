@@ -20,8 +20,7 @@ import {
   subscribeToCategories, saveCategoryToFirestore, deleteCategoryFromFirestore,
   seedFirestoreIfEmpty, saveUserProfileToFirestore
 } from './services/firestoreService';
-import { testFirestoreConnection, auth, googleProvider } from './services/firebase';
-import { onAuthStateChanged, signInWithPopup, signOut } from 'firebase/auth';
+import { testFirestoreConnection } from './services/firebase';
 
 import { LandingLoginPage } from './components/LandingLoginPage';
 import { Sidebar } from './components/Sidebar';
@@ -90,9 +89,15 @@ export default function App() {
     return INITIAL_TEACHERS;
   });
 
-  // Firebase Auth Session State: Online-first real-time access
-  const [isAuthReady, setIsAuthReady] = useState<boolean>(false);
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  // Session State: Persisted username + role session for instant real-time access
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('arsip_kurikulum_logged_in') === 'true' &&
+        Boolean(localStorage.getItem('arsip_kurikulum_current_user'));
+    } catch {
+      return false;
+    }
+  });
 
   // User & Role State: 'waka_kurikulum' (Dashboard Utama) vs 'guru' (Hanya berkas sendiri)
   const [currentUser, setCurrentUser] = useState<AppUser>(() => {
@@ -103,10 +108,11 @@ export default function App() {
       // default
     }
     return {
-      uid: 'waka-01',
-      email: 'imamarifin55@admin.smp.belajar.id',
+      uid: 'waka-kurikulum',
+      email: 'waka@sekolah.sch.id',
       displayName: 'Waka Kurikulum',
-      role: 'waka_kurikulum'
+      role: 'waka_kurikulum',
+      baseRole: 'waka_kurikulum'
     };
   });
 
@@ -131,7 +137,6 @@ export default function App() {
   const profileRef = React.useRef<SchoolProfile>(profile);
   const categoriesRef = React.useRef<CategoryItem[]>(categories);
   const isCloudInitializedRef = React.useRef<boolean>(false);
-  const pendingLoginSelectionRef = React.useRef<{ role: AppUserRole; teacherId?: string } | null>(null);
 
   useEffect(() => {
     teachersRef.current = teachers;
@@ -146,75 +151,21 @@ export default function App() {
     categoriesRef.current = categories;
   }, [categories]);
 
-  // 1. Test Firestore, subscribe to Firebase Auth changes, sync user profile & seed baseline data
+  // 1. Test Firestore connection & seed baseline data on startup
   useEffect(() => {
-    testFirestoreConnection();
-    const unsubAuth = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        const pending = pendingLoginSelectionRef.current;
-        pendingLoginSelectionRef.current = null;
-
-        const email = firebaseUser.email || '';
-        const isWakaAccount = email === 'imamarifin55@admin.smp.belajar.id';
-        const resolvedRole: AppUserRole = isWakaAccount
-          ? (pending?.role === 'guru' ? 'guru' : 'waka_kurikulum')
-          : 'guru';
-
-        const currentTeachers = teachersRef.current;
-        const matchedByEmail = currentTeachers.find(t => t.email.toLowerCase() === email.toLowerCase());
-        const matchedByPreferred = pending?.teacherId
-          ? currentTeachers.find(t => t.id === pending.teacherId)
-          : undefined;
-        const resolvedTeacher = matchedByEmail || matchedByPreferred || (resolvedRole === 'guru' ? currentTeachers[0] : undefined);
-
-        const loggedUser: AppUser = {
-          uid: firebaseUser.uid,
-          email,
-          displayName: firebaseUser.displayName || (resolvedRole === 'waka_kurikulum' ? 'Waka Kurikulum' : (resolvedTeacher?.name || 'Guru Pengampu')),
-          role: resolvedRole,
-          teacherId: resolvedRole === 'guru' ? resolvedTeacher?.id : undefined
-        };
-
-        setCurrentUser(loggedUser);
-        setIsAuthenticated(true);
-        setIsAuthReady(true);
-
-        try {
-          localStorage.setItem('arsip_kurikulum_current_user', JSON.stringify(loggedUser));
-        } catch (e) {
-          console.warn(e);
-        }
-
-        // Persist user profile to Cloud Firestore so Waka/Guru roles are recorded
-        try {
-          await saveUserProfileToFirestore(loggedUser);
-        } catch (e) {
-          console.warn('Gagal mencatat profil pengguna ke Firestore:', e);
-        }
-
-        // Seed empty Firestore collections once so all devices share the same baseline
-        const seeded = await seedFirestoreIfEmpty({
-          documents: documentsRef.current,
-          profile: profileRef.current,
-          teachers: teachersRef.current,
-          categories: categoriesRef.current
-        });
-        if (seeded) {
-          isCloudInitializedRef.current = true;
-        }
-      } else {
-        setIsAuthenticated(false);
-        setIsAuthReady(true);
-        try {
-          localStorage.removeItem('arsip_kurikulum_logged_in');
-          localStorage.removeItem('arsip_kurikulum_current_user');
-        } catch (e) {
-          console.warn(e);
-        }
+    const initCloud = async () => {
+      await testFirestoreConnection();
+      const seeded = await seedFirestoreIfEmpty({
+        documents: documentsRef.current,
+        profile: profileRef.current,
+        teachers: teachersRef.current,
+        categories: categoriesRef.current
+      });
+      if (seeded) {
+        isCloudInitializedRef.current = true;
       }
-    });
-
-    return () => unsubAuth();
+    };
+    initCloud();
   }, []);
 
   // 2. Real-time Firestore sync across devices for Documents, Profile, Teachers & Categories
@@ -298,24 +249,88 @@ export default function App() {
     }, 3500);
   };
 
-  const handleGoogleLogin = async (preferredRole: AppUserRole, preferredTeacherId?: string) => {
-    pendingLoginSelectionRef.current = { role: preferredRole, teacherId: preferredTeacherId };
-    try {
-      const cred = await signInWithPopup(auth, googleProvider);
-      const displayName = cred.user.displayName || cred.user.email || 'Pengguna';
-      showToast(`Selamat datang, ${displayName}. Sinkronisasi Cloud Real-Time langsung aktif.`);
-    } catch (err) {
-      pendingLoginSelectionRef.current = null;
-      throw err;
+  const handleUsernameLogin = async (
+    username: string,
+    role: AppUserRole,
+    matchedTeacherId?: string
+  ) => {
+    const trimmed = username.trim();
+    const cleanSlug = trimmed
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '')
+      .slice(0, 60) || 'pengguna';
+
+    const matchedTeacher =
+      (matchedTeacherId ? teachers.find(t => t.id === matchedTeacherId) : undefined) ||
+      (role === 'guru'
+        ? teachers.find(
+            t =>
+              t.name.toLowerCase().includes(trimmed.toLowerCase()) ||
+              t.email.toLowerCase().split('@')[0].includes(trimmed.toLowerCase())
+          )
+        : undefined);
+
+    let resolvedTeacher = matchedTeacher;
+    if (role === 'guru' && !resolvedTeacher) {
+      const newTeacherId = `guru-${cleanSlug}`;
+      const newTeacher: Teacher = {
+        id: newTeacherId,
+        name: trimmed,
+        nip: '-',
+        subject: 'Guru Mata Pelajaran',
+        email: `${cleanSlug}@guru.sekolah.sch.id`
+      };
+      resolvedTeacher = newTeacher;
+      setTeachers(prev => (prev.some(t => t.id === newTeacherId) ? prev : [...prev, newTeacher]));
+      saveTeacherToFirestore(newTeacher).catch(err =>
+        console.warn('Gagal menambahkan guru baru ke Firestore:', err)
+      );
     }
+
+    const resolvedDisplayName =
+      role === 'guru' ? (resolvedTeacher?.name || trimmed) : trimmed;
+
+    const loggedUser: AppUser = {
+      uid: `${role === 'waka_kurikulum' ? 'waka' : 'guru'}-${cleanSlug}`,
+      email:
+        resolvedTeacher?.email ||
+        (role === 'waka_kurikulum' ? 'waka@sekolah.sch.id' : `${cleanSlug}@guru.sekolah.sch.id`),
+      displayName: resolvedDisplayName,
+      role,
+      baseRole: role,
+      teacherId: role === 'guru' ? resolvedTeacher?.id : undefined
+    };
+
+    setCurrentUser(loggedUser);
+    setIsAuthenticated(true);
+    setActiveView('matrix');
+
+    try {
+      localStorage.setItem('arsip_kurikulum_logged_in', 'true');
+      localStorage.setItem('arsip_kurikulum_current_user', JSON.stringify(loggedUser));
+    } catch (e) {
+      console.warn(e);
+    }
+
+    try {
+      await saveUserProfileToFirestore(loggedUser);
+      await seedFirestoreIfEmpty({
+        documents: documentsRef.current,
+        profile: profileRef.current,
+        teachers: teachersRef.current,
+        categories: categoriesRef.current
+      });
+    } catch (e) {
+      console.warn('Gagal mencatat sesi pengguna ke Firestore:', e);
+    }
+
+    showToast(
+      `Selamat datang, ${loggedUser.displayName} (${role === 'waka_kurikulum' ? 'Waka Kurikulum' : 'Guru Pengampu'}). Sinkronisasi Cloud Real-Time aktif.`
+    );
   };
 
-  const handleLogout = async () => {
-    try {
-      await signOut(auth);
-    } catch (e) {
-      console.warn('Sign-out error:', e);
-    }
+  const handleLogout = () => {
     setIsAuthenticated(false);
     setActiveView('matrix');
     try {
@@ -332,8 +347,9 @@ export default function App() {
     const updatedUser: AppUser = {
       ...currentUser,
       role,
+      baseRole: currentUser.baseRole || 'waka_kurikulum',
       teacherId,
-      displayName: role === 'waka_kurikulum' ? 'Waka Kurikulum' : (matched?.name || 'Guru Pengampu')
+      displayName: role === 'waka_kurikulum' ? (profile.curriculumViceName || 'Waka Kurikulum') : (matched?.name || 'Guru Pengampu')
     };
     setCurrentUser(updatedUser);
     try {
@@ -615,12 +631,13 @@ export default function App() {
   };
 
   // Role-Based Filtering:
-  // When role === 'guru', only documents matching that teacher's name or id are shown!
+  // When role === 'guru', only documents matching that teacher's id or username are shown!
   const currentLoggedInTeacher = teachers.find(t => t.id === currentUser.teacherId);
   const visibleDocuments = currentUser.role === 'guru'
     ? documents.filter(d => 
         (currentUser.teacherId && d.teacherId === currentUser.teacherId) ||
-        (currentLoggedInTeacher && d.teacherName.toLowerCase().includes(currentLoggedInTeacher.name.split(' ')[0].toLowerCase()))
+        (currentLoggedInTeacher && d.teacherName.toLowerCase().includes(currentLoggedInTeacher.name.split(' ')[0].toLowerCase())) ||
+        (!currentLoggedInTeacher && currentUser.displayName && d.teacherName.toLowerCase().includes(currentUser.displayName.toLowerCase()))
       )
     : documents;
 
@@ -630,18 +647,7 @@ export default function App() {
   const genapCount = visibleDocuments.filter(d => d.semester === 'genap' && d.academicYear === academicYear).length;
   const pendingCount = visibleDocuments.filter(d => d.status === 'diajukan').length;
 
-  // Wait for Firebase Auth initialization to avoid login screen flicker on refresh
-  if (!isAuthReady) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 font-sans">
-        <div className="w-10 h-10 rounded-full border-4 border-indigo-200 border-t-indigo-700 animate-spin mb-4" />
-        <p className="text-sm font-semibold text-slate-800">Memeriksa sesi akun Google &amp; sinkronisasi real-time...</p>
-        <p className="text-xs text-slate-500 mt-1">Mohon tunggu sebentar</p>
-      </div>
-    );
-  }
-
-  // If user is not yet logged in with Google/belajar.id, show unified online Landing & Login Page
+  // If user is not yet logged in, show the Landing & Username Login Page
   if (!isAuthenticated) {
     return (
       <>
@@ -654,7 +660,7 @@ export default function App() {
         <LandingLoginPage
           profile={profile}
           teachers={teachers}
-          onGoogleLogin={handleGoogleLogin}
+          onUsernameLogin={handleUsernameLogin}
         />
       </>
     );
