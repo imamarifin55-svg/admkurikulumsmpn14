@@ -18,11 +18,10 @@ import {
   subscribeToSchoolProfile, saveSchoolProfileToFirestore,
   subscribeToTeachers, saveTeacherToFirestore, deleteTeacherFromFirestore,
   subscribeToCategories, saveCategoryToFirestore, deleteCategoryFromFirestore,
-  seedFirestoreIfEmpty
+  seedFirestoreIfEmpty, saveUserProfileToFirestore
 } from './services/firestoreService';
 import { testFirestoreConnection, auth, googleProvider } from './services/firebase';
-import { onAuthStateChanged, signInWithPopup } from 'firebase/auth';
-import { CloudOff, LogIn } from 'lucide-react';
+import { onAuthStateChanged, signInWithPopup, signOut } from 'firebase/auth';
 
 import { LandingLoginPage } from './components/LandingLoginPage';
 import { Sidebar } from './components/Sidebar';
@@ -91,14 +90,9 @@ export default function App() {
     return INITIAL_TEACHERS;
   });
 
-  // Session Auth State: If false, renders the Landing & Login Page
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    try {
-      return localStorage.getItem('arsip_kurikulum_logged_in') === 'true';
-    } catch {
-      return false;
-    }
-  });
+  // Firebase Auth Session State: Online-first real-time access
+  const [isAuthReady, setIsAuthReady] = useState<boolean>(false);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
 
   // User & Role State: 'waka_kurikulum' (Dashboard Utama) vs 'guru' (Hanya berkas sendiri)
   const [currentUser, setCurrentUser] = useState<AppUser>(() => {
@@ -115,8 +109,6 @@ export default function App() {
       role: 'waka_kurikulum'
     };
   });
-
-  const [isCloudSynced, setIsCloudSynced] = useState<boolean>(() => Boolean(auth.currentUser));
 
   // Active filters and views
   const [academicYear, setAcademicYear] = useState<string>(profile.currentAcademicYear || '2025/2026');
@@ -139,7 +131,7 @@ export default function App() {
   const profileRef = React.useRef<SchoolProfile>(profile);
   const categoriesRef = React.useRef<CategoryItem[]>(categories);
   const isCloudInitializedRef = React.useRef<boolean>(false);
-  const [isConnectingCloud, setIsConnectingCloud] = useState(false);
+  const pendingLoginSelectionRef = React.useRef<{ role: AppUserRole; teacherId?: string } | null>(null);
 
   useEffect(() => {
     teachersRef.current = teachers;
@@ -154,32 +146,50 @@ export default function App() {
     categoriesRef.current = categories;
   }, [categories]);
 
-  // 1. Test Firestore, subscribe to Auth changes, and seed initial cloud data if needed
+  // 1. Test Firestore, subscribe to Firebase Auth changes, sync user profile & seed baseline data
   useEffect(() => {
     testFirestoreConnection();
     const unsubAuth = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
+        const pending = pendingLoginSelectionRef.current;
+        pendingLoginSelectionRef.current = null;
+
         const email = firebaseUser.email || '';
-        const isWaka = email === 'imamarifin55@admin.smp.belajar.id';
+        const isWakaAccount = email === 'imamarifin55@admin.smp.belajar.id';
+        const resolvedRole: AppUserRole = isWakaAccount
+          ? (pending?.role === 'guru' ? 'guru' : 'waka_kurikulum')
+          : 'guru';
+
         const currentTeachers = teachersRef.current;
-        const matched = currentTeachers.find(t => t.email.toLowerCase() === email.toLowerCase());
+        const matchedByEmail = currentTeachers.find(t => t.email.toLowerCase() === email.toLowerCase());
+        const matchedByPreferred = pending?.teacherId
+          ? currentTeachers.find(t => t.id === pending.teacherId)
+          : undefined;
+        const resolvedTeacher = matchedByEmail || matchedByPreferred || (resolvedRole === 'guru' ? currentTeachers[0] : undefined);
 
         const loggedUser: AppUser = {
           uid: firebaseUser.uid,
           email,
-          displayName: firebaseUser.displayName || (isWaka ? 'Waka Kurikulum' : 'Guru Pengampu'),
-          role: isWaka ? 'waka_kurikulum' : 'guru',
-          teacherId: matched ? matched.id : (isWaka ? undefined : currentTeachers[0]?.id)
+          displayName: firebaseUser.displayName || (resolvedRole === 'waka_kurikulum' ? 'Waka Kurikulum' : (resolvedTeacher?.name || 'Guru Pengampu')),
+          role: resolvedRole,
+          teacherId: resolvedRole === 'guru' ? resolvedTeacher?.id : undefined
         };
 
         setCurrentUser(loggedUser);
-        setIsCloudSynced(true);
         setIsAuthenticated(true);
+        setIsAuthReady(true);
+
         try {
-          localStorage.setItem('arsip_kurikulum_logged_in', 'true');
           localStorage.setItem('arsip_kurikulum_current_user', JSON.stringify(loggedUser));
         } catch (e) {
           console.warn(e);
+        }
+
+        // Persist user profile to Cloud Firestore so Waka/Guru roles are recorded
+        try {
+          await saveUserProfileToFirestore(loggedUser);
+        } catch (e) {
+          console.warn('Gagal mencatat profil pengguna ke Firestore:', e);
         }
 
         // Seed empty Firestore collections once so all devices share the same baseline
@@ -193,7 +203,14 @@ export default function App() {
           isCloudInitializedRef.current = true;
         }
       } else {
-        setIsCloudSynced(false);
+        setIsAuthenticated(false);
+        setIsAuthReady(true);
+        try {
+          localStorage.removeItem('arsip_kurikulum_logged_in');
+          localStorage.removeItem('arsip_kurikulum_current_user');
+        } catch (e) {
+          console.warn(e);
+        }
       }
     });
 
@@ -281,32 +298,29 @@ export default function App() {
     }, 3500);
   };
 
-  const handleLandingLogin = (role: AppUserRole, teacherId?: string) => {
-    const matched = teachers.find(t => t.id === teacherId);
-    const newUser: AppUser = {
-      uid: role === 'waka_kurikulum' ? 'waka-01' : (matched?.id || 'guru-01'),
-      email: role === 'waka_kurikulum' ? 'imamarifin55@admin.smp.belajar.id' : (matched?.email || 'guru@smp.belajar.id'),
-      displayName: role === 'waka_kurikulum' ? 'Waka Kurikulum' : (matched?.name || 'Guru Pengampu'),
-      role,
-      teacherId: role === 'guru' ? (teacherId || teachers[0].id) : undefined
-    };
-
-    setCurrentUser(newUser);
-    setIsAuthenticated(true);
+  const handleGoogleLogin = async (preferredRole: AppUserRole, preferredTeacherId?: string) => {
+    pendingLoginSelectionRef.current = { role: preferredRole, teacherId: preferredTeacherId };
     try {
-      localStorage.setItem('arsip_kurikulum_logged_in', 'true');
-      localStorage.setItem('arsip_kurikulum_current_user', JSON.stringify(newUser));
-    } catch (e) {
-      console.warn(e);
+      const cred = await signInWithPopup(auth, googleProvider);
+      const displayName = cred.user.displayName || cred.user.email || 'Pengguna';
+      showToast(`Selamat datang, ${displayName}. Sinkronisasi Cloud Real-Time langsung aktif.`);
+    } catch (err) {
+      pendingLoginSelectionRef.current = null;
+      throw err;
     }
-
-    showToast(`Selamat datang di SIM Arsip Kurikulum sebagai ${newUser.displayName}.`);
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+    } catch (e) {
+      console.warn('Sign-out error:', e);
+    }
     setIsAuthenticated(false);
+    setActiveView('matrix');
     try {
       localStorage.removeItem('arsip_kurikulum_logged_in');
+      localStorage.removeItem('arsip_kurikulum_current_user');
     } catch (e) {
       console.warn(e);
     }
@@ -329,42 +343,24 @@ export default function App() {
     }
 
     if (role === 'guru') {
-      showToast(`Beralih ke Portal Guru: ${matched?.name || 'Guru'}. Hanya menampilkan berkas Anda.`);
+      showToast(`Beralih ke Pratinjau Portal Guru: ${matched?.name || 'Guru'}. Hanya menampilkan berkas guru terkait.`);
       if (activeView === 'supervision' || activeView === 'reports' || activeView === 'profile' || activeView === 'categories' || activeView === 'teachers') {
         setActiveView('matrix');
       }
     } else {
-      showToast('Beralih ke Dashboard Utama Waka Kurikulum (Akses Penuh Seluruh Sekolah).');
-    }
-  };
-
-  // Connect to Cloud Google Auth directly from workspace
-  const handleConnectCloud = async () => {
-    try {
-      setIsConnectingCloud(true);
-      await signInWithPopup(auth, googleProvider);
-      showToast('Berhasil terhubung ke Cloud Firestore. Sinkronisasi real-time antar perangkat aktif!');
-    } catch (err) {
-      console.warn('Cloud sign-in cancelled or failed:', err);
-      showToast('Login Google dibatalkan atau gagal. Silakan coba lagi.');
-    } finally {
-      setIsConnectingCloud(false);
+      showToast('Kembali ke Dashboard Utama Waka Kurikulum (Akses Penuh Seluruh Sekolah).');
     }
   };
 
   // Add new documents from automatic upload modal
   const handleSaveDocuments = async (newDocs: CurriculumDocument[]) => {
     setDocuments(prev => [...newDocs, ...prev]);
-    if (auth.currentUser) {
-      try {
-        await batchSaveDocumentsToFirestore(newDocs);
-        showToast(`Berhasil mengarsipkan ${newDocs.length} berkas kurikulum ke Cloud Real-Time.`);
-      } catch (err) {
-        console.error(err);
-        showToast('Gagal menyimpan ke Cloud Firestore. Tersimpan sementara secara lokal.');
-      }
-    } else {
-      showToast(`Tersimpan lokal (${newDocs.length} berkas). Hubungkan Google agar terbaca di perangkat lain.`);
+    try {
+      await batchSaveDocumentsToFirestore(newDocs);
+      showToast(`Berhasil mengarsipkan ${newDocs.length} berkas kurikulum ke Cloud Real-Time.`);
+    } catch (err) {
+      console.error(err);
+      showToast('Gagal menyimpan ke Cloud Firestore. Periksa koneksi internet Anda.');
     }
   };
 
@@ -374,16 +370,12 @@ export default function App() {
     if (selectedDoc?.id === updatedDoc.id) {
       setSelectedDoc(updatedDoc);
     }
-    if (auth.currentUser) {
-      try {
-        await saveDocumentToFirestore(updatedDoc);
-        showToast(`Perubahan berkas "${updatedDoc.title}" tersinkron ke Cloud.`);
-      } catch (err) {
-        console.error(err);
-        showToast('Gagal memperbarui berkas ke Cloud Firestore.');
-      }
-    } else {
-      showToast(`Perubahan "${updatedDoc.title}" tersimpan lokal (belum sinkron Cloud).`);
+    try {
+      await saveDocumentToFirestore(updatedDoc);
+      showToast(`Perubahan berkas "${updatedDoc.title}" tersinkron ke Cloud Real-Time.`);
+    } catch (err) {
+      console.error(err);
+      showToast('Gagal memperbarui berkas ke Cloud Firestore.');
     }
   };
 
@@ -393,80 +385,60 @@ export default function App() {
     if (updatedProfile.currentAcademicYear) {
       setAcademicYear(updatedProfile.currentAcademicYear);
     }
-    if (auth.currentUser) {
-      try {
-        await saveSchoolProfileToFirestore(updatedProfile);
-        showToast('Profil sekolah dan logo tersimpan & tersinkron ke semua perangkat.');
-      } catch (err) {
-        console.error(err);
-        showToast('Gagal menyimpan profil ke Cloud Firestore.');
-      }
-    } else {
-      showToast('Profil sekolah disimpan lokal. Hubungkan Google agar terbaca di perangkat lain.');
+    try {
+      await saveSchoolProfileToFirestore(updatedProfile);
+      showToast('Profil sekolah dan logo tersimpan & tersinkron real-time ke semua perangkat.');
+    } catch (err) {
+      console.error(err);
+      showToast('Gagal menyimpan profil ke Cloud Firestore.');
     }
   };
 
   // Add new category
   const handleAddCategory = async (newCat: CategoryItem) => {
     setCategories(prev => [...prev, newCat]);
-    if (auth.currentUser) {
-      try {
-        await saveCategoryToFirestore(newCat);
-        showToast(`Kategori "${newCat.name}" ditambahkan ke Cloud Real-Time.`);
-      } catch (err) {
-        console.error(err);
-        showToast('Gagal menyimpan kategori ke Cloud Firestore.');
-      }
-    } else {
-      showToast(`Kategori "${newCat.name}" ditambahkan secara lokal.`);
+    try {
+      await saveCategoryToFirestore(newCat);
+      showToast(`Kategori "${newCat.name}" ditambahkan ke Cloud Real-Time.`);
+    } catch (err) {
+      console.error(err);
+      showToast('Gagal menyimpan kategori ke Cloud Firestore.');
     }
   };
 
   // Update category
   const handleUpdateCategory = async (updatedCat: CategoryItem) => {
     setCategories(prev => prev.map(c => c.id === updatedCat.id ? updatedCat : c));
-    if (auth.currentUser) {
-      try {
-        await saveCategoryToFirestore(updatedCat);
-        showToast(`Kategori "${updatedCat.name}" diperbarui di Cloud.`);
-      } catch (err) {
-        console.error(err);
-        showToast('Gagal memperbarui kategori ke Cloud Firestore.');
-      }
-    } else {
-      showToast(`Kategori "${updatedCat.name}" diperbarui secara lokal.`);
+    try {
+      await saveCategoryToFirestore(updatedCat);
+      showToast(`Kategori "${updatedCat.name}" diperbarui di Cloud Real-Time.`);
+    } catch (err) {
+      console.error(err);
+      showToast('Gagal memperbarui kategori ke Cloud Firestore.');
     }
   };
 
   // Delete category
   const handleDeleteCategory = async (catId: string) => {
     setCategories(prev => prev.filter(c => c.id !== catId));
-    if (auth.currentUser) {
-      try {
-        await deleteCategoryFromFirestore(catId);
-        showToast('Kategori perangkat pembelajaran dihapus dari Cloud.');
-      } catch (err) {
-        console.error(err);
-        showToast('Gagal menghapus kategori dari Cloud Firestore.');
-      }
-    } else {
-      showToast('Kategori perangkat pembelajaran dihapus secara lokal.');
+    try {
+      await deleteCategoryFromFirestore(catId);
+      showToast('Kategori perangkat pembelajaran dihapus dari Cloud Real-Time.');
+    } catch (err) {
+      console.error(err);
+      showToast('Gagal menghapus kategori dari Cloud Firestore.');
     }
   };
 
   // Add new teacher
   const handleAddTeacher = async (newTeacher: Teacher) => {
     setTeachers(prev => [...prev, newTeacher]);
-    if (auth.currentUser) {
-      try {
-        await saveTeacherToFirestore(newTeacher);
-        showToast(`Guru "${newTeacher.name}" berhasil ditambahkan ke Cloud Real-Time.`);
-      } catch (err) {
-        console.error(err);
-        showToast('Gagal menyimpan data guru ke Cloud Firestore.');
-      }
-    } else {
-      showToast(`Guru "${newTeacher.name}" ditambahkan secara lokal.`);
+    try {
+      await saveTeacherToFirestore(newTeacher);
+      showToast(`Guru "${newTeacher.name}" berhasil ditambahkan ke Cloud Real-Time.`);
+    } catch (err) {
+      console.error(err);
+      showToast('Gagal menyimpan data guru ke Cloud Firestore.');
     }
   };
 
@@ -505,35 +477,27 @@ export default function App() {
       }));
     }
 
-    if (auth.currentUser) {
-      try {
-        await saveTeacherToFirestore(updatedTeacher);
-        if (modifiedDocs.length > 0) {
-          await batchSaveDocumentsToFirestore(modifiedDocs);
-        }
-        showToast(`Data guru "${updatedTeacher.name}" tersinkron ke Cloud.`);
-      } catch (err) {
-        console.error(err);
-        showToast('Gagal memperbarui data guru ke Cloud Firestore.');
+    try {
+      await saveTeacherToFirestore(updatedTeacher);
+      if (modifiedDocs.length > 0) {
+        await batchSaveDocumentsToFirestore(modifiedDocs);
       }
-    } else {
-      showToast(`Data guru "${updatedTeacher.name}" diperbarui secara lokal.`);
+      showToast(`Data guru "${updatedTeacher.name}" tersinkron ke Cloud Real-Time.`);
+    } catch (err) {
+      console.error(err);
+      showToast('Gagal memperbarui data guru ke Cloud Firestore.');
     }
   };
 
   // Delete teacher
   const handleDeleteTeacher = async (teacherId: string) => {
     setTeachers(prev => prev.filter(t => t.id !== teacherId));
-    if (auth.currentUser) {
-      try {
-        await deleteTeacherFromFirestore(teacherId);
-        showToast('Data guru telah dihapus dari Cloud.');
-      } catch (err) {
-        console.error(err);
-        showToast('Gagal menghapus data guru dari Cloud Firestore.');
-      }
-    } else {
-      showToast('Data guru telah dihapus secara lokal.');
+    try {
+      await deleteTeacherFromFirestore(teacherId);
+      showToast('Data guru telah dihapus dari Cloud Real-Time.');
+    } catch (err) {
+      console.error(err);
+      showToast('Gagal menghapus data guru dari Cloud Firestore.');
     }
   };
 
@@ -562,16 +526,12 @@ export default function App() {
       setSelectedDoc(updatedDocInstance);
     }
 
-    if (auth.currentUser) {
-      try {
-        await saveDocumentToFirestore(updatedDocInstance);
-        showToast('Status kelayakan & catatan supervisi tersinkron ke Cloud.');
-      } catch (err) {
-        console.error(err);
-        showToast('Gagal menyinkronkan status supervisi ke Cloud Firestore.');
-      }
-    } else {
-      showToast('Status supervisi diperbarui lokal (hubungkan Google agar sinkron antar perangkat).');
+    try {
+      await saveDocumentToFirestore(updatedDocInstance);
+      showToast('Status kelayakan & catatan supervisi tersinkron ke Cloud Real-Time.');
+    } catch (err) {
+      console.error(err);
+      showToast('Gagal menyinkronkan status supervisi ke Cloud Firestore.');
     }
   };
 
@@ -597,16 +557,12 @@ export default function App() {
     const modifiedMap = new Map(modified.map(m => [m.id, m]));
     setDocuments(prev => prev.map(d => modifiedMap.get(d.id) || d));
 
-    if (auth.currentUser) {
-      try {
-        await batchSaveDocumentsToFirestore(modified);
-        showToast(`Berhasil mengesahkan ${modified.length} dokumen ke Cloud Real-Time.`);
-      } catch (err) {
-        console.error(err);
-        showToast('Gagal mengesahkan batch ke Cloud Firestore.');
-      }
-    } else {
-      showToast(`Berhasil mengesahkan ${modified.length} dokumen secara lokal.`);
+    try {
+      await batchSaveDocumentsToFirestore(modified);
+      showToast(`Berhasil mengesahkan ${modified.length} dokumen ke Cloud Real-Time.`);
+    } catch (err) {
+      console.error(err);
+      showToast('Gagal mengesahkan batch ke Cloud Firestore.');
     }
   };
 
@@ -616,32 +572,24 @@ export default function App() {
     if (selectedDoc?.id === docId) setSelectedDoc(null);
     if (editDoc?.id === docId) setEditDoc(null);
     if (printDoc?.id === docId) setPrintDoc(null);
-    if (auth.currentUser) {
-      try {
-        await deleteDocumentFromFirestore(docId);
-        showToast('Dokumen telah dihapus dari Cloud.');
-      } catch (err) {
-        console.error(err);
-        showToast('Gagal menghapus dokumen dari Cloud Firestore.');
-      }
-    } else {
-      showToast('Dokumen telah dihapus secara lokal.');
+    try {
+      await deleteDocumentFromFirestore(docId);
+      showToast('Dokumen telah dihapus dari Cloud Real-Time.');
+    } catch (err) {
+      console.error(err);
+      showToast('Gagal menghapus dokumen dari Cloud Firestore.');
     }
   };
 
   // Restore backup
   const handleRestoreBackup = async (restoredDocs: CurriculumDocument[]) => {
     setDocuments(restoredDocs);
-    if (auth.currentUser) {
-      try {
-        await batchSaveDocumentsToFirestore(restoredDocs);
-        showToast(`Arsip berhasil dipulihkan ke Cloud (${restoredDocs.length} dokumen).`);
-      } catch (err) {
-        console.error(err);
-        showToast('Gagal memulihkan arsip ke Cloud Firestore.');
-      }
-    } else {
-      showToast(`Arsip berhasil dipulihkan secara lokal (${restoredDocs.length} dokumen).`);
+    try {
+      await batchSaveDocumentsToFirestore(restoredDocs);
+      showToast(`Arsip berhasil dipulihkan ke Cloud Real-Time (${restoredDocs.length} dokumen).`);
+    } catch (err) {
+      console.error(err);
+      showToast('Gagal memulihkan arsip ke Cloud Firestore.');
     }
   };
 
@@ -666,20 +614,6 @@ export default function App() {
     setIsUploadModalOpen(true);
   };
 
-  const handleResetData = () => {
-    if (window.confirm('Reset data ke kondisi awal pabrik (seed awal)?')) {
-      localStorage.removeItem(STORAGE_KEY);
-      localStorage.removeItem(PROFILE_STORAGE_KEY);
-      localStorage.removeItem(CATEGORIES_STORAGE_KEY);
-      localStorage.removeItem(TEACHERS_STORAGE_KEY);
-      setDocuments(INITIAL_DOCUMENTS);
-      setProfile(INITIAL_SCHOOL_PROFILE);
-      setCategories(INITIAL_CATEGORIES);
-      setTeachers(INITIAL_TEACHERS);
-      showToast('Data berhasil direset ke kondisi awal.');
-    }
-  };
-
   // Role-Based Filtering:
   // When role === 'guru', only documents matching that teacher's name or id are shown!
   const currentLoggedInTeacher = teachers.find(t => t.id === currentUser.teacherId);
@@ -696,7 +630,18 @@ export default function App() {
   const genapCount = visibleDocuments.filter(d => d.semester === 'genap' && d.academicYear === academicYear).length;
   const pendingCount = visibleDocuments.filter(d => d.status === 'diajukan').length;
 
-  // If user is not yet logged in, show the comprehensive Landing & Login Page
+  // Wait for Firebase Auth initialization to avoid login screen flicker on refresh
+  if (!isAuthReady) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 font-sans">
+        <div className="w-10 h-10 rounded-full border-4 border-indigo-200 border-t-indigo-700 animate-spin mb-4" />
+        <p className="text-sm font-semibold text-slate-800">Memeriksa sesi akun Google &amp; sinkronisasi real-time...</p>
+        <p className="text-xs text-slate-500 mt-1">Mohon tunggu sebentar</p>
+      </div>
+    );
+  }
+
+  // If user is not yet logged in with Google/belajar.id, show unified online Landing & Login Page
   if (!isAuthenticated) {
     return (
       <>
@@ -709,8 +654,7 @@ export default function App() {
         <LandingLoginPage
           profile={profile}
           teachers={teachers}
-          onSelectRole={handleLandingLogin}
-          isCloudSynced={isCloudSynced}
+          onGoogleLogin={handleGoogleLogin}
         />
       </>
     );
@@ -741,7 +685,6 @@ export default function App() {
         pendingCount={pendingCount}
         isOpenMobile={isMobileSidebarOpen}
         onCloseMobile={() => setIsMobileSidebarOpen(false)}
-        onResetData={handleResetData}
         currentUser={currentUser}
         teachers={teachers}
       />
@@ -759,34 +702,12 @@ export default function App() {
           currentUser={currentUser}
           onRoleChange={handleRoleChange}
           teachers={teachers}
-          isCloudSynced={isCloudSynced}
           onLogout={handleLogout}
           wakaName={profile.curriculumViceName}
         />
 
         {/* Content Viewport */}
         <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto">
-          {/* Cloud Sync Banner when operating in Local-Only mode */}
-          {!isCloudSynced && (
-            <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-amber-950">
-              <div className="flex items-start sm:items-center gap-2.5">
-                <CloudOff className="w-4 h-4 text-amber-700 shrink-0 mt-0.5 sm:mt-0" />
-                <div>
-                  <span className="font-bold">Mode Penyimpanan Lokal: </span>
-                  <span>Perubahan di perangkat ini belum terkirim ke Cloud dan belum terbaca di perangkat lain.</span>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={handleConnectCloud}
-                disabled={isConnectingCloud}
-                className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-white font-semibold shadow-2xs transition-colors whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-60"
-              >
-                <LogIn className="w-3.5 h-3.5" />
-                <span>{isConnectingCloud ? 'Menghubungkan...' : 'Hubungkan Cloud (Google)'}</span>
-              </button>
-            </div>
-          )}
 
           {/* School Hero Profile Banner (on main curriculum views) */}
           {activeView !== 'profile' && activeView !== 'categories' && activeView !== 'teachers' && (

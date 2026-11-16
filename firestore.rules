@@ -30,7 +30,12 @@ service cloud.firestore {
     // Users Collection
     match /users/{userId} {
       allow read: if isSignedIn() && (request.auth.uid == userId || isWaka());
-      allow write: if isVerified() && isValidId(userId) && (request.auth.uid == userId || isWaka());
+      allow write: if isVerified() && isValidId(userId)
+        && request.resource.data.uid == userId
+        && (
+          isWaka() ||
+          (request.auth.uid == userId && request.resource.data.role == 'guru')
+        );
     }
 
     // School Profile Config

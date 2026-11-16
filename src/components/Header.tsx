@@ -13,8 +13,7 @@ interface HeaderProps {
   currentUser: AppUser;
   onRoleChange: (role: AppUserRole, teacherId?: string) => void;
   teachers: Teacher[];
-  isCloudSynced: boolean;
-  onLogout?: () => void;
+  onLogout: () => void;
   wakaName?: string;
 }
 
@@ -28,7 +27,6 @@ export const Header: React.FC<HeaderProps> = ({
   currentUser,
   onRoleChange,
   teachers,
-  isCloudSynced,
   onLogout,
   wakaName
 }) => {
@@ -87,7 +85,6 @@ export const Header: React.FC<HeaderProps> = ({
             currentUser={currentUser}
             onRoleChange={onRoleChange}
             teachers={teachers}
-            isCloudSynced={isCloudSynced}
             onLogout={onLogout}
             wakaName={wakaName}
           />

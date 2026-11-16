@@ -1,8 +1,7 @@
 import React from 'react';
 import { 
   Archive, ListFilter, LayoutGrid, ShieldCheck, FileSpreadsheet, 
-  Plus, Calendar, Sparkles, Building2, ChevronRight, X, RotateCcw, 
-  FolderKanban, Award, Users 
+  Plus, Building2, X, FolderKanban, Users 
 } from 'lucide-react';
 import { AppUser, SchoolProfile, SemesterType, Teacher } from '../types/curriculum';
 
@@ -20,7 +19,6 @@ interface SidebarProps {
   pendingCount: number;
   isOpenMobile: boolean;
   onCloseMobile: () => void;
-  onResetData: () => void;
   currentUser: AppUser;
   teachers: Teacher[];
 }
@@ -39,7 +37,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
   pendingCount,
   isOpenMobile,
   onCloseMobile,
-  onResetData,
   currentUser,
   teachers
 }) => {
@@ -324,13 +321,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
           <div className="flex items-center justify-between text-[10px] text-slate-400">
             <span className="font-mono tabular-nums">NPSN: {profile.npsn}</span>
-            <button
-              onClick={onResetData}
-              className="hover:text-rose-400 transition-colors flex items-center gap-1 cursor-pointer"
-              title="Reset data ke kondisi awal"
-            >
-              <RotateCcw className="w-3 h-3" /> Reset
-            </button>
+            <span className="text-emerald-400 font-medium">Cloud Real-Time</span>
           </div>
         </div>
       </aside>

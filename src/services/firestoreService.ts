@@ -3,7 +3,7 @@ import {
   onSnapshot, query, where, writeBatch
 } from 'firebase/firestore';
 import { db, auth } from './firebase';
-import { CurriculumDocument, SchoolProfile, CategoryItem, Teacher } from '../types/curriculum';
+import { AppUser, CurriculumDocument, SchoolProfile, CategoryItem, Teacher } from '../types/curriculum';
 
 export enum OperationType {
   CREATE = 'create',
@@ -277,3 +277,14 @@ export async function deleteCategoryFromFirestore(categoryId: string): Promise<v
     handleFirestoreError(error, OperationType.DELETE, path);
   }
 }
+
+// Save or Update Authenticated User Profile
+export async function saveUserProfileToFirestore(user: AppUser): Promise<void> {
+  const path = `users/${user.uid}`;
+  try {
+    await setDoc(doc(db, 'users', user.uid), sanitizeForFirestore(user), { merge: true });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, path);
+  }
+}
+
