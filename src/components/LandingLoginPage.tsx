@@ -195,7 +195,7 @@ export const LandingLoginPage: React.FC<LandingLoginPageProps> = ({
               )}
 
               {/* 1-Click Google / belajar.id Auth */}
-              <div>
+              <div className="space-y-1.5">
                 <button
                   type="button"
                   onClick={handleGoogleLogin}
@@ -210,13 +210,16 @@ export const LandingLoginPage: React.FC<LandingLoginPageProps> = ({
                   </svg>
                   <span>{isAuthenticating ? 'Memproses...' : 'Masuk dengan Akun Google / belajar.id'}</span>
                 </button>
+                <p className="text-[11px] text-emerald-700 font-medium text-center">
+                  Wajib untuk sinkronisasi Cloud real-time antar perangkat
+                </p>
               </div>
 
               {/* Or Divider */}
               <div className="relative flex items-center justify-center">
                 <div className="border-t border-slate-200 w-full" />
                 <span className="bg-white px-3 text-[11px] text-slate-400 font-medium uppercase tracking-wider whitespace-nowrap">
-                  atau pilih peran langsung
+                  atau pilih peran lokal
                 </span>
               </div>
 

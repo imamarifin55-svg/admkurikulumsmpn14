@@ -24,7 +24,7 @@
         "competencies": { "type": "array" },
         "uploadDate": { "type": "string" },
         "lastModified": { "type": "string" },
-        "status": { "type": "string", "enum": ["diajukan", "perlu_revisi", "disetujui", "disahkan"] },
+        "status": { "type": "string", "enum": ["draft", "diajukan", "diverifikasi", "disahkan", "perlu_revisi"] },
         "supervisorNotes": { "type": "string", "maxLength": 1000 },
         "verificationDate": { "type": "string" },
         "verifiedBy": { "type": "string", "maxLength": 150 },
@@ -81,6 +81,21 @@
         "email": { "type": "string", "maxLength": 150 }
       },
       "required": ["id", "name", "nip", "subject", "email"]
+    },
+    "CategoryItem": {
+      "title": "CategoryItem",
+      "description": "Kategori instrumen perangkat pembelajaran sekolah",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "code": { "type": "string", "maxLength": 20 },
+        "name": { "type": "string", "maxLength": 150 },
+        "defaultJp": { "type": "number" },
+        "description": { "type": "string", "maxLength": 500 },
+        "isSupervisedInMatrix": { "type": "boolean" },
+        "isSystemDefault": { "type": "boolean" }
+      },
+      "required": ["id", "code", "name", "defaultJp", "isSupervisedInMatrix"]
     }
   },
   "firestore": {
@@ -99,6 +114,10 @@
     "/teachers/{teacherId}": {
       "schema": "Teacher",
       "description": "Daftar guru pengampu mata pelajaran sekolah"
+    },
+    "/categories/{categoryId}": {
+      "schema": "CategoryItem",
+      "description": "Daftar kategori perangkat pembelajaran"
     }
   }
 }

@@ -27,10 +27,12 @@ export const googleProvider = new GoogleAuthProvider();
 // Test Firestore Connection
 export async function testFirestoreConnection(): Promise<boolean> {
   try {
-    await getDocFromServer(doc(db, 'school_config', 'default'));
+    await getDocFromServer(doc(db, 'school_config', 'profile'));
     return true;
   } catch (err: unknown) {
-    console.info('Firestore initial connection status:', err);
-    return true; // Configured and initialized
+    if (err instanceof Error && err.message.includes('the client is offline')) {
+      console.error('Please check your Firebase configuration (client is offline).');
+    }
+    return false;
   }
 }

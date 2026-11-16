@@ -2,6 +2,10 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
     function isSignedIn() {
       return request.auth != null;
     }
@@ -25,26 +29,51 @@ service cloud.firestore {
 
     // Users Collection
     match /users/{userId} {
-      allow read: if isSignedIn();
-      allow write: if isVerified() && (request.auth.uid == userId || isWaka());
+      allow read: if isSignedIn() && (request.auth.uid == userId || isWaka());
+      allow write: if isVerified() && isValidId(userId) && (request.auth.uid == userId || isWaka());
     }
 
     // School Profile Config
     match /school_config/{configId} {
       allow read: if true;
-      allow write: if isVerified();
+      allow write: if isVerified() && isValidId(configId)
+        && request.resource.data.name is string
+        && request.resource.data.name.size() <= 200;
     }
 
     // Curriculum Documents
     match /documents/{documentId} {
       allow read: if true;
-      allow create, update, delete: if isVerified();
+      allow create, update: if isVerified() && isValidId(documentId)
+        && request.resource.data.id is string
+        && request.resource.data.id.size() <= 128
+        && request.resource.data.title is string
+        && request.resource.data.title.size() <= 300;
+      allow delete: if isVerified() && isValidId(documentId);
     }
 
     // Teachers Directory
     match /teachers/{teacherId} {
       allow read: if true;
-      allow write: if isVerified();
+      allow create, update: if isVerified() && isValidId(teacherId)
+        && request.resource.data.id is string
+        && request.resource.data.id.size() <= 128
+        && request.resource.data.name is string
+        && request.resource.data.name.size() <= 150;
+      allow delete: if isVerified() && isValidId(teacherId);
+    }
+
+    // Categories Directory
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow create, update: if isVerified() && isValidId(categoryId)
+        && request.resource.data.id is string
+        && request.resource.data.id.size() <= 128
+        && request.resource.data.code is string
+        && request.resource.data.code.size() <= 20
+        && request.resource.data.name is string
+        && request.resource.data.name.size() <= 150;
+      allow delete: if isVerified() && isValidId(categoryId);
     }
   }
 }

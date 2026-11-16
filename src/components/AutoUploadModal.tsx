@@ -235,9 +235,10 @@ export const AutoUploadModal: React.FC<AutoUploadModalProps> = ({
         const catInfo = categories.find(c => c.id === slot.categoryId);
         const catCode = catInfo?.code || 'DOC';
         const regNumber = `REG-KUR/SMP1/${selectedAcademicYear.substring(0, 4)}/${catCode}-${String(100 + idx)}`;
+        const uniqueSuffix = Math.random().toString(36).slice(2, 6);
 
         finalDocs.push({
-          id: `doc-${Date.now()}-${idx}`,
+          id: `doc-${Date.now()}-${idx}-${uniqueSuffix}`,
           title: slot.title,
           originalFileName: slot.file.name,
           fileSize: slot.file.size || 1850000,
@@ -248,8 +249,10 @@ export const AutoUploadModal: React.FC<AutoUploadModalProps> = ({
           semester: selectedSemester,
           academicYear: selectedAcademicYear,
           curriculumType: selectedCurriculum,
+          teacherId: currentTeacher.id,
           teacherName: currentTeacher.name,
           teacherNip: currentTeacher.nip,
+          teacherEmail: currentTeacher.email,
           alokasiJp: slot.alokasiJp,
           competencies: slot.competencies,
           uploadDate: now,
@@ -269,9 +272,10 @@ export const AutoUploadModal: React.FC<AutoUploadModalProps> = ({
         const matchedCat = categories.find(c => c.id === item.category);
         const catCode = matchedCat?.code || CATEGORY_LABELS[item.category]?.code || 'DOC';
         const regNumber = `REG-KUR/SMP1/${item.academicYear.substring(0, 4)}/${catCode}-${String(100 + idx)}`;
+        const uniqueSuffix = Math.random().toString(36).slice(2, 6);
 
         finalDocs.push({
-          id: `doc-${Date.now()}-${idx}`,
+          id: `doc-${Date.now()}-${idx}-${uniqueSuffix}`,
           title: item.title,
           originalFileName: item.file.name,
           fileSize: item.file.size || 1540000,
@@ -282,8 +286,10 @@ export const AutoUploadModal: React.FC<AutoUploadModalProps> = ({
           semester: item.semester,
           academicYear: item.academicYear,
           curriculumType: item.curriculumType,
+          teacherId: teacher.id,
           teacherName: teacher.name,
           teacherNip: teacher.nip,
+          teacherEmail: teacher.email,
           alokasiJp: item.alokasiJp,
           competencies: item.competencies,
           uploadDate: now,

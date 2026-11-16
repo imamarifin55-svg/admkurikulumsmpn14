@@ -29,8 +29,10 @@ export const EditDocumentModal: React.FC<EditDocumentModalProps> = ({
   const [grade, setGrade] = useState<GradeLevel>(document?.grade || '7');
   const [semester, setSemester] = useState<SemesterType>(document?.semester || 'ganjil');
   const [academicYear, setAcademicYear] = useState(document?.academicYear || '2025/2026');
+  const [teacherId, setTeacherId] = useState(document?.teacherId || '');
   const [teacherName, setTeacherName] = useState(document?.teacherName || '');
   const [teacherNip, setTeacherNip] = useState(document?.teacherNip || '');
+  const [teacherEmail, setTeacherEmail] = useState(document?.teacherEmail || '');
   const [alokasiJp, setAlokasiJp] = useState<number>(document?.alokasiJp || 36);
   const [status, setStatus] = useState<VerificationStatus>(document?.status || 'draft');
   const [supervisorNotes, setSupervisorNotes] = useState(document?.supervisorNotes || '');
@@ -44,8 +46,10 @@ export const EditDocumentModal: React.FC<EditDocumentModalProps> = ({
       setGrade(document.grade);
       setSemester(document.semester);
       setAcademicYear(document.academicYear);
+      setTeacherId(document.teacherId || '');
       setTeacherName(document.teacherName);
       setTeacherNip(document.teacherNip);
+      setTeacherEmail(document.teacherEmail || '');
       setAlokasiJp(document.alokasiJp || 36);
       setStatus(document.status);
       setSupervisorNotes(document.supervisorNotes || '');
@@ -55,11 +59,13 @@ export const EditDocumentModal: React.FC<EditDocumentModalProps> = ({
 
   if (!isOpen || !document) return null;
 
-  const handleTeacherSelect = (teacherId: string) => {
-    const t = teachers.find(item => item.id === teacherId);
+  const handleTeacherSelect = (selectedId: string) => {
+    const t = teachers.find(item => item.id === selectedId);
     if (t) {
+      setTeacherId(t.id);
       setTeacherName(t.name);
       setTeacherNip(t.nip);
+      setTeacherEmail(t.email);
     }
   };
 
@@ -73,8 +79,10 @@ export const EditDocumentModal: React.FC<EditDocumentModalProps> = ({
       grade,
       semester,
       academicYear,
+      teacherId: teacherId || document.teacherId,
       teacherName,
       teacherNip,
+      teacherEmail: teacherEmail || document.teacherEmail,
       alokasiJp: Number(alokasiJp),
       status,
       supervisorNotes,

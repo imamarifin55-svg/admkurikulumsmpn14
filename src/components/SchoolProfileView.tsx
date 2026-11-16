@@ -24,7 +24,7 @@ export const SchoolProfileView: React.FC<SchoolProfileViewProps> = ({
   const schoolLogoInputRef = useRef<HTMLInputElement>(null);
   const pemdaLogoInputRef = useRef<HTMLInputElement>(null);
 
-  // Handle image upload and convert to base64 data URL
+  // Handle image upload and resize/compress to stay well below Firestore 1MB doc limit
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>, type: 'school' | 'pemda') => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -36,12 +36,40 @@ export const SchoolProfileView: React.FC<SchoolProfileViewProps> = ({
 
     const reader = new FileReader();
     reader.onload = (event) => {
-      const dataUrl = event.target?.result as string;
-      if (type === 'school') {
-        setFormData(prev => ({ ...prev, schoolLogoUrl: dataUrl }));
-      } else {
-        setFormData(prev => ({ ...prev, pemdaLogoUrl: dataUrl }));
+      const rawDataUrl = event.target?.result as string;
+      const updateLogoState = (finalUrl: string) => {
+        if (type === 'school') {
+          setFormData(prev => ({ ...prev, schoolLogoUrl: finalUrl }));
+        } else {
+          setFormData(prev => ({ ...prev, pemdaLogoUrl: finalUrl }));
+        }
+      };
+
+      // Keep small SVGs directly; resize raster images via canvas to max 256x256
+      if (file.type === 'image/svg+xml' && rawDataUrl.length < 150000) {
+        updateLogoState(rawDataUrl);
+        return;
       }
+
+      const img = new Image();
+      img.onload = () => {
+        const maxDim = 256;
+        const scale = Math.min(1, maxDim / Math.max(img.width || maxDim, img.height || maxDim));
+        const targetW = Math.max(1, Math.round(img.width * scale));
+        const targetH = Math.max(1, Math.round(img.height * scale));
+        const canvas = document.createElement('canvas');
+        canvas.width = targetW;
+        canvas.height = targetH;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, targetW, targetH);
+          updateLogoState(canvas.toDataURL('image/png'));
+        } else {
+          updateLogoState(rawDataUrl);
+        }
+      };
+      img.onerror = () => updateLogoState(rawDataUrl);
+      img.src = rawDataUrl;
     };
     reader.readAsDataURL(file);
   };
