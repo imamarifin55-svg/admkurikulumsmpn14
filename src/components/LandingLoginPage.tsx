@@ -91,9 +91,13 @@ export const LandingLoginPage: React.FC<LandingLoginPageProps> = ({
 
           {/* Zone 3: Direct Action */}
           <div className="flex items-center gap-2.5">
-            <div className="hidden sm:flex items-center gap-1.5 text-xs text-emerald-800 font-medium bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg">
-              <span className="w-2 h-2 rounded-full bg-emerald-500" />
-              <span>{isCloudSynced ? 'Cloud Online' : 'Sistem Aktif'}</span>
+            <div className={`hidden sm:flex items-center gap-1.5 text-xs font-medium border px-2.5 py-1 rounded-lg ${
+              isCloudSynced
+                ? 'text-emerald-800 bg-emerald-50 border-emerald-200'
+                : 'text-slate-700 bg-slate-100 border-slate-200'
+            }`}>
+              <span className={`w-2 h-2 rounded-full ${isCloudSynced ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+              <span>{isCloudSynced ? 'Cloud Terhubung' : 'Mode Lokal'}</span>
             </div>
             <a
               href="#login-form"
@@ -277,7 +281,7 @@ export const LandingLoginPage: React.FC<LandingLoginPageProps> = ({
                   <div className="p-3 bg-indigo-50/70 border border-indigo-200 rounded-xl text-xs text-indigo-900">
                     <div className="font-bold flex items-center gap-1.5 mb-1">
                       <ShieldCheck className="w-4 h-4 text-indigo-700" />
-                      Akses Utama Waka Kurikulum
+                      <span>Waka Kurikulum: {profile.curriculumViceName}</span>
                     </div>
                     <p className="text-[11px] text-indigo-800 leading-relaxed">
                       Memiliki akses penuh memonitor matriks seluruh {teachers.length} guru pengampu, memvalidasi telaah, dan mengesahkan berkas kurikulum sekolah.

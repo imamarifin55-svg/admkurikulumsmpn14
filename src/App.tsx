@@ -15,7 +15,8 @@ import {
 import { 
   subscribeToDocuments, saveDocumentToFirestore, 
   batchSaveDocumentsToFirestore, deleteDocumentFromFirestore,
-  subscribeToSchoolProfile, saveSchoolProfileToFirestore
+  subscribeToSchoolProfile, saveSchoolProfileToFirestore,
+  subscribeToTeachers, saveTeacherToFirestore, deleteTeacherFromFirestore
 } from './services/firestoreService';
 import { testFirestoreConnection, auth } from './services/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -31,6 +32,7 @@ import { SupervisionView } from './components/SupervisionView';
 import { ReportsView } from './components/ReportsView';
 import { SchoolProfileView } from './components/SchoolProfileView';
 import { CategoryManagementView } from './components/CategoryManagementView';
+import { TeacherManagementView } from './components/TeacherManagementView';
 import { AutoUploadModal } from './components/AutoUploadModal';
 import { DocumentDetailModal } from './components/DocumentDetailModal';
 import { EditDocumentModal } from './components/EditDocumentModal';
@@ -39,6 +41,7 @@ import { PrintValidationSheet } from './components/PrintValidationSheet';
 const STORAGE_KEY = 'arsip_kurikulum_documents_v1';
 const PROFILE_STORAGE_KEY = 'arsip_kurikulum_profile_v1';
 const CATEGORIES_STORAGE_KEY = 'arsip_kurikulum_categories_v1';
+const TEACHERS_STORAGE_KEY = 'arsip_kurikulum_teachers_v1';
 
 export default function App() {
   // Load documents from localStorage or initial seed
@@ -74,7 +77,16 @@ export default function App() {
     return INITIAL_CATEGORIES;
   });
 
-  const [teachers] = useState<Teacher[]>(INITIAL_TEACHERS);
+  // Load teachers from localStorage or initial seed
+  const [teachers, setTeachers] = useState<Teacher[]>(() => {
+    try {
+      const saved = localStorage.getItem(TEACHERS_STORAGE_KEY);
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.warn('Failed to load teachers:', e);
+    }
+    return INITIAL_TEACHERS;
+  });
 
   // Session Auth State: If false, renders the Landing & Login Page
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
@@ -101,12 +113,12 @@ export default function App() {
     };
   });
 
-  const [isCloudSynced, setIsCloudSynced] = useState(true);
+  const [isCloudSynced, setIsCloudSynced] = useState<boolean>(() => Boolean(auth.currentUser));
 
   // Active filters and views
   const [academicYear, setAcademicYear] = useState<string>(profile.currentAcademicYear || '2025/2026');
   const [currentSemester, setCurrentSemester] = useState<SemesterType>(profile.currentSemester || 'ganjil');
-  const [activeView, setActiveView] = useState<'matrix' | 'list' | 'supervision' | 'reports' | 'profile' | 'categories'>('matrix');
+  const [activeView, setActiveView] = useState<'matrix' | 'list' | 'supervision' | 'reports' | 'profile' | 'categories' | 'teachers'>('matrix');
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   // Modals state
@@ -118,6 +130,12 @@ export default function App() {
   // Toast / feedback notification
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
+  // Keep latest teachers ref for auth callback
+  const teachersRef = React.useRef<Teacher[]>(teachers);
+  useEffect(() => {
+    teachersRef.current = teachers;
+  }, [teachers]);
+
   // 1. Test Firestore and subscribe to Firebase Auth changes
   useEffect(() => {
     testFirestoreConnection();
@@ -125,27 +143,39 @@ export default function App() {
       if (firebaseUser) {
         const email = firebaseUser.email || '';
         const isWaka = email === 'imamarifin55@admin.smp.belajar.id';
-        const matched = teachers.find(t => t.email.toLowerCase() === email.toLowerCase());
+        const currentTeachers = teachersRef.current;
+        const matched = currentTeachers.find(t => t.email.toLowerCase() === email.toLowerCase());
 
-        setCurrentUser({
+        const loggedUser: AppUser = {
           uid: firebaseUser.uid,
           email,
           displayName: firebaseUser.displayName || (isWaka ? 'Waka Kurikulum' : 'Guru Pengampu'),
           role: isWaka ? 'waka_kurikulum' : 'guru',
-          teacherId: matched ? matched.id : (isWaka ? undefined : teachers[0].id)
-        });
+          teacherId: matched ? matched.id : (isWaka ? undefined : currentTeachers[0]?.id)
+        };
+
+        setCurrentUser(loggedUser);
+        setIsCloudSynced(true);
+        setIsAuthenticated(true);
+        try {
+          localStorage.setItem('arsip_kurikulum_logged_in', 'true');
+          localStorage.setItem('arsip_kurikulum_current_user', JSON.stringify(loggedUser));
+        } catch (e) {
+          console.warn(e);
+        }
+      } else {
+        setIsCloudSynced(false);
       }
     });
 
     return () => unsubAuth();
-  }, [teachers]);
+  }, []);
 
-  // 2. Real-time Firestore sync for Documents
+  // 2. Real-time Firestore sync for Documents, Profile & Teachers
   useEffect(() => {
     const unsubDocs = subscribeToDocuments((remoteDocs) => {
       if (remoteDocs && remoteDocs.length > 0) {
         setDocuments(remoteDocs);
-        setIsCloudSynced(true);
       }
     });
 
@@ -155,9 +185,16 @@ export default function App() {
       }
     });
 
+    const unsubTeachers = subscribeToTeachers((remoteTeachers) => {
+      if (remoteTeachers && remoteTeachers.length > 0) {
+        setTeachers(remoteTeachers);
+      }
+    });
+
     return () => {
       unsubDocs();
       unsubProfile();
+      unsubTeachers();
     };
   }, []);
 
@@ -187,6 +224,15 @@ export default function App() {
       console.warn('Failed to persist categories:', e);
     }
   }, [categories]);
+
+  // Sync teachers to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem(TEACHERS_STORAGE_KEY, JSON.stringify(teachers));
+    } catch (e) {
+      console.warn('Failed to persist teachers:', e);
+    }
+  }, [teachers]);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -244,7 +290,7 @@ export default function App() {
 
     if (role === 'guru') {
       showToast(`Beralih ke Portal Guru: ${matched?.name || 'Guru'}. Hanya menampilkan berkas Anda.`);
-      if (activeView === 'supervision' || activeView === 'reports' || activeView === 'profile' || activeView === 'categories') {
+      if (activeView === 'supervision' || activeView === 'reports' || activeView === 'profile' || activeView === 'categories' || activeView === 'teachers') {
         setActiveView('matrix');
       }
     } else {
@@ -255,11 +301,11 @@ export default function App() {
   // Add new documents from automatic upload modal
   const handleSaveDocuments = async (newDocs: CurriculumDocument[]) => {
     setDocuments(prev => [...newDocs, ...prev]);
-    showToast(`Berhasil mengarsipkan ${newDocs.length} berkas kurikulum ke database.`);
-    try {
+    if (auth.currentUser) {
       await batchSaveDocumentsToFirestore(newDocs);
-    } catch (e) {
-      console.warn('Failed to save to Firestore:', e);
+      showToast(`Berhasil mengarsipkan ${newDocs.length} berkas kurikulum ke Cloud Firestore.`);
+    } else {
+      showToast(`Berhasil mengarsipkan ${newDocs.length} berkas (tersimpan lokal — masuk Google untuk sinkron Cloud).`);
     }
   };
 
@@ -269,22 +315,25 @@ export default function App() {
     if (selectedDoc?.id === updatedDoc.id) {
       setSelectedDoc(updatedDoc);
     }
-    showToast(`Perubahan berkas "${updatedDoc.title}" berhasil disimpan.`);
-    try {
+    if (auth.currentUser) {
       await saveDocumentToFirestore(updatedDoc);
-    } catch (e) {
-      console.warn('Failed to update Firestore:', e);
+      showToast(`Perubahan berkas "${updatedDoc.title}" berhasil disimpan ke Cloud.`);
+    } else {
+      showToast(`Perubahan berkas "${updatedDoc.title}" disimpan secara lokal.`);
     }
   };
 
   // Save updated school profile
   const handleSaveProfile = async (updatedProfile: SchoolProfile) => {
     setProfile(updatedProfile);
-    showToast('Profil sekolah dan logo berhasil diperbarui.');
-    try {
+    if (updatedProfile.currentAcademicYear) {
+      setAcademicYear(updatedProfile.currentAcademicYear);
+    }
+    if (auth.currentUser) {
       await saveSchoolProfileToFirestore(updatedProfile);
-    } catch (e) {
-      console.warn('Failed to sync profile to Firestore:', e);
+      showToast('Profil sekolah dan logo berhasil disimpan ke Cloud Firestore.');
+    } else {
+      showToast('Profil sekolah disimpan lokal (Masuk Akun Google di pojok kanan atas untuk sinkron ke Cloud).');
     }
   };
 
@@ -304,6 +353,73 @@ export default function App() {
   const handleDeleteCategory = (catId: string) => {
     setCategories(prev => prev.filter(c => c.id !== catId));
     showToast('Kategori perangkat pembelajaran telah dihapus.');
+  };
+
+  // Add new teacher
+  const handleAddTeacher = async (newTeacher: Teacher) => {
+    setTeachers(prev => [...prev, newTeacher]);
+    if (auth.currentUser) {
+      await saveTeacherToFirestore(newTeacher);
+      showToast(`Guru "${newTeacher.name}" berhasil ditambahkan ke Cloud Firestore.`);
+    } else {
+      showToast(`Guru "${newTeacher.name}" ditambahkan secara lokal.`);
+    }
+  };
+
+  // Update teacher (and keep linked documents synced)
+  const handleUpdateTeacher = async (updatedTeacher: Teacher) => {
+    const previousTeacher = teachers.find(t => t.id === updatedTeacher.id);
+    setTeachers(prev => prev.map(t => t.id === updatedTeacher.id ? updatedTeacher : t));
+
+    const modifiedDocs: CurriculumDocument[] = [];
+    setDocuments(prev =>
+      prev.map(d => {
+        const isLinked =
+          d.teacherId === updatedTeacher.id ||
+          (previousTeacher && d.teacherName === previousTeacher.name);
+        if (isLinked) {
+          const syncedDoc: CurriculumDocument = {
+            ...d,
+            teacherId: updatedTeacher.id,
+            teacherName: updatedTeacher.name,
+            teacherNip: updatedTeacher.nip,
+            teacherEmail: updatedTeacher.email
+          };
+          modifiedDocs.push(syncedDoc);
+          return syncedDoc;
+        }
+        return d;
+      })
+    );
+
+    if (currentUser.role === 'guru' && currentUser.teacherId === updatedTeacher.id) {
+      setCurrentUser(prev => ({
+        ...prev,
+        displayName: updatedTeacher.name,
+        email: updatedTeacher.email
+      }));
+    }
+
+    if (auth.currentUser) {
+      await saveTeacherToFirestore(updatedTeacher);
+      if (modifiedDocs.length > 0) {
+        await batchSaveDocumentsToFirestore(modifiedDocs);
+      }
+      showToast(`Data guru "${updatedTeacher.name}" berhasil diperbarui di Cloud.`);
+    } else {
+      showToast(`Data guru "${updatedTeacher.name}" diperbarui secara lokal.`);
+    }
+  };
+
+  // Delete teacher
+  const handleDeleteTeacher = async (teacherId: string) => {
+    setTeachers(prev => prev.filter(t => t.id !== teacherId));
+    if (auth.currentUser) {
+      await deleteTeacherFromFirestore(teacherId);
+      showToast('Data guru telah dihapus dari Cloud.');
+    } else {
+      showToast('Data guru telah dihapus secara lokal.');
+    }
   };
 
   // Update verification status and notes
@@ -341,12 +457,8 @@ export default function App() {
       } : null);
     }
 
-    if (updatedDocInstance) {
-      try {
-        await saveDocumentToFirestore(updatedDocInstance);
-      } catch (e) {
-        console.warn('Failed to update status in Firestore:', e);
-      }
+    if (updatedDocInstance && auth.currentUser) {
+      await saveDocumentToFirestore(updatedDocInstance);
     }
 
     showToast('Status kelayakan dan catatan supervisi berhasil diperbarui.');
@@ -374,12 +486,8 @@ export default function App() {
       return d;
     }));
 
-    if (modified.length > 0) {
-      try {
-        await batchSaveDocumentsToFirestore(modified);
-      } catch (e) {
-        console.warn('Failed batch approval in Firestore:', e);
-      }
+    if (modified.length > 0 && auth.currentUser) {
+      await batchSaveDocumentsToFirestore(modified);
     }
 
     showToast(`Berhasil mengesahkan ${count} dokumen kurikulum semester ${currentSemester === 'ganjil' ? 'Ganjil' : 'Genap'}.`);
@@ -391,22 +499,22 @@ export default function App() {
     if (selectedDoc?.id === docId) setSelectedDoc(null);
     if (editDoc?.id === docId) setEditDoc(null);
     if (printDoc?.id === docId) setPrintDoc(null);
-    showToast('Dokumen telah berhasil dihapus dari arsip.');
-    try {
+    if (auth.currentUser) {
       await deleteDocumentFromFirestore(docId);
-    } catch (e) {
-      console.warn('Failed to delete from Firestore:', e);
+      showToast('Dokumen telah berhasil dihapus dari Cloud.');
+    } else {
+      showToast('Dokumen telah berhasil dihapus secara lokal.');
     }
   };
 
   // Restore backup
   const handleRestoreBackup = async (restoredDocs: CurriculumDocument[]) => {
     setDocuments(restoredDocs);
-    showToast(`Arsip berhasil dipulihkan (${restoredDocs.length} dokumen).`);
-    try {
+    if (auth.currentUser) {
       await batchSaveDocumentsToFirestore(restoredDocs);
-    } catch (e) {
-      console.warn('Failed to sync restored backup to Firestore:', e);
+      showToast(`Arsip berhasil dipulihkan ke Cloud (${restoredDocs.length} dokumen).`);
+    } else {
+      showToast(`Arsip berhasil dipulihkan secara lokal (${restoredDocs.length} dokumen).`);
     }
   };
 
@@ -436,9 +544,11 @@ export default function App() {
       localStorage.removeItem(STORAGE_KEY);
       localStorage.removeItem(PROFILE_STORAGE_KEY);
       localStorage.removeItem(CATEGORIES_STORAGE_KEY);
+      localStorage.removeItem(TEACHERS_STORAGE_KEY);
       setDocuments(INITIAL_DOCUMENTS);
       setProfile(INITIAL_SCHOOL_PROFILE);
       setCategories(INITIAL_CATEGORIES);
+      setTeachers(INITIAL_TEACHERS);
       showToast('Data berhasil direset ke kondisi awal.');
     }
   };
@@ -524,12 +634,13 @@ export default function App() {
           teachers={teachers}
           isCloudSynced={isCloudSynced}
           onLogout={handleLogout}
+          wakaName={profile.curriculumViceName}
         />
 
         {/* Content Viewport */}
         <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto">
           {/* School Hero Profile Banner (on main curriculum views) */}
-          {activeView !== 'profile' && activeView !== 'categories' && (
+          {activeView !== 'profile' && activeView !== 'categories' && activeView !== 'teachers' && (
             <SchoolBanner
               profile={profile}
               documents={visibleDocuments}
@@ -540,7 +651,7 @@ export default function App() {
           )}
 
           {/* Semester & Academic Year Segmented Controls (on main curriculum views) */}
-          {activeView !== 'profile' && activeView !== 'categories' && (
+          {activeView !== 'profile' && activeView !== 'categories' && activeView !== 'teachers' && (
             <SemesterControls
               currentSemester={currentSemester}
               onSemesterChange={setCurrentSemester}
@@ -621,6 +732,19 @@ export default function App() {
               onDeleteCategory={handleDeleteCategory}
             />
           )}
+
+          {/* Kelola Data Guru Pengampu & Pejabat Waka Kurikulum */}
+          {activeView === 'teachers' && (
+            <TeacherManagementView
+              teachers={teachers}
+              documents={documents}
+              profile={profile}
+              onSaveProfile={handleSaveProfile}
+              onAddTeacher={handleAddTeacher}
+              onUpdateTeacher={handleUpdateTeacher}
+              onDeleteTeacher={handleDeleteTeacher}
+            />
+          )}
         </main>
 
         {/* Footer */}
@@ -651,6 +775,7 @@ export default function App() {
           teachers={teachers}
           profile={profile}
           currentSemester={currentSemester}
+          currentAcademicYear={academicYear}
           categories={categories}
           initialTeacherId={uploadTargetTeacherId}
           initialCategoryId={uploadTargetCategoryId}

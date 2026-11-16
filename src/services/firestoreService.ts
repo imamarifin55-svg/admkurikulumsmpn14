@@ -3,7 +3,7 @@ import {
   onSnapshot, query, where, orderBy 
 } from 'firebase/firestore';
 import { db, auth } from './firebase';
-import { CurriculumDocument, SchoolProfile, CategoryItem } from '../types/curriculum';
+import { CurriculumDocument, SchoolProfile, CategoryItem, Teacher } from '../types/curriculum';
 
 export enum OperationType {
   CREATE = 'create',
@@ -115,5 +115,45 @@ export async function saveSchoolProfileToFirestore(profile: SchoolProfile): Prom
     await setDoc(doc(db, 'school_config', 'profile'), profile, { merge: true });
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, path);
+  }
+}
+
+// Subscribe to Teachers Directory
+export function subscribeToTeachers(onUpdate: (teachers: Teacher[]) => void) {
+  const collectionRef = collection(db, 'teachers');
+  return onSnapshot(
+    collectionRef,
+    (snapshot) => {
+      const list: Teacher[] = [];
+      snapshot.forEach((docSnap) => {
+        list.push(docSnap.data() as Teacher);
+      });
+      if (list.length > 0) {
+        onUpdate(list);
+      }
+    },
+    (error) => {
+      handleFirestoreError(error, OperationType.GET, 'teachers');
+    }
+  );
+}
+
+// Save or Update Teacher
+export async function saveTeacherToFirestore(teacher: Teacher): Promise<void> {
+  const path = `teachers/${teacher.id}`;
+  try {
+    await setDoc(doc(db, 'teachers', teacher.id), teacher, { merge: true });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, path);
+  }
+}
+
+// Delete Teacher
+export async function deleteTeacherFromFirestore(teacherId: string): Promise<void> {
+  const path = `teachers/${teacherId}`;
+  try {
+    await deleteDoc(doc(db, 'teachers', teacherId));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, path);
   }
 }

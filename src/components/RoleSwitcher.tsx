@@ -13,6 +13,7 @@ interface RoleSwitcherProps {
   teachers: Teacher[];
   isCloudSynced: boolean;
   onLogout?: () => void;
+  wakaName?: string;
 }
 
 export const RoleSwitcher: React.FC<RoleSwitcherProps> = ({
@@ -20,7 +21,8 @@ export const RoleSwitcher: React.FC<RoleSwitcherProps> = ({
   onRoleChange,
   teachers,
   isCloudSynced,
-  onLogout
+  onLogout,
+  wakaName
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isAuthLoading, setIsAuthLoading] = useState(false);
@@ -86,7 +88,7 @@ export const RoleSwitcher: React.FC<RoleSwitcherProps> = ({
             {currentUser.role === 'waka_kurikulum' ? 'Mode Waka Kurikulum' : 'Portal Guru'}
           </div>
           <div className="text-xs font-bold text-slate-800 truncate max-w-[150px]">
-            {currentUser.role === 'waka_kurikulum' ? 'Dashboard Utama Sekolah' : selectedTeacher?.name || 'Guru Pengampu'}
+            {currentUser.role === 'waka_kurikulum' ? (wakaName || 'Dashboard Utama') : selectedTeacher?.name || 'Guru Pengampu'}
           </div>
         </div>
 
@@ -111,8 +113,12 @@ export const RoleSwitcher: React.FC<RoleSwitcherProps> = ({
                   {isCloudSynced ? '✓ Terhubung ke Firestore' : 'Penyimpanan Offline Lokal'}
                 </div>
               </div>
-              <span className="text-[9px] font-mono px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold">
-                Online
+              <span className={`text-[9px] font-mono px-2 py-0.5 rounded-md font-bold ${
+                isCloudSynced
+                  ? 'bg-emerald-100 text-emerald-800'
+                  : 'bg-amber-100 text-amber-800'
+              }`}>
+                {isCloudSynced ? 'Cloud' : 'Lokal'}
               </span>
             </div>
 
@@ -140,10 +146,10 @@ export const RoleSwitcher: React.FC<RoleSwitcherProps> = ({
                   </div>
                   <div className="min-w-0">
                     <div className="text-xs font-bold leading-tight truncate">
-                      Waka Kurikulum (Dashboard Utama)
+                      {wakaName || 'Waka Kurikulum'}
                     </div>
                     <div className="text-[10px] text-slate-400 font-normal">
-                      Akses semua berkas guru, telaah &amp; supervisi
+                      Waka Kurikulum · Dashboard Utama Sekolah
                     </div>
                   </div>
                 </div>
@@ -203,7 +209,13 @@ export const RoleSwitcher: React.FC<RoleSwitcherProps> = ({
                 className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-semibold shadow-xs transition-colors"
               >
                 <LogIn className="w-3.5 h-3.5" />
-                <span>Masuk Akun Google / belajar.id</span>
+                <span>
+                  {isAuthLoading
+                    ? 'Memproses...'
+                    : isCloudSynced
+                    ? 'Ganti Akun Google / belajar.id'
+                    : 'Hubungkan Cloud (Google / belajar.id)'}
+                </span>
               </button>
 
               {onLogout && (

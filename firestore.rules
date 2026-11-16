@@ -6,11 +6,15 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function isVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
     function isWaka() {
-      return isSignedIn() && (
+      return isVerified() && (
         request.auth.token.email == "imamarifin55@admin.smp.belajar.id" ||
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'waka_kurikulum'
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'waka_kurikulum')
       );
     }
 
@@ -22,23 +26,25 @@ service cloud.firestore {
     // Users Collection
     match /users/{userId} {
       allow read: if isSignedIn();
-      allow write: if isSignedIn() && (request.auth.uid == userId || isWaka());
+      allow write: if isVerified() && (request.auth.uid == userId || isWaka());
     }
 
     // School Profile Config
     match /school_config/{configId} {
-      allow read: if true; // School identity is readable
-      allow write: if isSignedIn();
+      allow read: if true;
+      allow write: if isVerified();
     }
 
-    // Curriculum Documents:
-    // Waka Kurikulum has full oversight (reads all, verifies all, deletes if needed)
-    // Teachers can read all documents or their own, create new, and update/delete their own
+    // Curriculum Documents
     match /documents/{documentId} {
-      allow read: if true; // Allows teachers and waka to browse matrix/library
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
+      allow read: if true;
+      allow create, update, delete: if isVerified();
+    }
+
+    // Teachers Directory
+    match /teachers/{teacherId} {
+      allow read: if true;
+      allow write: if isVerified();
     }
   }
 }

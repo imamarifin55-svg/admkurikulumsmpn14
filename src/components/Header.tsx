@@ -4,7 +4,7 @@ import { AppUser, AppUserRole, SemesterType, Teacher } from '../types/curriculum
 import { RoleSwitcher } from './RoleSwitcher';
 
 interface HeaderProps {
-  activeView: 'list' | 'matrix' | 'supervision' | 'reports' | 'profile' | 'categories';
+  activeView: 'list' | 'matrix' | 'supervision' | 'reports' | 'profile' | 'categories' | 'teachers';
   currentSemester: SemesterType;
   academicYear: string;
   onOpenUpload: () => void;
@@ -15,6 +15,7 @@ interface HeaderProps {
   teachers: Teacher[];
   isCloudSynced: boolean;
   onLogout?: () => void;
+  wakaName?: string;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -28,7 +29,8 @@ export const Header: React.FC<HeaderProps> = ({
   onRoleChange,
   teachers,
   isCloudSynced,
-  onLogout
+  onLogout,
+  wakaName
 }) => {
   const getViewTitle = () => {
     switch (activeView) {
@@ -40,6 +42,8 @@ export const Header: React.FC<HeaderProps> = ({
         return 'Panel Supervisi & Validasi';
       case 'reports':
         return 'Rekapitulasi & Laporan Kurikulum';
+      case 'teachers':
+        return 'Data Guru & Pejabat Kurikulum';
       case 'categories':
         return 'Kelola Kategori Perangkat Pembelajaran';
       case 'profile':
@@ -85,6 +89,7 @@ export const Header: React.FC<HeaderProps> = ({
             teachers={teachers}
             isCloudSynced={isCloudSynced}
             onLogout={onLogout}
+            wakaName={wakaName}
           />
 
           {currentUser.role === 'waka_kurikulum' && pendingCount > 0 && (

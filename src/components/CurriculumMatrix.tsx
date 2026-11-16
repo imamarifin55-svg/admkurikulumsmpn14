@@ -46,9 +46,11 @@ export const CurriculumMatrix: React.FC<CurriculumMatrixProps> = ({
     d => (d.semester === currentSemester || d.category === 'prota') && d.academicYear === academicYear
   );
 
-  const getDocForTeacherAndCategory = (teacherName: string, category: DocumentCategory) => {
+  const getDocForTeacherAndCategory = (teacher: Teacher, category: DocumentCategory) => {
     return semesterDocs.find(
-      d => (d.teacherName === teacherName || teacherName.includes(d.teacherName.split(' ')[0])) &&
+      d => (d.teacherId === teacher.id ||
+            d.teacherName === teacher.name ||
+            (teacher.nip && teacher.nip !== '-' && d.teacherNip === teacher.nip)) &&
            d.category === category
     );
   };
@@ -115,7 +117,7 @@ export const CurriculumMatrix: React.FC<CurriculumMatrixProps> = ({
         </div>
 
         {/* Batch action */}
-        {pendingDocs.length > 0 && (
+        {pendingDocs.length > 0 && !currentTeacherId && (
           <button
             onClick={onBatchApproveSemester}
             className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-xs transition-colors shrink-0"
@@ -148,7 +150,7 @@ export const CurriculumMatrix: React.FC<CurriculumMatrixProps> = ({
               // Calculate completion score
               let completedCount = 0;
               activeCategories.forEach(cat => {
-                const doc = getDocForTeacherAndCategory(teacher.name, cat.id);
+                const doc = getDocForTeacherAndCategory(teacher, cat.id);
                 if (doc && (doc.status === 'disahkan' || doc.status === 'diverifikasi')) {
                   completedCount++;
                 }
@@ -169,7 +171,7 @@ export const CurriculumMatrix: React.FC<CurriculumMatrixProps> = ({
 
                   {/* Active Category Cells */}
                   {activeCategories.map((cat) => {
-                    const doc = getDocForTeacherAndCategory(teacher.name, cat.id);
+                    const doc = getDocForTeacherAndCategory(teacher, cat.id);
 
                     // CASE 1: Belum Diunggah -> Tanda + untuk unggah
                     if (!doc) {

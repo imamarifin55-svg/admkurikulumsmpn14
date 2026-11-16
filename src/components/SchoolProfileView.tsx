@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   Building2, Upload, Trash2, CheckCircle2, Save, Sparkles, 
   Eye, ShieldCheck, MapPin, Phone, Mail, Globe, Award, FileText 
@@ -16,6 +16,10 @@ export const SchoolProfileView: React.FC<SchoolProfileViewProps> = ({
 }) => {
   const [formData, setFormData] = useState<SchoolProfile>(profile);
   const [isSaved, setIsSaved] = useState(false);
+
+  useEffect(() => {
+    setFormData(profile);
+  }, [profile]);
 
   const schoolLogoInputRef = useRef<HTMLInputElement>(null);
   const pemdaLogoInputRef = useRef<HTMLInputElement>(null);
@@ -353,8 +357,8 @@ export const SchoolProfileView: React.FC<SchoolProfileViewProps> = ({
           </div>
         </div>
 
-        {/* Level & Accreditation */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {/* Level, Accreditation & Active Academic Year */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>
             <label className="block font-semibold text-slate-700 mb-1">
               Jenjang Satuan Pendidikan
@@ -382,6 +386,22 @@ export const SchoolProfileView: React.FC<SchoolProfileViewProps> = ({
               placeholder="Contoh: Akreditasi A (Unggul)"
               className="w-full border border-slate-200 rounded-lg p-2.5 font-medium text-slate-800 focus:border-indigo-500 focus:outline-none"
             />
+          </div>
+
+          <div>
+            <label className="block font-semibold text-slate-700 mb-1">
+              Tahun Pelajaran Aktif
+            </label>
+            <select
+              value={formData.currentAcademicYear}
+              onChange={(e) => setFormData(prev => ({ ...prev, currentAcademicYear: e.target.value }))}
+              className="w-full bg-white border border-slate-200 rounded-lg p-2.5 font-semibold text-slate-900 focus:border-indigo-500 focus:outline-none"
+            >
+              <option value="2026/2027">2026/2027</option>
+              <option value="2025/2026">2025/2026</option>
+              <option value="2024/2025">2024/2025</option>
+              <option value="2023/2024">2023/2024</option>
+            </select>
           </div>
         </div>
 

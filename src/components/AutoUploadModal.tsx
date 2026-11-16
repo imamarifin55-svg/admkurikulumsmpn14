@@ -47,6 +47,7 @@ interface AutoUploadModalProps {
   teachers: Teacher[];
   profile: SchoolProfile;
   currentSemester: SemesterType;
+  currentAcademicYear?: string;
   categories: CategoryItem[];
   initialTeacherId?: string | null;
   initialCategoryId?: string | null;
@@ -59,6 +60,7 @@ export const AutoUploadModal: React.FC<AutoUploadModalProps> = ({
   teachers,
   profile,
   currentSemester,
+  currentAcademicYear,
   categories,
   initialTeacherId,
   initialCategoryId
@@ -72,6 +74,9 @@ export const AutoUploadModal: React.FC<AutoUploadModalProps> = ({
   );
   const [selectedGrade, setSelectedGrade] = useState<GradeLevel>('7');
   const [selectedSemester, setSelectedSemester] = useState<SemesterType>(currentSemester);
+  const [selectedAcademicYear, setSelectedAcademicYear] = useState<string>(
+    currentAcademicYear || profile.currentAcademicYear || '2025/2026'
+  );
   const [selectedCurriculum, setSelectedCurriculum] = useState<CurriculumType>('Kurikulum Merdeka');
 
   // Slots for category-by-category uploads
@@ -93,7 +98,10 @@ export const AutoUploadModal: React.FC<AutoUploadModalProps> = ({
     if (currentSemester) {
       setSelectedSemester(currentSemester);
     }
-  }, [initialTeacherId, currentSemester]);
+    if (currentAcademicYear) {
+      setSelectedAcademicYear(currentAcademicYear);
+    }
+  }, [initialTeacherId, currentSemester, currentAcademicYear]);
 
   if (!isOpen) return null;
 
@@ -192,7 +200,7 @@ export const AutoUploadModal: React.FC<AutoUploadModalProps> = ({
         subject: result.detectedSubject,
         grade: result.detectedGrade,
         semester: result.detectedSemester,
-        academicYear: profile.currentAcademicYear,
+        academicYear: selectedAcademicYear,
         curriculumType: result.detectedCurriculum,
         teacherId: matchedTeacher ? matchedTeacher.id : '',
         alokasiJp: result.detectedJp,
@@ -226,7 +234,7 @@ export const AutoUploadModal: React.FC<AutoUploadModalProps> = ({
       uploadedCategoriesList.forEach((slot, idx) => {
         const catInfo = categories.find(c => c.id === slot.categoryId);
         const catCode = catInfo?.code || 'DOC';
-        const regNumber = `REG-KUR/SMP1/${profile.currentAcademicYear.substring(0, 4)}/${catCode}-${String(100 + idx)}`;
+        const regNumber = `REG-KUR/SMP1/${selectedAcademicYear.substring(0, 4)}/${catCode}-${String(100 + idx)}`;
 
         finalDocs.push({
           id: `doc-${Date.now()}-${idx}`,
@@ -238,7 +246,7 @@ export const AutoUploadModal: React.FC<AutoUploadModalProps> = ({
           subject: currentSubject,
           grade: selectedGrade,
           semester: selectedSemester,
-          academicYear: profile.currentAcademicYear,
+          academicYear: selectedAcademicYear,
           curriculumType: selectedCurriculum,
           teacherName: currentTeacher.name,
           teacherNip: currentTeacher.nip,
@@ -314,7 +322,7 @@ export const AutoUploadModal: React.FC<AutoUploadModalProps> = ({
                   Pilihan Cepat Unggah Dokumen Kurikulum
                 </h2>
                 <span className="text-[10px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded px-2 py-0.5">
-                  Fase D · TP {profile.currentAcademicYear}
+                  Fase D · TP {selectedAcademicYear}
                 </span>
               </div>
               <p className="text-xs text-slate-500 mt-0.5">
@@ -393,7 +401,7 @@ export const AutoUploadModal: React.FC<AutoUploadModalProps> = ({
                   1. Pilih Guru Pengampu &amp; Sasaran Kelas Pembelajaran:
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
                   {/* Teacher Select */}
                   <div>
                     <label className="block text-[11px] font-semibold text-slate-700 mb-1">
@@ -450,6 +458,23 @@ export const AutoUploadModal: React.FC<AutoUploadModalProps> = ({
                     >
                       <option value="ganjil">Semester Ganjil (Gasal)</option>
                       <option value="genap">Semester Genap</option>
+                    </select>
+                  </div>
+
+                  {/* Academic Year */}
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                      Tahun Pelajaran
+                    </label>
+                    <select
+                      value={selectedAcademicYear}
+                      onChange={(e) => setSelectedAcademicYear(e.target.value)}
+                      className="w-full text-xs font-semibold bg-white border border-slate-300 rounded-lg p-2 text-slate-900 focus:outline-none focus:border-indigo-500"
+                    >
+                      <option value="2026/2027">2026/2027</option>
+                      <option value="2025/2026">2025/2026</option>
+                      <option value="2024/2025">2024/2025</option>
+                      <option value="2023/2024">2023/2024</option>
                     </select>
                   </div>
                 </div>
@@ -743,7 +768,7 @@ export const AutoUploadModal: React.FC<AutoUploadModalProps> = ({
           <div className="text-xs text-slate-600">
             {totalUploadedCount > 0 ? (
               <span>
-                Siap mengarsipkan <strong>{totalUploadedCount} berkas</strong> untuk TP {profile.currentAcademicYear}
+                Siap mengarsipkan <strong>{totalUploadedCount} berkas</strong> untuk TP {selectedAcademicYear}
               </span>
             ) : (
               <span>Pilih berkas pada kategori di atas untuk memulai pengunggahan</span>

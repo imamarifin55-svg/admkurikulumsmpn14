@@ -172,8 +172,8 @@ export const EditDocumentModal: React.FC<EditDocumentModalProps> = ({
             </div>
           </div>
 
-          {/* Grade, Semester, Academic Year */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {/* Grade, Semester, Academic Year, Alokasi JP */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
               <label className="block font-semibold text-slate-700 mb-1">
                 Tingkat Kelas
@@ -200,6 +200,22 @@ export const EditDocumentModal: React.FC<EditDocumentModalProps> = ({
               >
                 <option value="ganjil">Semester Ganjil</option>
                 <option value="genap">Semester Genap</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block font-semibold text-slate-700 mb-1">
+                Tahun Pelajaran
+              </label>
+              <select
+                value={academicYear}
+                onChange={(e) => setAcademicYear(e.target.value)}
+                className="w-full text-xs font-semibold border border-slate-200 rounded-lg px-3 py-2 bg-white focus:border-indigo-500 focus:outline-none"
+              >
+                <option value="2026/2027">2026/2027</option>
+                <option value="2025/2026">2025/2026</option>
+                <option value="2024/2025">2024/2025</option>
+                <option value="2023/2024">2023/2024</option>
               </select>
             </div>
 

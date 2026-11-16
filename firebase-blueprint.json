@@ -68,6 +68,19 @@
         "currentSemester": { "type": "string" }
       },
       "required": ["id", "name", "npsn"]
+    },
+    "Teacher": {
+      "title": "Teacher",
+      "description": "Data guru pengampu mata pelajaran beserta NIP dan email belajar.id",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 150 },
+        "nip": { "type": "string", "maxLength": 50 },
+        "subject": { "type": "string", "maxLength": 120 },
+        "email": { "type": "string", "maxLength": 150 }
+      },
+      "required": ["id", "name", "nip", "subject", "email"]
     }
   },
   "firestore": {
@@ -82,6 +95,10 @@
     "/school_config/{configId}": {
       "schema": "SchoolProfile",
       "description": "Konfigurasi identitas sekolah dan logo"
+    },
+    "/teachers/{teacherId}": {
+      "schema": "Teacher",
+      "description": "Daftar guru pengampu mata pelajaran sekolah"
     }
   }
 }
