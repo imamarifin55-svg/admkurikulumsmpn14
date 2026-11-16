@@ -75,7 +75,7 @@ export const AutoUploadModal: React.FC<AutoUploadModalProps> = ({
   const [selectedGrade, setSelectedGrade] = useState<GradeLevel>('7');
   const [selectedSemester, setSelectedSemester] = useState<SemesterType>(currentSemester);
   const [selectedAcademicYear, setSelectedAcademicYear] = useState<string>(
-    currentAcademicYear || profile.currentAcademicYear || '2025/2026'
+    currentAcademicYear || profile.currentAcademicYear || '2026/2027'
   );
   const [selectedCurriculum, setSelectedCurriculum] = useState<CurriculumType>('Kurikulum Merdeka');
 

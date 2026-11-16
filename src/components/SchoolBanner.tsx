@@ -61,18 +61,12 @@ export const SchoolBanner: React.FC<SchoolBannerProps> = ({
               Pusat Repositori Digital & Supervisi Administrasi Kurikulum Merdeka. Pengunggahan otomatis silabus, alur tujuan pembelajaran (ATP), dan perangkat ajar berbasis semester.
             </p>
 
-            {/* School Officers info with avatar */}
-            <div className="flex items-center gap-3 pt-2 border-t border-white/10">
-              <img
-                src="/src/assets/images/curriculum_director_avatar_1793849401508.jpg"
-                alt="Waka Kurikulum"
-                referrerPolicy="no-referrer"
-                className="w-10 h-10 rounded-full border border-white/30 object-cover shrink-0"
-              />
+            {/* School Officers info */}
+            <div className="flex items-center pt-2.5 border-t border-white/10">
               <div className="text-xs">
                 <div className="font-semibold text-white">{profile.curriculumViceName}</div>
                 <div className="text-slate-300">
-                  Waka Kurikulum & Supervisi <span aria-hidden="true">·</span> NIP. {profile.curriculumViceNip}
+                  Waka Kurikulum &amp; Supervisi <span aria-hidden="true">·</span> NIP. {profile.curriculumViceNip}
                 </div>
               </div>
             </div>

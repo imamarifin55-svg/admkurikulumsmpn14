@@ -60,7 +60,13 @@ export default function App() {
   const [profile, setProfile] = useState<SchoolProfile>(() => {
     try {
       const saved = localStorage.getItem(PROFILE_STORAGE_KEY);
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved) as SchoolProfile;
+        if (localStorage.getItem('arsip_default_ay_2026_2027') !== 'true' && parsed.currentAcademicYear === '2025/2026') {
+          return { ...parsed, currentAcademicYear: '2026/2027' };
+        }
+        return parsed;
+      }
     } catch (e) {
       console.warn('Failed to load school profile:', e);
     }
@@ -117,7 +123,7 @@ export default function App() {
   });
 
   // Active filters and views
-  const [academicYear, setAcademicYear] = useState<string>(profile.currentAcademicYear || '2025/2026');
+  const [academicYear, setAcademicYear] = useState<string>(profile.currentAcademicYear || '2026/2027');
   const [currentSemester, setCurrentSemester] = useState<SemesterType>(profile.currentSemester || 'ganjil');
   const [activeView, setActiveView] = useState<'matrix' | 'list' | 'supervision' | 'reports' | 'profile' | 'categories' | 'teachers'>('matrix');
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
@@ -180,6 +186,22 @@ export default function App() {
     const unsubProfile = subscribeToSchoolProfile((remoteProfile) => {
       if (remoteProfile) {
         isCloudInitializedRef.current = true;
+        try {
+          const alreadyMigrated = localStorage.getItem('arsip_default_ay_2026_2027') === 'true';
+          if (!alreadyMigrated && (!remoteProfile.currentAcademicYear || remoteProfile.currentAcademicYear === '2025/2026')) {
+            const migratedProfile: SchoolProfile = { ...remoteProfile, currentAcademicYear: '2026/2027' };
+            localStorage.setItem('arsip_default_ay_2026_2027', 'true');
+            setProfile(migratedProfile);
+            setAcademicYear('2026/2027');
+            saveSchoolProfileToFirestore(migratedProfile).catch(err =>
+              console.warn('Gagal memperbarui default tahun ajaran ke Firestore:', err)
+            );
+            return;
+          }
+          localStorage.setItem('arsip_default_ay_2026_2027', 'true');
+        } catch (e) {
+          console.warn(e);
+        }
         setProfile(remoteProfile);
       }
     });

@@ -274,8 +274,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 onChange={(e) => onAcademicYearChange(e.target.value)}
                 className="w-full text-xs font-semibold bg-slate-800/90 border border-slate-700 rounded-lg p-2 text-slate-100 focus:outline-none focus:border-indigo-400"
               >
-                <option value="2026/2027" className="bg-slate-900 text-slate-100">2026/2027 (Baru)</option>
-                <option value="2025/2026" className="bg-slate-900 text-slate-100">2025/2026 (Tahun Aktif)</option>
+                <option value="2026/2027" className="bg-slate-900 text-slate-100">2026/2027 (Tahun Aktif)</option>
+                <option value="2025/2026" className="bg-slate-900 text-slate-100">2025/2026 (Arsip)</option>
                 <option value="2024/2025" className="bg-slate-900 text-slate-100">2024/2025 (Arsip)</option>
                 <option value="2023/2024" className="bg-slate-900 text-slate-100">2023/2024 (Arsip)</option>
               </select>

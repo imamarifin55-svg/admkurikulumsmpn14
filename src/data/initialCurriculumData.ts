@@ -91,7 +91,7 @@ export const INITIAL_SCHOOL_PROFILE: SchoolProfile = {
   headmasterNip: '19740512 199903 1 004',
   curriculumViceName: 'Imam Arifin, S.Pd., M.Si.',
   curriculumViceNip: '19820815 200801 1 009',
-  currentAcademicYear: '2025/2026',
+  currentAcademicYear: '2026/2027',
   currentSemester: 'ganjil',
   schoolLogoUrl: '',
   pemdaLogoUrl: ''

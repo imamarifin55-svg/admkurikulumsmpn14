@@ -36,8 +36,8 @@ export const SemesterControls: React.FC<SemesterControlsProps> = ({
             onChange={(e) => onAcademicYearChange(e.target.value)}
             className="bg-transparent font-semibold text-slate-800 focus:outline-none cursor-pointer"
           >
-            <option value="2026/2027">2026/2027 (Baru)</option>
-            <option value="2025/2026">2025/2026 (Aktif)</option>
+            <option value="2026/2027">2026/2027 (Aktif)</option>
+            <option value="2025/2026">2025/2026 (Arsip)</option>
             <option value="2024/2025">2024/2025 (Arsip)</option>
             <option value="2023/2024">2023/2024 (Arsip)</option>
           </select>
