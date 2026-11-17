@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   Users, Plus, Pencil, Trash2, Search, ShieldCheck, Award,
-  Save, X, CheckCircle2, Mail, BookOpen, Info
+  Save, X, CheckCircle2, Mail, Info, AlertTriangle
 } from 'lucide-react';
 import { Teacher, SchoolProfile, CurriculumDocument } from '../types/curriculum';
 import { SUBJECT_DICTIONARY } from '../utils/documentClassifier';
@@ -40,8 +40,10 @@ export const TeacherManagementView: React.FC<TeacherManagementViewProps> = ({
     setHeadmasterNip(profile.headmasterNip);
   }, [profile]);
 
-  // Search filter
+  // Search filter & inline delete feedback
   const [searchQuery, setSearchQuery] = useState('');
+  const [confirmDeleteTeacher, setConfirmDeleteTeacher] = useState<Teacher | null>(null);
+  const [actionWarning, setActionWarning] = useState<string | null>(null);
 
   // Teacher Add/Edit Modal state
   const [isTeacherModalOpen, setIsTeacherModalOpen] = useState(false);
@@ -290,6 +292,52 @@ export const TeacherManagementView: React.FC<TeacherManagementViewProps> = ({
           </div>
         </div>
 
+        {actionWarning && (
+          <div className="px-4 py-3 bg-amber-50 border-b border-amber-200 text-amber-900 flex items-center justify-between gap-2">
+            <span className="flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+              {actionWarning}
+            </span>
+            <button
+              type="button"
+              onClick={() => setActionWarning(null)}
+              className="text-amber-800 underline text-[11px] cursor-pointer"
+            >
+              Tutup
+            </button>
+          </div>
+        )}
+
+        {confirmDeleteTeacher && (
+          <div className="px-4 py-3 bg-rose-50 border-b border-rose-200 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2 text-rose-900">
+              <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+              <span>
+                Yakin ingin menghapus <strong>&ldquo;{confirmDeleteTeacher.name}&rdquo;</strong> dari daftar guru? Dokumen yang sudah diarsipkan tetap tersimpan.
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setConfirmDeleteTeacher(null)}
+                className="px-3 py-1.5 bg-white border border-slate-300 text-slate-700 rounded-lg font-medium hover:bg-slate-50 cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onDeleteTeacher(confirmDeleteTeacher.id);
+                  setConfirmDeleteTeacher(null);
+                }}
+                className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg font-semibold cursor-pointer"
+              >
+                Ya, Hapus Guru
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
@@ -356,13 +404,12 @@ export const TeacherManagementView: React.FC<TeacherManagementViewProps> = ({
                           <button
                             type="button"
                             onClick={() => {
+                              setActionWarning(null);
                               if (teachers.length <= 1) {
-                                alert('Minimal harus ada 1 guru pengampu di dalam sistem.');
+                                setActionWarning('Minimal harus ada 1 guru pengampu di dalam sistem.');
                                 return;
                               }
-                              if (window.confirm(`Yakin ingin menghapus "${teacher.name}" dari daftar guru? Dokumen yang sudah diarsipkan tetap tersimpan.`)) {
-                                onDeleteTeacher(teacher.id);
-                              }
+                              setConfirmDeleteTeacher(teacher);
                             }}
                             className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
                             title={`Hapus ${teacher.name}`}
@@ -384,7 +431,7 @@ export const TeacherManagementView: React.FC<TeacherManagementViewProps> = ({
       <div className="p-4 bg-indigo-50/60 border border-indigo-200 rounded-2xl flex items-start gap-3 text-indigo-900">
         <Info className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
         <div className="leading-relaxed">
-          <strong>Catatan Sinkronisasi Otomatis:</strong> Email yang didaftarkan pada setiap guru akan digunakan sistem untuk mengenali akun <strong>Google / belajar.id</strong> saat guru masuk melalui halaman login, sehingga guru langsung diarahkan ke berkas miliknya sendiri. Jika nama atau NIP guru diperbarui, seluruh dokumen arsip milik guru tersebut akan otomatis ikut diperbarui.
+          <strong>Catatan Sinkronisasi Otomatis:</strong> Nama guru yang terdaftar akan dicocokkan langsung saat guru masuk menggunakan nama pengguna di halaman login, sehingga guru langsung diarahkan ke berkas miliknya sendiri. Jika nama atau NIP guru diperbarui, seluruh dokumen arsip milik guru tersebut akan otomatis ikut tersinkron secara real-time.
         </div>
       </div>
 

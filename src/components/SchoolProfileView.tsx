@@ -16,6 +16,7 @@ export const SchoolProfileView: React.FC<SchoolProfileViewProps> = ({
 }) => {
   const [formData, setFormData] = useState<SchoolProfile>(profile);
   const [isSaved, setIsSaved] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   useEffect(() => {
     setFormData(profile);
@@ -23,31 +24,34 @@ export const SchoolProfileView: React.FC<SchoolProfileViewProps> = ({
 
   const schoolLogoInputRef = useRef<HTMLInputElement>(null);
   const pemdaLogoInputRef = useRef<HTMLInputElement>(null);
+  const wakaSigInputRef = useRef<HTMLInputElement>(null);
+  const headmasterSigInputRef = useRef<HTMLInputElement>(null);
 
   // Handle image upload and resize/compress to stay well below Firestore 1MB doc limit
-  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>, type: 'school' | 'pemda') => {
+  const handleImageUpload = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    field: 'schoolLogoUrl' | 'pemdaLogoUrl' | 'wakaSignatureUrl' | 'headmasterSignatureUrl'
+  ) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setUploadError(null);
 
     if (file.size > 2 * 1024 * 1024) {
-      alert('Ukuran berkas logo terlalu besar. Maksimal 2 MB.');
+      setUploadError('Ukuran berkas gambar terlalu besar. Maksimal 2 MB.');
+      e.target.value = '';
       return;
     }
 
     const reader = new FileReader();
     reader.onload = (event) => {
       const rawDataUrl = event.target?.result as string;
-      const updateLogoState = (finalUrl: string) => {
-        if (type === 'school') {
-          setFormData(prev => ({ ...prev, schoolLogoUrl: finalUrl }));
-        } else {
-          setFormData(prev => ({ ...prev, pemdaLogoUrl: finalUrl }));
-        }
+      const updateState = (finalUrl: string) => {
+        setFormData(prev => ({ ...prev, [field]: finalUrl }));
       };
 
       // Keep small SVGs directly; resize raster images via canvas to max 256x256
       if (file.type === 'image/svg+xml' && rawDataUrl.length < 150000) {
-        updateLogoState(rawDataUrl);
+        updateState(rawDataUrl);
         return;
       }
 
@@ -63,15 +67,19 @@ export const SchoolProfileView: React.FC<SchoolProfileViewProps> = ({
         const ctx = canvas.getContext('2d');
         if (ctx) {
           ctx.drawImage(img, 0, 0, targetW, targetH);
-          updateLogoState(canvas.toDataURL('image/png'));
+          updateState(canvas.toDataURL('image/png'));
         } else {
-          updateLogoState(rawDataUrl);
+          updateState(rawDataUrl);
         }
       };
-      img.onerror = () => updateLogoState(rawDataUrl);
+      img.onerror = () => updateState(rawDataUrl);
       img.src = rawDataUrl;
     };
     reader.readAsDataURL(file);
+  };
+
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>, type: 'school' | 'pemda') => {
+    handleImageUpload(e, type === 'school' ? 'schoolLogoUrl' : 'pemdaLogoUrl');
   };
 
   const handleRemoveLogo = (type: 'school' | 'pemda') => {
@@ -135,6 +143,19 @@ export const SchoolProfileView: React.FC<SchoolProfileViewProps> = ({
         <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 flex items-center gap-2 font-medium">
           <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
           <span>Profil sekolah dan logo berhasil diperbarui ke seluruh sistem!</span>
+        </div>
+      )}
+
+      {uploadError && (
+        <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 flex items-center justify-between gap-2 font-medium">
+          <span>{uploadError}</span>
+          <button
+            type="button"
+            onClick={() => setUploadError(null)}
+            className="text-rose-700 underline text-[11px]"
+          >
+            Tutup
+          </button>
         </div>
       )}
 
@@ -585,10 +606,109 @@ export const SchoolProfileView: React.FC<SchoolProfileViewProps> = ({
           </div>
         </div>
 
+        {/* Tanda Tangan / Stempel Digital & PIN Keamanan Waka */}
+        <div className="pt-4 border-t border-slate-200 grid grid-cols-1 md:grid-cols-3 gap-5">
+          {/* TTD Waka */}
+          <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2.5">
+            <div className="font-bold text-slate-900">TTD / Paraf Waka Kurikulum</div>
+            <div className="h-20 rounded-lg border border-dashed border-slate-300 bg-white flex items-center justify-center p-2 overflow-hidden">
+              {formData.wakaSignatureUrl ? (
+                <img src={formData.wakaSignatureUrl} alt="TTD Waka" className="max-h-full max-w-full object-contain" />
+              ) : (
+                <span className="text-[11px] text-slate-400">Belum diunggah (pakai QR otomatis)</span>
+              )}
+            </div>
+            <input
+              type="file"
+              ref={wakaSigInputRef}
+              onChange={(e) => handleImageUpload(e, 'wakaSignatureUrl')}
+              accept="image/*"
+              className="hidden"
+            />
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => wakaSigInputRef.current?.click()}
+                className="flex-1 py-1.5 px-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-lg font-semibold cursor-pointer"
+              >
+                Unggah TTD
+              </button>
+              {formData.wakaSignatureUrl && (
+                <button
+                  type="button"
+                  onClick={() => setFormData(prev => ({ ...prev, wakaSignatureUrl: '' }))}
+                  className="py-1.5 px-2.5 text-rose-600 hover:bg-rose-50 rounded-lg font-medium cursor-pointer"
+                >
+                  Hapus
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* TTD Kepala Sekolah */}
+          <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2.5">
+            <div className="font-bold text-slate-900">TTD &amp; Stempel Kepala Sekolah</div>
+            <div className="h-20 rounded-lg border border-dashed border-slate-300 bg-white flex items-center justify-center p-2 overflow-hidden">
+              {formData.headmasterSignatureUrl ? (
+                <img src={formData.headmasterSignatureUrl} alt="TTD Kepala Sekolah" className="max-h-full max-w-full object-contain" />
+              ) : (
+                <span className="text-[11px] text-slate-400">Belum diunggah (pakai segel digital)</span>
+              )}
+            </div>
+            <input
+              type="file"
+              ref={headmasterSigInputRef}
+              onChange={(e) => handleImageUpload(e, 'headmasterSignatureUrl')}
+              accept="image/*"
+              className="hidden"
+            />
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => headmasterSigInputRef.current?.click()}
+                className="flex-1 py-1.5 px-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-lg font-semibold cursor-pointer"
+              >
+                Unggah TTD/Cap
+              </button>
+              {formData.headmasterSignatureUrl && (
+                <button
+                  type="button"
+                  onClick={() => setFormData(prev => ({ ...prev, headmasterSignatureUrl: '' }))}
+                  className="py-1.5 px-2.5 text-rose-600 hover:bg-rose-50 rounded-lg font-medium cursor-pointer"
+                >
+                  Hapus
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* PIN Keamanan Waka */}
+          <div className="p-4 rounded-xl bg-indigo-50/50 border border-indigo-200 space-y-2">
+            <div className="font-bold text-indigo-950 flex items-center gap-1.5">
+              <ShieldCheck className="w-4 h-4 text-indigo-700" />
+              <span>PIN Login Waka Kurikulum</span>
+            </div>
+            <p className="text-[11px] text-indigo-800 leading-relaxed">
+              Melindungi akses admin Waka Kurikulum saat masuk di halaman login.
+            </p>
+            <input
+              type="text"
+              maxLength={20}
+              value={formData.wakaPin || '123456'}
+              onChange={(e) => setFormData(prev => ({ ...prev, wakaPin: e.target.value }))}
+              placeholder="Contoh: 123456"
+              className="w-full font-mono font-bold text-slate-900 bg-white border border-indigo-300 rounded-lg p-2.5 focus:border-indigo-600 focus:outline-none"
+            />
+            <div className="text-[10px] text-indigo-700">
+              Disarankan ganti dari PIN bawaan (<span className="font-mono">123456</span>).
+            </div>
+          </div>
+        </div>
+
         {/* Submit Bar */}
         <div className="pt-4 border-t border-slate-200 flex items-center justify-between">
           <div className="text-slate-500 text-[11px]">
-            * Data profil ini secara langsung menentukan identitas kop surat lembar pengesahan dan repositori kurikulum.
+            * Data profil ini secara langsung menentukan identitas kop surat, tanda tangan cetak, PIN Waka, dan repositori kurikulum.
           </div>
           <button
             type="submit"

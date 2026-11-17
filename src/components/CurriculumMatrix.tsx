@@ -1,6 +1,5 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { CurriculumDocument, DocumentCategory, Teacher, SemesterType, CategoryItem } from '../types/curriculum';
-import { CATEGORY_LABELS } from '../utils/documentClassifier';
 import { 
   CheckCircle2, Clock, AlertTriangle, ShieldCheck, Plus, 
   Pencil, Eye, Trash2, FileText 
@@ -33,6 +32,8 @@ export const CurriculumMatrix: React.FC<CurriculumMatrixProps> = ({
   onDeleteDocument,
   currentTeacherId
 }) => {
+  const [confirmDeleteTarget, setConfirmDeleteTarget] = useState<{ id: string; title: string; teacherName: string } | null>(null);
+
   // If in Guru role, filter matrix only to this teacher
   const displayedTeachers = currentTeacherId 
     ? teachers.filter(t => t.id === currentTeacherId)
@@ -127,6 +128,37 @@ export const CurriculumMatrix: React.FC<CurriculumMatrixProps> = ({
           </button>
         )}
       </div>
+
+      {/* Inline Delete Confirmation */}
+      {confirmDeleteTarget && (
+        <div className="px-6 py-3 bg-rose-50 border-b border-rose-200 flex flex-wrap items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-2 text-rose-900">
+            <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+            <span>
+              Hapus berkas <strong>&ldquo;{confirmDeleteTarget.title}&rdquo;</strong> milik <strong>{confirmDeleteTarget.teacherName}</strong>?
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setConfirmDeleteTarget(null)}
+              className="px-3 py-1.5 bg-white border border-slate-300 text-slate-700 rounded-lg font-medium hover:bg-slate-50 cursor-pointer"
+            >
+              Batal
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                onDeleteDocument(confirmDeleteTarget.id);
+                setConfirmDeleteTarget(null);
+              }}
+              className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg font-semibold cursor-pointer"
+            >
+              Ya, Hapus Berkas
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Matrix Table */}
       <div className="overflow-x-auto">
@@ -234,12 +266,8 @@ export const CurriculumMatrix: React.FC<CurriculumMatrixProps> = ({
                             {/* 4. Tanda tong sampah untuk hapus */}
                             <button
                               type="button"
-                              onClick={() => {
-                                if (window.confirm(`Hapus berkas "${doc.title}" untuk guru ${teacher.name}?`)) {
-                                  onDeleteDocument(doc.id);
-                                }
-                              }}
-                              className="p-1 rounded text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                              onClick={() => setConfirmDeleteTarget({ id: doc.id, title: doc.title, teacherName: teacher.name })}
+                              className="p-1 rounded text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
                               title="Tanda Tong Sampah: Hapus dokumen dari arsip"
                             >
                               <Trash2 className="w-3.5 h-3.5" />

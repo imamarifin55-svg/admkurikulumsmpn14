@@ -22,7 +22,7 @@ service cloud.firestore {
         && request.resource.data.role in ['waka_kurikulum', 'guru'];
     }
 
-    // School Profile Config
+    // School Profile Config (including logos, signatures, and Waka PIN)
     match /school_config/{configId} {
       allow read: if true;
       allow write: if isValidId(configId)
@@ -44,6 +44,55 @@ service cloud.firestore {
         && request.resource.data.semester in ['ganjil', 'genap']
         && request.resource.data.status in ['draft', 'diajukan', 'diverifikasi', 'disahkan', 'perlu_revisi'];
       allow delete: if isValidId(documentId);
+    }
+
+    // Attached Physical Document Files header/payload (<= ~900KB base64 payload or 'CHUNKED' header)
+    match /document_files/{fileId} {
+      allow read: if isValidId(fileId);
+      allow create, update: if isValidId(fileId)
+        && request.resource.data.id == fileId
+        && request.resource.data.fileName is string
+        && request.resource.data.fileName.size() > 0
+        && request.resource.data.fileName.size() <= 255
+        && request.resource.data.dataUrl is string
+        && request.resource.data.dataUrl.size() > 0
+        && request.resource.data.dataUrl.size() <= 900000;
+      allow delete: if isValidId(fileId);
+    }
+
+    // Chunked slices for large physical files (> 550KB up to 10MB)
+    match /document_file_chunks/{chunkId} {
+      allow read: if isValidId(chunkId);
+      allow create, update: if isValidId(chunkId)
+        && request.resource.data.id == chunkId
+        && request.resource.data.documentId is string
+        && request.resource.data.documentId.size() > 0
+        && request.resource.data.documentId.size() <= 128
+        && request.resource.data.chunkIndex is int
+        && request.resource.data.chunkIndex >= 0
+        && request.resource.data.chunkIndex <= 50
+        && request.resource.data.totalChunks is int
+        && request.resource.data.totalChunks > 0
+        && request.resource.data.totalChunks <= 50
+        && request.resource.data.data is string
+        && request.resource.data.data.size() > 0
+        && request.resource.data.data.size() <= 750000;
+      allow delete: if isValidId(chunkId);
+    }
+
+    // Immutable Activity / Audit Logs
+    match /activity_logs/{logId} {
+      allow read: if true;
+      allow create: if isValidId(logId)
+        && request.resource.data.id == logId
+        && request.resource.data.action is string
+        && request.resource.data.action.size() > 0
+        && request.resource.data.action.size() <= 50
+        && request.resource.data.actorName is string
+        && request.resource.data.actorName.size() > 0
+        && request.resource.data.actorName.size() <= 150
+        && request.resource.data.actorRole in ['waka_kurikulum', 'guru'];
+      allow update, delete: if false;
     }
 
     // Teachers Directory

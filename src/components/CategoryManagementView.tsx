@@ -20,6 +20,7 @@ export const CategoryManagementView: React.FC<CategoryManagementViewProps> = ({
 }) => {
   const [editingCategory, setEditingCategory] = useState<CategoryItem | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [confirmDeleteCat, setConfirmDeleteCat] = useState<CategoryItem | null>(null);
 
   // Form State for Adding / Editing
   const [code, setCode] = useState('');
@@ -123,6 +124,36 @@ export const CategoryManagementView: React.FC<CategoryManagementViewProps> = ({
           </span>
         </div>
 
+        {confirmDeleteCat && (
+          <div className="px-4 py-3 bg-rose-50 border-b border-rose-200 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2 text-rose-900">
+              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+              <span>
+                Yakin ingin menghapus kategori <strong>&ldquo;{confirmDeleteCat.name}&rdquo;</strong>? Dokumen yang sudah ada tetap tersimpan.
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setConfirmDeleteCat(null)}
+                className="px-3 py-1.5 bg-white border border-slate-300 text-slate-700 rounded-lg font-medium hover:bg-slate-50 cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onDeleteCategory(confirmDeleteCat.id);
+                  setConfirmDeleteCat(null);
+                }}
+                className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg font-semibold cursor-pointer"
+              >
+                Ya, Hapus Kategori
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
@@ -201,12 +232,8 @@ export const CategoryManagementView: React.FC<CategoryManagementViewProps> = ({
 
                         <button
                           type="button"
-                          onClick={() => {
-                            if (window.confirm(`Yakin ingin menghapus kategori "${cat.name}"? Dokumen yang sudah ada tetap tersimpan.`)) {
-                              onDeleteCategory(cat.id);
-                            }
-                          }}
-                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                          onClick={() => setConfirmDeleteCat(cat)}
+                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
                           title="Hapus Kategori"
                         >
                           <Trash2 className="w-4 h-4" />

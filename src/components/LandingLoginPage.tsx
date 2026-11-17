@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { 
-  ShieldCheck, UserCheck, ArrowRight, School, User
+  ShieldCheck, UserCheck, ArrowRight, School, User, KeyRound, Eye, EyeOff
 } from 'lucide-react';
 import { Teacher, SchoolProfile, AppUserRole } from '../types/curriculum';
 
@@ -17,9 +17,14 @@ export const LandingLoginPage: React.FC<LandingLoginPageProps> = ({
 }) => {
   const [selectedRole, setSelectedRole] = useState<AppUserRole>('waka_kurikulum');
   const [username, setUsername] = useState<string>('');
+  const [wakaPinInput, setWakaPinInput] = useState<string>('');
+  const [showPin, setShowPin] = useState<boolean>(false);
   const [selectedTeacherId, setSelectedTeacherId] = useState<string>('');
   const [isLoggingIn, setIsLoggingIn] = useState<boolean>(false);
   const [authError, setAuthError] = useState<string | null>(null);
+
+  const activeWakaPin = (profile.wakaPin || '123456').trim();
+  const isUsingDefaultPin = activeWakaPin === '123456';
 
   // Auto-match typed username against teacher directory when role is Guru
   const matchedTeacher = useMemo(() => {
@@ -62,6 +67,17 @@ export const LandingLoginPage: React.FC<LandingLoginPageProps> = ({
     if (trimmed.length < 2) {
       setAuthError('Silakan masukkan nama pengguna minimal 2 karakter.');
       return;
+    }
+
+    if (selectedRole === 'waka_kurikulum') {
+      if (!wakaPinInput.trim()) {
+        setAuthError('Silakan masukkan PIN Keamanan Waka Kurikulum.');
+        return;
+      }
+      if (wakaPinInput.trim() !== activeWakaPin) {
+        setAuthError('PIN Waka Kurikulum tidak sesuai. Silakan periksa kembali PIN Anda.');
+        return;
+      }
     }
 
     try {
@@ -164,27 +180,27 @@ export const LandingLoginPage: React.FC<LandingLoginPageProps> = ({
             {/* Key Pillars */}
             <div id="fitur" className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
               <div className="p-3.5 bg-white rounded-xl border border-slate-200 shadow-2xs">
-                <div className="font-bold text-slate-900 text-xs">Pemisahan Hak Akses</div>
+                <div className="font-bold text-slate-900 text-xs">Keamanan Peran</div>
                 <div className="text-[11px] text-slate-500 mt-0.5">
-                  Guru hanya melihat &amp; mengelola berkas pribadi miliknya.
+                  Guru masuk cepat pakai nama, Waka Kurikulum dilindungi PIN.
                 </div>
               </div>
               <div id="alur" className="p-3.5 bg-white rounded-xl border border-slate-200 shadow-2xs">
-                <div className="font-bold text-slate-900 text-xs">Dashboard Waka</div>
+                <div className="font-bold text-slate-900 text-xs">Arsip &amp; Unduh Berkas</div>
                 <div className="text-[11px] text-slate-500 mt-0.5">
-                  Supervisi matriks kelengkapan seluruh guru se-sekolah.
+                  Lampiran dokumen &amp; tautan tersimpan di Cloud lintas perangkat.
                 </div>
               </div>
               <div id="keamanan" className="p-3.5 bg-white rounded-xl border border-slate-200 shadow-2xs">
                 <div className="font-bold text-slate-900 text-xs">Cloud Real-Time</div>
                 <div className="text-[11px] text-slate-500 mt-0.5">
-                  Otomatis tersinkron antar HP dan laptop begitu masuk portal.
+                  Otomatis tersinkron antar HP dan laptop beserta log aktivitas.
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Right Column: Simple Username + Role Login Box */}
+          {/* Right Column: Simple Username + Role (+ Waka PIN) Login Box */}
           <div id="login-form" className="lg:col-span-5">
             <div className="bg-white rounded-2xl border border-slate-200 shadow-lg p-6 sm:p-8 space-y-5">
               <div>
@@ -192,7 +208,7 @@ export const LandingLoginPage: React.FC<LandingLoginPageProps> = ({
                   Masuk ke Sistem Arsip
                 </h2>
                 <p className="text-xs text-slate-500 mt-1">
-                  Pilih peran dan ketik nama pengguna Anda untuk langsung masuk dan terhubung real-time tanpa login Google.
+                  Pilih peran dan ketik nama pengguna Anda untuk langsung masuk dan terhubung real-time.
                 </p>
               </div>
 
@@ -284,7 +300,7 @@ export const LandingLoginPage: React.FC<LandingLoginPageProps> = ({
                   )}
                 </div>
 
-                {/* Role Context / Quick Teacher Picker */}
+                {/* Role-specific fields */}
                 {selectedRole === 'guru' ? (
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
@@ -304,14 +320,57 @@ export const LandingLoginPage: React.FC<LandingLoginPageProps> = ({
                     </select>
                   </div>
                 ) : (
-                  <div className="p-3.5 bg-indigo-50/70 border border-indigo-200 rounded-xl text-xs text-indigo-900">
-                    <div className="font-bold flex items-center gap-1.5 mb-1">
-                      <ShieldCheck className="w-4 h-4 text-indigo-700" />
-                      <span>Waka Kurikulum: {profile.curriculumViceName}</span>
+                  <div className="space-y-3">
+                    <div>
+                      <label htmlFor="waka-pin-input" className="block text-xs font-semibold text-slate-700 mb-1.5">
+                        PIN Keamanan Waka Kurikulum:
+                      </label>
+                      <div className="relative">
+                        <KeyRound className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                        <input
+                          id="waka-pin-input"
+                          type={showPin ? 'text' : 'password'}
+                          inputMode="numeric"
+                          value={wakaPinInput}
+                          onChange={(e) => {
+                            setWakaPinInput(e.target.value);
+                            setAuthError(null);
+                          }}
+                          placeholder="Masukkan PIN Waka Kurikulum"
+                          className="w-full text-xs font-mono font-semibold bg-white border border-slate-300 rounded-xl pl-9 pr-10 py-2.5 text-slate-900 placeholder:font-sans placeholder:font-normal placeholder:text-slate-400 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPin(prev => !prev)}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-1 cursor-pointer"
+                          title={showPin ? 'Sembunyikan PIN' : 'Lihat PIN'}
+                        >
+                          {showPin ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                      {isUsingDefaultPin && (
+                        <div className="mt-1.5 flex items-center justify-between gap-2 text-[11px] text-slate-500">
+                          <span>PIN awal sistem: <strong className="font-mono text-indigo-700">123456</strong> (ubah di Profil Sekolah)</span>
+                          <button
+                            type="button"
+                            onClick={() => setWakaPinInput('123456')}
+                            className="text-indigo-700 font-semibold hover:underline cursor-pointer shrink-0"
+                          >
+                            Isi PIN
+                          </button>
+                        </div>
+                      )}
                     </div>
-                    <p className="text-[11px] text-indigo-800 leading-relaxed">
-                      Akses penuh memonitor matriks seluruh {teachers.length} guru pengampu, memvalidasi telaah, dan mengesahkan berkas kurikulum sekolah secara real-time.
-                    </p>
+
+                    <div className="p-3 bg-indigo-50/70 border border-indigo-200 rounded-xl text-xs text-indigo-900">
+                      <div className="font-bold flex items-center gap-1.5 mb-0.5">
+                        <ShieldCheck className="w-4 h-4 text-indigo-700" />
+                        <span>Waka Kurikulum: {profile.curriculumViceName}</span>
+                      </div>
+                      <p className="text-[11px] text-indigo-800 leading-relaxed">
+                        Akses penuh supervisi {teachers.length} guru, pengesahan SK, manajemen kategori, serta audit log aktivitas.
+                      </p>
+                    </div>
                   </div>
                 )}
 

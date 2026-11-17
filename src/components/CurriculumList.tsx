@@ -35,6 +35,7 @@ export const CurriculumList: React.FC<CurriculumListProps> = ({
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [sortBy, setSortBy] = useState<'date' | 'title' | 'jp'>('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [confirmDeleteDoc, setConfirmDeleteDoc] = useState<{ id: string; title: string } | null>(null);
 
   // Filter logic
   const filteredDocuments = useMemo(() => {
@@ -226,6 +227,37 @@ export const CurriculumList: React.FC<CurriculumListProps> = ({
         </div>
       </div>
 
+      {/* Inline Delete Confirmation */}
+      {confirmDeleteDoc && (
+        <div className="px-5 py-3 bg-rose-50 border-b border-rose-200 flex flex-wrap items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-2 text-rose-900">
+            <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+            <span>
+              Yakin ingin menghapus dokumen <strong>&ldquo;{confirmDeleteDoc.title}&rdquo;</strong> dari arsip?
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setConfirmDeleteDoc(null)}
+              className="px-3 py-1.5 bg-white border border-slate-300 text-slate-700 rounded-lg font-medium hover:bg-slate-50 cursor-pointer"
+            >
+              Batal
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                onDeleteDocument(confirmDeleteDoc.id);
+                setConfirmDeleteDoc(null);
+              }}
+              className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg font-semibold cursor-pointer"
+            >
+              Ya, Hapus
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* High-density Document Table */}
       {filteredDocuments.length === 0 ? (
         <div className="p-12 text-center">
@@ -343,12 +375,9 @@ export const CurriculumList: React.FC<CurriculumListProps> = ({
                         </button>
 
                         <button
-                          onClick={() => {
-                            if (window.confirm(`Yakin ingin menghapus dokumen "${doc.title}" dari arsip?`)) {
-                              onDeleteDocument(doc.id);
-                            }
-                          }}
-                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                          type="button"
+                          onClick={() => setConfirmDeleteDoc({ id: doc.id, title: doc.title })}
+                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
                           title="Hapus dari arsip"
                         >
                           <Trash2 className="w-4 h-4" />

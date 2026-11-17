@@ -1,5 +1,5 @@
 import React from 'react';
-import { CurriculumDocument, SchoolProfile } from '../types/curriculum';
+import { CurriculumDocument, SchoolProfile, CategoryItem } from '../types/curriculum';
 import { CATEGORY_LABELS } from '../utils/documentClassifier';
 import { Printer, ArrowLeft, CheckCircle2, ShieldCheck, QrCode } from 'lucide-react';
 
@@ -8,13 +8,15 @@ interface PrintValidationSheetProps {
   profile: SchoolProfile;
   isOpen: boolean;
   onClose: () => void;
+  categories?: CategoryItem[];
 }
 
 export const PrintValidationSheet: React.FC<PrintValidationSheetProps> = ({
   document,
   profile,
   isOpen,
-  onClose
+  onClose,
+  categories
 }) => {
   if (!isOpen || !document) return null;
 
@@ -137,7 +139,7 @@ export const PrintValidationSheet: React.FC<PrintValidationSheetProps> = ({
                     Kategori Dokumen
                   </td>
                   <td className="py-2 px-3 text-slate-800">
-                    {CATEGORY_LABELS[document.category]?.name || document.category}
+                    {categories?.find(c => c.id === document.category)?.name || CATEGORY_LABELS[document.category]?.name || document.category}
                   </td>
                 </tr>
                 <tr className="bg-slate-50">
@@ -197,15 +199,23 @@ export const PrintValidationSheet: React.FC<PrintValidationSheetProps> = ({
               <div className="text-slate-600">Mengetahui &amp; Memverifikasi,</div>
               <div className="font-semibold text-slate-800">Waka Bidang Kurikulum</div>
               
-              {/* Digital Seal / QR */}
-              <div className="my-3 flex flex-col items-center justify-center">
-                <div className="w-20 h-20 border border-slate-300 rounded-lg p-1 bg-white shadow-xs flex flex-col items-center justify-center">
-                  <div className="text-[9px] font-mono font-bold text-indigo-700">TERVALIDASI</div>
-                  <div className="w-10 h-10 border border-indigo-200 rounded flex items-center justify-center my-0.5">
-                    <QrCode className="w-8 h-8 text-indigo-800" />
+              {/* Digital Seal / Uploaded Signature for Waka Kurikulum */}
+              <div className="my-3 flex flex-col items-center justify-center min-h-[5.25rem]">
+                {profile.wakaSignatureUrl ? (
+                  <img
+                    src={profile.wakaSignatureUrl}
+                    alt="Tanda Tangan Waka Kurikulum"
+                    className="h-20 max-w-[160px] object-contain"
+                  />
+                ) : (
+                  <div className="w-20 h-20 border border-slate-300 rounded-lg p-1 bg-white shadow-xs flex flex-col items-center justify-center">
+                    <div className="text-[9px] font-mono font-bold text-indigo-700">TERVALIDASI</div>
+                    <div className="w-10 h-10 border border-indigo-200 rounded flex items-center justify-center my-0.5">
+                      <QrCode className="w-8 h-8 text-indigo-800" />
+                    </div>
+                    <div className="text-[8px] font-mono text-slate-500">DIGITAL SIGN</div>
                   </div>
-                  <div className="text-[8px] font-mono text-slate-500">DIGITAL SIGN</div>
-                </div>
+                )}
               </div>
 
               <div className="font-bold text-slate-900 underline underline-offset-2">
@@ -218,18 +228,26 @@ export const PrintValidationSheet: React.FC<PrintValidationSheetProps> = ({
 
             {/* Pengesahan: Kepala Sekolah */}
             <div className="text-center">
-              <div className="text-slate-600">Jakarta, {currentDate}</div>
+              <div className="text-slate-600">Ditetapkan pada {currentDate}</div>
               <div className="font-semibold text-slate-800">Mengesahkan: Kepala Sekolah</div>
 
-              {/* Digital Seal / QR */}
-              <div className="my-3 flex flex-col items-center justify-center">
-                <div className="w-20 h-20 border-2 border-emerald-500/50 rounded-lg p-1 bg-white shadow-xs flex flex-col items-center justify-center">
-                  <div className="text-[9px] font-mono font-bold text-emerald-800">DISAHKAN</div>
-                  <div className="w-10 h-10 border border-emerald-300 rounded flex items-center justify-center my-0.5">
-                    <ShieldCheck className="w-8 h-8 text-emerald-700" />
+              {/* Digital Seal / Uploaded Signature & Stamp for Headmaster */}
+              <div className="my-3 flex flex-col items-center justify-center min-h-[5.25rem]">
+                {profile.headmasterSignatureUrl ? (
+                  <img
+                    src={profile.headmasterSignatureUrl}
+                    alt="Tanda Tangan & Stempel Kepala Sekolah"
+                    className="h-20 max-w-[160px] object-contain"
+                  />
+                ) : (
+                  <div className="w-20 h-20 border-2 border-emerald-500/50 rounded-lg p-1 bg-white shadow-xs flex flex-col items-center justify-center">
+                    <div className="text-[9px] font-mono font-bold text-emerald-800">DISAHKAN</div>
+                    <div className="w-10 h-10 border border-emerald-300 rounded flex items-center justify-center my-0.5">
+                      <ShieldCheck className="w-8 h-8 text-emerald-700" />
+                    </div>
+                    <div className="text-[8px] font-mono text-slate-500">KEPALA SEKOLAH</div>
                   </div>
-                  <div className="text-[8px] font-mono text-slate-500">KEPALA SEKOLAH</div>
-                </div>
+                )}
               </div>
 
               <div className="font-bold text-slate-900 underline underline-offset-2">

@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
-import { CurriculumDocument, VerificationStatus, SchoolProfile } from '../types/curriculum';
+import { CurriculumDocument, VerificationStatus, SchoolProfile, CategoryItem, SemesterType } from '../types/curriculum';
 import { CATEGORY_LABELS } from '../utils/documentClassifier';
 import { 
-  ShieldCheck, CheckCircle2, Clock, AlertTriangle, FileText, 
-  MessageSquare, Check, RotateCcw, Eye, Printer, Sparkles 
+  CheckCircle2, MessageSquare, Check, RotateCcw, Eye, Printer 
 } from 'lucide-react';
 
 interface SupervisionViewProps {
   documents: CurriculumDocument[];
   profile: SchoolProfile;
+  categories: CategoryItem[];
+  currentSemester: SemesterType;
+  academicYear: string;
   onUpdateDocumentStatus: (docId: string, status: VerificationStatus, notes: string) => void;
   onSelectDocument: (doc: CurriculumDocument) => void;
   onPrintValidationSheet: (doc: CurriculumDocument) => void;
@@ -16,16 +18,30 @@ interface SupervisionViewProps {
 
 export const SupervisionView: React.FC<SupervisionViewProps> = ({
   documents,
-  profile,
+  profile: _profile,
+  categories,
+  currentSemester,
+  academicYear,
   onUpdateDocumentStatus,
   onSelectDocument,
   onPrintValidationSheet
 }) => {
   const [filterStatus, setFilterStatus] = useState<string>('diajukan');
+  const [scopeFilter, setScopeFilter] = useState<'active_year' | 'active_semester' | 'all'>('active_year');
   const [activeNotesId, setActiveNotesId] = useState<string | null>(null);
   const [customNote, setCustomNote] = useState<string>('');
 
-  const filteredDocs = documents.filter(doc => {
+  const scopedDocs = documents.filter(doc => {
+    if (scopeFilter === 'active_semester') {
+      return doc.academicYear === academicYear && doc.semester === currentSemester;
+    }
+    if (scopeFilter === 'active_year') {
+      return doc.academicYear === academicYear;
+    }
+    return true;
+  });
+
+  const filteredDocs = scopedDocs.filter(doc => {
     if (filterStatus === 'all') return true;
     return doc.status === filterStatus;
   });
@@ -48,23 +64,59 @@ export const SupervisionView: React.FC<SupervisionViewProps> = ({
   return (
     <div className="space-y-6 mb-8">
       {/* Top Banner */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <h2 className="text-base font-bold text-slate-900">
-              Panel Supervisi &amp; Pengesahan Waka Kurikulum
-            </h2>
-            <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded px-2 py-0.5">
-              Supervisi Aktif
-            </span>
+      <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h2 className="text-base font-bold text-slate-900">
+                Panel Supervisi &amp; Pengesahan Waka Kurikulum
+              </h2>
+              <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded px-2 py-0.5">
+                Supervisi Aktif
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 mt-1">
+              Penelaahan instrumen silabus, alur tujuan pembelajaran, dan modul ajar untuk memastikan keselarasan kurikulum sebelum disahkan Kepala Sekolah.
+            </p>
           </div>
-          <p className="text-xs text-slate-500 mt-1">
-            Penelaahan instrumen silabus, alur tujuan pembelajaran, dan modul ajar untuk memastikan keselarasan kurikulum sebelum disahkan Kepala Sekolah.
-          </p>
+
+          {/* Scope Filter */}
+          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg shrink-0 text-xs">
+            <button
+              onClick={() => setScopeFilter('active_year')}
+              className={`px-2.5 py-1.5 rounded-md font-medium transition-colors ${
+                scopeFilter === 'active_year'
+                  ? 'bg-white text-indigo-700 shadow-xs font-semibold'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              TP {academicYear}
+            </button>
+            <button
+              onClick={() => setScopeFilter('active_semester')}
+              className={`px-2.5 py-1.5 rounded-md font-medium transition-colors ${
+                scopeFilter === 'active_semester'
+                  ? 'bg-white text-indigo-700 shadow-xs font-semibold'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Smt {currentSemester === 'ganjil' ? 'Ganjil' : 'Genap'}
+            </button>
+            <button
+              onClick={() => setScopeFilter('all')}
+              className={`px-2.5 py-1.5 rounded-md font-medium transition-colors ${
+                scopeFilter === 'all'
+                  ? 'bg-white text-indigo-700 shadow-xs font-semibold'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Semua Periode
+            </button>
+          </div>
         </div>
 
         {/* Filter Tab by Status */}
-        <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg shrink-0 text-xs">
+        <div className="flex flex-wrap items-center gap-1.5 bg-slate-100 p-1 rounded-lg text-xs">
           <button
             onClick={() => setFilterStatus('diajukan')}
             className={`px-3 py-1.5 font-medium rounded-md transition-colors ${
@@ -73,7 +125,7 @@ export const SupervisionView: React.FC<SupervisionViewProps> = ({
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            Antrian Telaah ({documents.filter(d => d.status === 'diajukan').length})
+            Antrian Telaah ({scopedDocs.filter(d => d.status === 'diajukan').length})
           </button>
           <button
             onClick={() => setFilterStatus('diverifikasi')}
@@ -83,7 +135,7 @@ export const SupervisionView: React.FC<SupervisionViewProps> = ({
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            Terverifikasi Waka ({documents.filter(d => d.status === 'diverifikasi').length})
+            Terverifikasi Waka ({scopedDocs.filter(d => d.status === 'diverifikasi').length})
           </button>
           <button
             onClick={() => setFilterStatus('disahkan')}
@@ -93,7 +145,7 @@ export const SupervisionView: React.FC<SupervisionViewProps> = ({
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            Disahkan ({documents.filter(d => d.status === 'disahkan').length})
+            Disahkan ({scopedDocs.filter(d => d.status === 'disahkan').length})
           </button>
           <button
             onClick={() => setFilterStatus('perlu_revisi')}
@@ -103,7 +155,7 @@ export const SupervisionView: React.FC<SupervisionViewProps> = ({
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            Revisi ({documents.filter(d => d.status === 'perlu_revisi').length})
+            Revisi ({scopedDocs.filter(d => d.status === 'perlu_revisi').length})
           </button>
         </div>
       </div>
@@ -119,11 +171,12 @@ export const SupervisionView: React.FC<SupervisionViewProps> = ({
               Tidak ada dokumen pada status ini
             </h3>
             <p className="text-xs text-slate-500">
-              Semua dokumen kurikulum dalam kategori ini telah selesai ditindaklanjuti.
+              Semua dokumen kurikulum dalam cakupan periode dan kategori ini telah selesai ditindaklanjuti.
             </p>
           </div>
         ) : (
           filteredDocs.map((doc) => {
+            const catCode = categories.find(c => c.id === doc.category)?.code || CATEGORY_LABELS[doc.category]?.code || 'DOC';
             return (
               <div
                 key={doc.id}
@@ -132,12 +185,12 @@ export const SupervisionView: React.FC<SupervisionViewProps> = ({
                 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                   {/* Left: Document info */}
                   <div className="space-y-1.5">
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <span className="text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded">
-                        {CATEGORY_LABELS[doc.category]?.code || 'DOC'}
+                        {catCode}
                       </span>
                       <span className="text-xs text-slate-500">
-                        Semester {doc.semester === 'ganjil' ? 'Ganjil' : 'Genap'} · Kelas {doc.grade} (Fase D)
+                        TP {doc.academicYear} · Semester {doc.semester === 'ganjil' ? 'Ganjil' : 'Genap'} · Kelas {doc.grade} (Fase D)
                       </span>
                       <span aria-hidden="true" className="text-slate-300">·</span>
                       <span className="text-xs font-mono text-slate-400">

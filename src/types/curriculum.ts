@@ -63,7 +63,51 @@ export interface CurriculumDocument {
   verifiedBy?: string;
   approvalNumber?: string; // Nomor Registrasi Pengesahan
   contentPreview?: string;
+  externalFileUrl?: string; // Link opsional bila berkas sangat besar (> 10 MB)
+  hasStoredFile?: boolean; // Penanda berkas fisik tersimpan utuh di Cloud Firestore
   tags: string[];
+}
+
+export interface DocumentFile {
+  id: string;
+  documentId: string;
+  fileName: string;
+  mimeType: string;
+  fileSize: number;
+  dataUrl: string;
+  isChunked?: boolean;
+  chunkCount?: number;
+  uploadedAt: string;
+}
+
+export interface DocumentFileChunk {
+  id: string;
+  documentId: string;
+  chunkIndex: number;
+  totalChunks: number;
+  data: string;
+}
+
+export type ActivityAction =
+  | 'LOGIN'
+  | 'UPLOAD'
+  | 'UPDATE_DOC'
+  | 'RESUBMIT'
+  | 'VERIFY'
+  | 'APPROVE'
+  | 'REVISION'
+  | 'DELETE'
+  | 'CONFIG'
+  | 'RESTORE';
+
+export interface ActivityLog {
+  id: string;
+  action: ActivityAction;
+  actorName: string;
+  actorRole: AppUserRole;
+  targetTitle?: string;
+  details: string;
+  timestamp: string;
 }
 
 export type AppUserRole = 'waka_kurikulum' | 'guru';
@@ -107,8 +151,11 @@ export interface SchoolProfile {
   curriculumViceNip: string;
   currentAcademicYear: string;
   currentSemester: SemesterType;
+  wakaPin?: string; // PIN keamanan khusus Waka Kurikulum (default: 123456)
   schoolLogoUrl?: string; // Base64 data URL or external asset
   pemdaLogoUrl?: string; // Base64 data URL or external asset
+  wakaSignatureUrl?: string; // Tanda tangan / paraf Waka Kurikulum
+  headmasterSignatureUrl?: string; // Tanda tangan & stempel Kepala Sekolah
 }
 
 export interface AutoExtractionResult {

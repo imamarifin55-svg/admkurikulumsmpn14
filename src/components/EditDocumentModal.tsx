@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { X, Save, Edit3, Trash2, Calendar, BookOpen, User } from 'lucide-react';
 import { 
   CurriculumDocument, DocumentCategory, GradeLevel, SemesterType, 
-  CurriculumType, Teacher, VerificationStatus, CategoryItem 
+  CurriculumType, Teacher, VerificationStatus, CategoryItem, AppUserRole 
 } from '../types/curriculum';
-import { CATEGORY_LABELS, SUBJECT_DICTIONARY } from '../utils/documentClassifier';
+import { SUBJECT_DICTIONARY } from '../utils/documentClassifier';
 
 interface EditDocumentModalProps {
   document: CurriculumDocument | null;
@@ -13,6 +13,7 @@ interface EditDocumentModalProps {
   onSave: (updatedDoc: CurriculumDocument) => void;
   teachers: Teacher[];
   categories: CategoryItem[];
+  userRole?: AppUserRole;
 }
 
 export const EditDocumentModal: React.FC<EditDocumentModalProps> = ({
@@ -21,7 +22,8 @@ export const EditDocumentModal: React.FC<EditDocumentModalProps> = ({
   onClose,
   onSave,
   teachers,
-  categories
+  categories,
+  userRole = 'waka_kurikulum'
 }) => {
   const [title, setTitle] = useState(document?.title || '');
   const [category, setCategory] = useState<DocumentCategory>(document?.category || 'silabus_atp');
@@ -37,6 +39,7 @@ export const EditDocumentModal: React.FC<EditDocumentModalProps> = ({
   const [status, setStatus] = useState<VerificationStatus>(document?.status || 'draft');
   const [supervisorNotes, setSupervisorNotes] = useState(document?.supervisorNotes || '');
   const [curriculumType, setCurriculumType] = useState<CurriculumType>(document?.curriculumType || 'Kurikulum Merdeka');
+  const [externalFileUrl, setExternalFileUrl] = useState(document?.externalFileUrl || '');
 
   useEffect(() => {
     if (document) {
@@ -54,6 +57,7 @@ export const EditDocumentModal: React.FC<EditDocumentModalProps> = ({
       setStatus(document.status);
       setSupervisorNotes(document.supervisorNotes || '');
       setCurriculumType(document.curriculumType);
+      setExternalFileUrl(document.externalFileUrl || '');
     }
   }, [document]);
 
@@ -68,6 +72,8 @@ export const EditDocumentModal: React.FC<EditDocumentModalProps> = ({
       setTeacherEmail(t.email);
     }
   };
+
+  const isWaka = userRole === 'waka_kurikulum';
 
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -84,9 +90,10 @@ export const EditDocumentModal: React.FC<EditDocumentModalProps> = ({
       teacherNip,
       teacherEmail: teacherEmail || document.teacherEmail,
       alokasiJp: Number(alokasiJp),
-      status,
-      supervisorNotes,
+      status: isWaka ? status : document.status,
+      supervisorNotes: isWaka ? supervisorNotes : document.supervisorNotes,
       curriculumType,
+      externalFileUrl: externalFileUrl.trim() || undefined,
       lastModified: new Date().toISOString()
     };
     onSave(updated);
@@ -278,33 +285,59 @@ export const EditDocumentModal: React.FC<EditDocumentModalProps> = ({
           <div className="pt-2 border-t border-slate-200 space-y-3">
             <div>
               <label className="block font-semibold text-slate-700 mb-1">
-                Status Verifikasi &amp; Pengesahan
+                Tautan Berkas Cloud / Google Drive (Opsional)
               </label>
-              <select
-                value={status}
-                onChange={(e) => setStatus(e.target.value as VerificationStatus)}
-                className="w-full text-xs font-semibold border border-slate-300 rounded-lg px-3 py-2 bg-white focus:border-indigo-500 focus:outline-none"
-              >
-                <option value="draft">Draft (Konsep)</option>
-                <option value="diajukan">Diajukan (Menunggu Review)</option>
-                <option value="diverifikasi">Diverifikasi Waka Kurikulum</option>
-                <option value="disahkan">Disahkan Kepala Sekolah</option>
-                <option value="perlu_revisi">Perlu Revisi Guru</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block font-semibold text-slate-700 mb-1">
-                Catatan Supervisi Waka Kurikulum
-              </label>
-              <textarea
-                rows={2}
-                value={supervisorNotes}
-                onChange={(e) => setSupervisorNotes(e.target.value)}
-                placeholder="Catatan telaah atau instruksi revisi..."
-                className="w-full text-xs border border-slate-200 rounded-lg p-2.5 focus:border-indigo-500 focus:outline-none"
+              <input
+                type="url"
+                value={externalFileUrl}
+                onChange={(e) => setExternalFileUrl(e.target.value)}
+                placeholder="https://drive.google.com/file/d/..."
+                className="w-full text-xs border border-slate-200 rounded-lg px-3 py-2 focus:border-indigo-500 focus:outline-none"
               />
             </div>
+
+            {isWaka ? (
+              <>
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">
+                    Status Verifikasi &amp; Pengesahan
+                  </label>
+                  <select
+                    value={status}
+                    onChange={(e) => setStatus(e.target.value as VerificationStatus)}
+                    className="w-full text-xs font-semibold border border-slate-300 rounded-lg px-3 py-2 bg-white focus:border-indigo-500 focus:outline-none"
+                  >
+                    <option value="draft">Draft (Konsep)</option>
+                    <option value="diajukan">Diajukan (Menunggu Review)</option>
+                    <option value="diverifikasi">Diverifikasi Waka Kurikulum</option>
+                    <option value="disahkan">Disahkan Kepala Sekolah</option>
+                    <option value="perlu_revisi">Perlu Revisi Guru</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">
+                    Catatan Supervisi Waka Kurikulum
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={supervisorNotes}
+                    onChange={(e) => setSupervisorNotes(e.target.value)}
+                    placeholder="Catatan telaah atau instruksi revisi..."
+                    className="w-full text-xs border border-slate-200 rounded-lg p-2.5 focus:border-indigo-500 focus:outline-none"
+                  />
+                </div>
+              </>
+            ) : (
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-600">
+                <div className="font-semibold text-slate-800 mb-0.5">
+                  Status Validasi Saat Ini: <span className="uppercase">{document.status.replace('_', ' ')}</span>
+                </div>
+                <p className="text-[11px]">
+                  Perubahan status pengesahan dan catatan supervisi hanya dapat dilakukan oleh Waka Kurikulum.
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Modal Footer */}

@@ -30,9 +30,56 @@
         "verifiedBy": { "type": "string", "maxLength": 150 },
         "approvalNumber": { "type": "string", "maxLength": 100 },
         "contentPreview": { "type": "string", "maxLength": 2000 },
+        "externalFileUrl": { "type": "string", "maxLength": 500 },
+        "hasStoredFile": { "type": "boolean" },
         "tags": { "type": "array" }
       },
       "required": ["id", "title", "category", "subject", "grade", "semester", "academicYear", "status", "uploadDate"]
+    },
+    "DocumentFile": {
+      "title": "DocumentFile",
+      "description": "Header & isi berkas fisik dokumen kurikulum (otomatis terpecah ke chunks bila > 550 KB, maks 10 MB)",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "documentId": { "type": "string", "maxLength": 128 },
+        "fileName": { "type": "string", "maxLength": 255 },
+        "mimeType": { "type": "string", "maxLength": 120 },
+        "fileSize": { "type": "number" },
+        "dataUrl": { "type": "string", "maxLength": 900000 },
+        "isChunked": { "type": "boolean" },
+        "chunkCount": { "type": "number" },
+        "uploadedAt": { "type": "string" }
+      },
+      "required": ["id", "documentId", "fileName", "dataUrl", "uploadedAt"]
+    },
+    "DocumentFileChunk": {
+      "title": "DocumentFileChunk",
+      "description": "Potongan data berkas berukuran besar (> 550 KB hingga 10 MB) agar tersimpan langsung di Firestore tanpa Google Drive",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "documentId": { "type": "string", "maxLength": 128 },
+        "chunkIndex": { "type": "number" },
+        "totalChunks": { "type": "number" },
+        "data": { "type": "string", "maxLength": 750000 }
+      },
+      "required": ["id", "documentId", "chunkIndex", "totalChunks", "data"]
+    },
+    "ActivityLog": {
+      "title": "ActivityLog",
+      "description": "Catatan riwayat aktivitas unggah, telaah, revisi, pengesahan, dan perubahan konfigurasi",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "action": { "type": "string", "maxLength": 50 },
+        "actorName": { "type": "string", "maxLength": 150 },
+        "actorRole": { "type": "string", "enum": ["waka_kurikulum", "guru"] },
+        "targetTitle": { "type": "string", "maxLength": 300 },
+        "details": { "type": "string", "maxLength": 500 },
+        "timestamp": { "type": "string" }
+      },
+      "required": ["id", "action", "actorName", "actorRole", "timestamp"]
     },
     "UserProfile": {
       "title": "UserProfile",
@@ -51,7 +98,7 @@
     },
     "SchoolProfile": {
       "title": "SchoolProfile",
-      "description": "Profil identitas sekolah, kepala sekolah, dan waka kurikulum",
+      "description": "Profil identitas sekolah, kepala sekolah, waka kurikulum, PIN akses Waka, logo & tanda tangan",
       "type": "object",
       "properties": {
         "id": { "type": "string" },
@@ -65,7 +112,10 @@
         "curriculumViceName": { "type": "string" },
         "curriculumViceNip": { "type": "string" },
         "currentAcademicYear": { "type": "string" },
-        "currentSemester": { "type": "string" }
+        "currentSemester": { "type": "string" },
+        "wakaPin": { "type": "string", "maxLength": 20 },
+        "headmasterSignatureUrl": { "type": "string" },
+        "wakaSignatureUrl": { "type": "string" }
       },
       "required": ["id", "name", "npsn"]
     },
@@ -103,13 +153,25 @@
       "schema": "CurriculumDocument",
       "description": "Koleksi seluruh berkas kurikulum sekolah"
     },
+    "/document_files/{fileId}": {
+      "schema": "DocumentFile",
+      "description": "Koleksi berkas fisik lampiran dokumen untuk pratinjau & unduh real-time"
+    },
+    "/document_file_chunks/{chunkId}": {
+      "schema": "DocumentFileChunk",
+      "description": "Potongan data berkas lampiran berukuran besar (> 550 KB hingga 10 MB)"
+    },
+    "/activity_logs/{logId}": {
+      "schema": "ActivityLog",
+      "description": "Riwayat audit aktivitas kurikulum lintas pengguna dan perangkat"
+    },
     "/users/{userId}": {
       "schema": "UserProfile",
       "description": "Profil dan peran akses pengguna (Waka vs Guru)"
     },
     "/school_config/{configId}": {
       "schema": "SchoolProfile",
-      "description": "Konfigurasi identitas sekolah dan logo"
+      "description": "Konfigurasi identitas sekolah, PIN Waka, logo dan tanda tangan resmi"
     },
     "/teachers/{teacherId}": {
       "schema": "Teacher",

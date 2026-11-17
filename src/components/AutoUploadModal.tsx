@@ -6,12 +6,27 @@ import {
 } from 'lucide-react';
 import { 
   CurriculumDocument, DocumentCategory, GradeLevel, SemesterType, 
-  CurriculumType, Teacher, SchoolProfile, CategoryItem 
+  CurriculumType, Teacher, SchoolProfile, CategoryItem, DocumentFile 
 } from '../types/curriculum';
 import { 
   classifyCurriculumDocument, CATEGORY_LABELS, SUBJECT_DICTIONARY, 
   generateSuggestedCompetencies 
 } from '../utils/documentClassifier';
+
+const MAX_CLOUD_FILE_BYTES = 10 * 1024 * 1024; // 10 MB -> otomatis dipecah ke chunks aman di Firestore
+
+function readFileDataUrl(file: File): Promise<string | null> {
+  return new Promise((resolve) => {
+    if (file.size === 0 || file.size > MAX_CLOUD_FILE_BYTES) {
+      resolve(null);
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : null);
+    reader.onerror = () => resolve(null);
+    reader.readAsDataURL(file);
+  });
+}
 
 interface CategoryUploadSlot {
   categoryId: string;
@@ -19,6 +34,7 @@ interface CategoryUploadSlot {
   title: string;
   alokasiJp: number;
   competencies: string[];
+  externalFileUrl?: string;
   notes?: string;
 }
 
@@ -36,6 +52,7 @@ interface StagedBatchFile {
   alokasiJp: number;
   competencies: string[];
   confidenceScore: number;
+  externalFileUrl?: string;
   tags: string[];
   notes: string;
 }
@@ -43,7 +60,7 @@ interface StagedBatchFile {
 interface AutoUploadModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSaveDocuments: (newDocs: CurriculumDocument[]) => void;
+  onSaveDocuments: (newDocs: CurriculumDocument[], attachedFiles?: DocumentFile[]) => Promise<void> | void;
   teachers: Teacher[];
   profile: SchoolProfile;
   currentSemester: SemesterType;
@@ -85,6 +102,7 @@ export const AutoUploadModal: React.FC<AutoUploadModalProps> = ({
   // Staged files for batch scan mode
   const [stagedFiles, setStagedFiles] = useState<StagedBatchFile[]>([]);
   const [isDraggingBatch, setIsDraggingBatch] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const batchFileInputRef = useRef<HTMLInputElement>(null);
 
   // Individual file input refs for each category
@@ -138,7 +156,7 @@ export const AutoUploadModal: React.FC<AutoUploadModalProps> = ({
 
   const handleUpdateCategorySlotField = (
     categoryId: string, 
-    field: 'title' | 'alokasiJp', 
+    field: 'title' | 'alokasiJp' | 'externalFileUrl', 
     value: string | number
   ) => {
     setCategorySlots(prev => {
@@ -222,91 +240,140 @@ export const AutoUploadModal: React.FC<AutoUploadModalProps> = ({
     }
   };
 
-  // --- SAVE ALL DOCUMENTS ---
-  const handleSaveAll = () => {
-    const now = new Date().toISOString();
-    const finalDocs: CurriculumDocument[] = [];
+  // --- SAVE ALL DOCUMENTS (direct cloud storage up to 10MB via auto-chunking) ---
+  const handleSaveAll = async () => {
+    if (isSaving) return;
+    setIsSaving(true);
+    try {
+      const now = new Date().toISOString();
+      const finalDocs: CurriculumDocument[] = [];
+      const attachedFiles: DocumentFile[] = [];
 
-    if (activeTab === 'category_grid') {
-      const uploadedCategoriesList = Object.values(categorySlots);
-      if (uploadedCategoriesList.length === 0) return;
+      if (activeTab === 'category_grid') {
+        const uploadedCategoriesList = Object.values(categorySlots);
+        if (uploadedCategoriesList.length === 0) return;
 
-      uploadedCategoriesList.forEach((slot, idx) => {
-        const catInfo = categories.find(c => c.id === slot.categoryId);
-        const catCode = catInfo?.code || 'DOC';
-        const regNumber = `REG-KUR/SMP1/${selectedAcademicYear.substring(0, 4)}/${catCode}-${String(100 + idx)}`;
-        const uniqueSuffix = Math.random().toString(36).slice(2, 6);
+        for (let idx = 0; idx < uploadedCategoriesList.length; idx++) {
+          const slot = uploadedCategoriesList[idx];
+          const catInfo = categories.find(c => c.id === slot.categoryId);
+          const catCode = catInfo?.code || 'DOC';
+          const uniqueSuffix = Math.random().toString(36).slice(2, 6).toUpperCase();
+          const docId = `doc-${Date.now()}-${idx}-${uniqueSuffix.toLowerCase()}`;
+          const regNumber = `REG-KUR/${selectedAcademicYear.substring(0, 4)}/${catCode}-${uniqueSuffix}`;
 
-        finalDocs.push({
-          id: `doc-${Date.now()}-${idx}-${uniqueSuffix}`,
-          title: slot.title,
-          originalFileName: slot.file.name,
-          fileSize: slot.file.size || 1850000,
-          fileType: slot.file.name.split('.').pop()?.toLowerCase() || 'pdf',
-          category: slot.categoryId,
-          subject: currentSubject,
-          grade: selectedGrade,
-          semester: selectedSemester,
-          academicYear: selectedAcademicYear,
-          curriculumType: selectedCurriculum,
-          teacherId: currentTeacher.id,
-          teacherName: currentTeacher.name,
-          teacherNip: currentTeacher.nip,
-          teacherEmail: currentTeacher.email,
-          alokasiJp: slot.alokasiJp,
-          competencies: slot.competencies,
-          uploadDate: now,
-          lastModified: now,
-          status: 'diajukan',
-          supervisorNotes: 'Diunggah via Pilihan Cepat Kategori Guru. Menunggu telaah supervisi Waka Kurikulum.',
-          approvalNumber: regNumber,
-          contentPreview: `Dokumen resmi ${slot.title}. Disusun sesuai standar ${selectedCurriculum} Fase D SMP.`,
-          tags: [selectedCurriculum, `Kelas ${selectedGrade}`, `Sem. ${selectedSemester}`, catCode]
-        });
-      });
-    } else {
-      if (stagedFiles.length === 0) return;
+          let hasStoredFile = false;
+          if (slot.file instanceof File && slot.file.size > 0 && slot.file.size <= MAX_CLOUD_FILE_BYTES) {
+            const dataUrl = await readFileDataUrl(slot.file);
+            if (dataUrl) {
+              hasStoredFile = true;
+              attachedFiles.push({
+                id: docId,
+                documentId: docId,
+                fileName: slot.file.name,
+                mimeType: slot.file.type || 'application/octet-stream',
+                fileSize: slot.file.size,
+                dataUrl,
+                uploadedAt: now
+              });
+            }
+          }
 
-      stagedFiles.forEach((item, idx) => {
-        const teacher = teachers.find(t => t.id === item.teacherId) || teachers[0];
-        const matchedCat = categories.find(c => c.id === item.category);
-        const catCode = matchedCat?.code || CATEGORY_LABELS[item.category]?.code || 'DOC';
-        const regNumber = `REG-KUR/SMP1/${item.academicYear.substring(0, 4)}/${catCode}-${String(100 + idx)}`;
-        const uniqueSuffix = Math.random().toString(36).slice(2, 6);
+          finalDocs.push({
+            id: docId,
+            title: slot.title,
+            originalFileName: slot.file.name,
+            fileSize: slot.file.size || 1850000,
+            fileType: slot.file.name.split('.').pop()?.toLowerCase() || 'pdf',
+            category: slot.categoryId,
+            subject: currentSubject,
+            grade: selectedGrade,
+            semester: selectedSemester,
+            academicYear: selectedAcademicYear,
+            curriculumType: selectedCurriculum,
+            teacherId: currentTeacher.id,
+            teacherName: currentTeacher.name,
+            teacherNip: currentTeacher.nip,
+            teacherEmail: currentTeacher.email,
+            alokasiJp: slot.alokasiJp,
+            competencies: slot.competencies,
+            uploadDate: now,
+            lastModified: now,
+            status: 'diajukan',
+            supervisorNotes: 'Diunggah via Pilihan Cepat Kategori Guru. Menunggu telaah supervisi Waka Kurikulum.',
+            approvalNumber: regNumber,
+            contentPreview: `Dokumen resmi ${slot.title}. Disusun sesuai standar ${selectedCurriculum} Fase D SMP.`,
+            externalFileUrl: slot.externalFileUrl?.trim() || undefined,
+            hasStoredFile,
+            tags: [selectedCurriculum, `Kelas ${selectedGrade}`, `Sem. ${selectedSemester}`, catCode]
+          });
+        }
+      } else {
+        if (stagedFiles.length === 0) return;
 
-        finalDocs.push({
-          id: `doc-${Date.now()}-${idx}-${uniqueSuffix}`,
-          title: item.title,
-          originalFileName: item.file.name,
-          fileSize: item.file.size || 1540000,
-          fileType: item.file.name.split('.').pop()?.toLowerCase() || 'pdf',
-          category: item.category,
-          subject: item.subject,
-          grade: item.grade,
-          semester: item.semester,
-          academicYear: item.academicYear,
-          curriculumType: item.curriculumType,
-          teacherId: teacher.id,
-          teacherName: teacher.name,
-          teacherNip: teacher.nip,
-          teacherEmail: teacher.email,
-          alokasiJp: item.alokasiJp,
-          competencies: item.competencies,
-          uploadDate: now,
-          lastModified: now,
-          status: 'diajukan',
-          supervisorNotes: 'Diunggah via Sistem Ekstraksi Otomatis. Menunggu telaah kelayakan oleh Waka Kurikulum.',
-          approvalNumber: regNumber,
-          contentPreview: `Dokumen resmi ${item.title}. Disusun berdasarkan standar ${item.curriculumType} Fase D SMP.`,
-          tags: item.tags
-        });
-      });
+        for (let idx = 0; idx < stagedFiles.length; idx++) {
+          const item = stagedFiles[idx];
+          const teacher = teachers.find(t => t.id === item.teacherId) || teachers[0];
+          const matchedCat = categories.find(c => c.id === item.category);
+          const catCode = matchedCat?.code || CATEGORY_LABELS[item.category]?.code || 'DOC';
+          const uniqueSuffix = Math.random().toString(36).slice(2, 6).toUpperCase();
+          const docId = `doc-${Date.now()}-${idx}-${uniqueSuffix.toLowerCase()}`;
+          const regNumber = `REG-KUR/${item.academicYear.substring(0, 4)}/${catCode}-${uniqueSuffix}`;
+
+          let hasStoredFile = false;
+          if (item.file instanceof File && item.file.size > 0 && item.file.size <= MAX_CLOUD_FILE_BYTES) {
+            const dataUrl = await readFileDataUrl(item.file);
+            if (dataUrl) {
+              hasStoredFile = true;
+              attachedFiles.push({
+                id: docId,
+                documentId: docId,
+                fileName: item.file.name,
+                mimeType: item.file.type || 'application/octet-stream',
+                fileSize: item.file.size,
+                dataUrl,
+                uploadedAt: now
+              });
+            }
+          }
+
+          finalDocs.push({
+            id: docId,
+            title: item.title,
+            originalFileName: item.file.name,
+            fileSize: item.file.size || 1540000,
+            fileType: item.file.name.split('.').pop()?.toLowerCase() || 'pdf',
+            category: item.category,
+            subject: item.subject,
+            grade: item.grade,
+            semester: item.semester,
+            academicYear: item.academicYear,
+            curriculumType: item.curriculumType,
+            teacherId: teacher.id,
+            teacherName: teacher.name,
+            teacherNip: teacher.nip,
+            teacherEmail: teacher.email,
+            alokasiJp: item.alokasiJp,
+            competencies: item.competencies,
+            uploadDate: now,
+            lastModified: now,
+            status: 'diajukan',
+            supervisorNotes: 'Diunggah via Sistem Ekstraksi Otomatis. Menunggu telaah kelayakan oleh Waka Kurikulum.',
+            approvalNumber: regNumber,
+            contentPreview: `Dokumen resmi ${item.title}. Disusun berdasarkan standar ${item.curriculumType} Fase D SMP.`,
+            externalFileUrl: item.externalFileUrl?.trim() || undefined,
+            hasStoredFile,
+            tags: item.tags
+          });
+        }
+      }
+
+      await onSaveDocuments(finalDocs, attachedFiles);
+      setCategorySlots({});
+      setStagedFiles([]);
+      onClose();
+    } finally {
+      setIsSaving(false);
     }
-
-    onSaveDocuments(finalDocs);
-    setCategorySlots({});
-    setStagedFiles([]);
-    onClose();
   };
 
   const totalUploadedCount = activeTab === 'category_grid' 
@@ -602,7 +669,7 @@ export const AutoUploadModal: React.FC<AutoUploadModalProps> = ({
                                 />
                               </div>
 
-                              {/* Editable JP */}
+                              {/* Editable JP & Cloud Storage indicator / Drive link */}
                               <div className="flex items-center gap-2">
                                 <span className="text-[10px] text-slate-500 font-medium">Alokasi Waktu:</span>
                                 <input
@@ -614,6 +681,27 @@ export const AutoUploadModal: React.FC<AutoUploadModalProps> = ({
                                   className="w-16 text-[11px] font-mono font-bold border border-slate-200 rounded p-1 text-center bg-white"
                                 />
                                 <span className="text-[10px] text-slate-400">Jam Pelajaran (JP)</span>
+                              </div>
+
+                              <div className="text-[10px]">
+                                {(uploadedItem.file.size || 0) > 0 && (uploadedItem.file.size || 0) <= MAX_CLOUD_FILE_BYTES ? (
+                                  <span className="text-emerald-700 font-medium">
+                                    ✓ Tersimpan utuh langsung ke Cloud aplikasi (mendukung hingga 10 MB, tanpa Google Drive).
+                                  </span>
+                                ) : (
+                                  <div className="space-y-1">
+                                    <span className="text-amber-700 font-medium block">
+                                      Berkas &gt; 10 MB: kompres PDF di bawah 10 MB atau tempelkan link Google Drive (opsional):
+                                    </span>
+                                    <input
+                                      type="url"
+                                      value={uploadedItem.externalFileUrl || ''}
+                                      onChange={(e) => handleUpdateCategorySlotField(cat.id, 'externalFileUrl', e.target.value)}
+                                      placeholder="https://drive.google.com/file/d/..."
+                                      className="w-full text-[11px] border border-amber-300 rounded p-1.5 bg-white focus:border-indigo-500 focus:outline-none"
+                                    />
+                                  </div>
+                                )}
                               </div>
                             </div>
                           ) : (
@@ -728,32 +816,40 @@ export const AutoUploadModal: React.FC<AutoUploadModalProps> = ({
                   </div>
 
                   <div className="space-y-2">
-                    {stagedFiles.map((item) => (
-                      <div
-                        key={item.id}
-                        className="p-3 rounded-lg border border-slate-200 bg-white flex items-center justify-between gap-3 shadow-2xs"
-                      >
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <FileText className="w-4 h-4 text-indigo-600 shrink-0" />
-                          <div className="min-w-0">
-                            <div className="font-semibold text-slate-900 truncate">
-                              {item.title}
-                            </div>
-                            <div className="text-[11px] text-slate-500">
-                              {item.file.name} · {item.subject} · Kelas {item.grade} · Sem. {item.semester}
+                    {stagedFiles.map((item) => {
+                      const isTooLarge = (item.file.size || 0) > MAX_CLOUD_FILE_BYTES;
+                      return (
+                        <div
+                          key={item.id}
+                          className="p-3 rounded-lg border border-slate-200 bg-white flex items-center justify-between gap-3 shadow-2xs"
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <FileText className="w-4 h-4 text-indigo-600 shrink-0" />
+                            <div className="min-w-0">
+                              <div className="font-semibold text-slate-900 truncate">
+                                {item.title}
+                              </div>
+                              <div className="text-[11px] text-slate-500 flex flex-wrap items-center gap-1.5">
+                                <span>{item.file.name} · {item.subject} · Kelas {item.grade} · Sem. {item.semester}</span>
+                                <span className={`font-semibold ${isTooLarge ? 'text-amber-700' : 'text-emerald-700'}`}>
+                                  {isTooLarge
+                                    ? '· (> 10 MB, disarankan kompres)'
+                                    : '· ✓ Cadangan langsung ke Cloud'}
+                                </span>
+                              </div>
                             </div>
                           </div>
-                        </div>
 
-                        <button
-                          type="button"
-                          onClick={() => setStagedFiles(prev => prev.filter(f => f.id !== item.id))}
-                          className="text-slate-400 hover:text-rose-600 p-1"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    ))}
+                          <button
+                            type="button"
+                            onClick={() => setStagedFiles(prev => prev.filter(f => f.id !== item.id))}
+                            className="text-slate-400 hover:text-rose-600 p-1"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -764,7 +860,7 @@ export const AutoUploadModal: React.FC<AutoUploadModalProps> = ({
           <div className="rounded-xl bg-blue-50/70 border border-blue-200 p-3 text-xs text-blue-800 flex items-start gap-2.5">
             <Info className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
             <div>
-              <strong>Kemudahan Supervisi Kurikulum:</strong> Dokumen yang diunggah akan otomatis memiliki nomor registrasi pengesahan unik dan masuk ke antrian telaah Waka Kurikulum untuk diterbitkan Lembar Pengesahan Resmi bertanda tangan digital.
+              <strong>Pencadangan Langsung ke Cloud (Maks. 10 MB per Berkas):</strong> Cukup unggah langsung dari aplikasi ini tanpa perlu Google Drive — isi file otomatis tercadangkan aman di Cloud dan bisa langsung dipratinjau atau diunduh oleh Waka Kurikulum dari perangkat lain.
             </div>
           </div>
         </div>
@@ -792,12 +888,21 @@ export const AutoUploadModal: React.FC<AutoUploadModalProps> = ({
 
             <button
               type="button"
-              disabled={totalUploadedCount === 0}
+              disabled={totalUploadedCount === 0 || isSaving}
               onClick={handleSaveAll}
-              className="px-5 py-2 text-xs font-semibold text-white bg-indigo-700 hover:bg-indigo-800 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg shadow-xs transition-colors flex items-center gap-1.5"
+              className="px-5 py-2 text-xs font-semibold text-white bg-indigo-700 hover:bg-indigo-800 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
             >
-              <Check className="w-4 h-4" />
-              <span>Simpan ke Arsip ({totalUploadedCount} Berkas)</span>
+              {isSaving ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  <span>Mengunggah &amp; Mencadangkan ke Cloud...</span>
+                </>
+              ) : (
+                <>
+                  <Check className="w-4 h-4" />
+                  <span>Simpan ke Arsip ({totalUploadedCount} Berkas)</span>
+                </>
+              )}
             </button>
           </div>
         </div>

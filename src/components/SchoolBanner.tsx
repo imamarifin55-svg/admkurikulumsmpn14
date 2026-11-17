@@ -1,11 +1,14 @@
 import React from 'react';
-import { SchoolProfile, CurriculumDocument, SemesterType } from '../types/curriculum';
+import { SchoolProfile, CurriculumDocument, SemesterType, Teacher, CategoryItem } from '../types/curriculum';
 import { FileCheck, ShieldCheck, Sparkles, Building2 } from 'lucide-react';
 
 interface SchoolBannerProps {
   profile: SchoolProfile;
   documents: CurriculumDocument[];
   currentSemester: SemesterType;
+  academicYear: string;
+  teachers: Teacher[];
+  categories: CategoryItem[];
   onOpenUpload: () => void;
   onViewMatrix: () => void;
 }
@@ -14,18 +17,25 @@ export const SchoolBanner: React.FC<SchoolBannerProps> = ({
   profile,
   documents,
   currentSemester,
+  academicYear,
+  teachers,
+  categories,
   onOpenUpload,
   onViewMatrix
 }) => {
-  // Compute semester-specific stats
-  const semesterDocs = documents.filter(d => d.semester === currentSemester);
+  // Compute semester + academicYear specific stats
+  const semesterDocs = documents.filter(
+    d => d.semester === currentSemester && d.academicYear === academicYear
+  );
   const totalInSemester = semesterDocs.length;
   const verifiedCount = semesterDocs.filter(d => d.status === 'disahkan' || d.status === 'diverifikasi').length;
   const atpCount = semesterDocs.filter(d => d.category === 'silabus_atp').length;
   const needsRevisionCount = semesterDocs.filter(d => d.status === 'perlu_revisi').length;
 
-  // Completion calculation (benchmark: 8 mapel x 3 dokumen = 24 dokumen ideal per semester)
-  const targetPerSemester = 24;
+  // Dynamic target based on registered teachers x supervised matrix categories
+  const supervisedCatCount = Math.max(1, categories.filter(c => c.isSupervisedInMatrix).length);
+  const teacherCount = Math.max(1, teachers.length);
+  const targetPerSemester = teacherCount * supervisedCatCount;
   const completionPercentage = Math.min(100, Math.round((totalInSemester / targetPerSemester) * 100));
 
   return (
@@ -58,7 +68,7 @@ export const SchoolBanner: React.FC<SchoolBannerProps> = ({
             </h1>
             
             <p className="text-sm text-slate-300 leading-relaxed max-w-xl mb-4">
-              Pusat Repositori Digital & Supervisi Administrasi Kurikulum Merdeka. Pengunggahan otomatis silabus, alur tujuan pembelajaran (ATP), dan perangkat ajar berbasis semester.
+              Pusat Repositori Digital &amp; Supervisi Administrasi Kurikulum Merdeka. Pengunggahan otomatis silabus, alur tujuan pembelajaran (ATP), dan perangkat ajar berbasis semester.
             </p>
 
             {/* School Officers info */}
@@ -76,7 +86,7 @@ export const SchoolBanner: React.FC<SchoolBannerProps> = ({
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 shrink-0">
             <div className="bg-white/10 backdrop-blur-md rounded-xl p-3.5 border border-white/10">
               <div className="text-xs text-slate-300 font-medium mb-1">
-                Dokumen Semester {currentSemester === 'ganjil' ? 'Ganjil' : 'Genap'}
+                {currentSemester === 'ganjil' ? 'Ganjil' : 'Genap'} · TP {academicYear}
               </div>
               <div className="text-2xl font-bold text-white font-mono tabular-nums">
                 {totalInSemester}
