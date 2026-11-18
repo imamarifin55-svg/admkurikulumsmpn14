@@ -17,6 +17,7 @@ interface CurriculumMatrixProps {
   onEditDocument: (doc: CurriculumDocument) => void;
   onDeleteDocument: (docId: string) => void;
   currentTeacherId?: string | null;
+  wakaTeacher?: Teacher | null;
 }
 
 export const CurriculumMatrix: React.FC<CurriculumMatrixProps> = ({
@@ -30,14 +31,25 @@ export const CurriculumMatrix: React.FC<CurriculumMatrixProps> = ({
   onBatchApproveSemester,
   onEditDocument,
   onDeleteDocument,
-  currentTeacherId
+  currentTeacherId,
+  wakaTeacher
 }) => {
   const [confirmDeleteTarget, setConfirmDeleteTarget] = useState<{ id: string; title: string; teacherName: string } | null>(null);
 
-  // If in Guru role, filter matrix only to this teacher
-  const displayedTeachers = currentTeacherId 
+  const isWakaAlreadyListed = wakaTeacher
+    ? teachers.some(
+        t =>
+          t.id === wakaTeacher.id ||
+          t.name.toLowerCase() === wakaTeacher.name.toLowerCase() ||
+          (wakaTeacher.nip && wakaTeacher.nip !== '-' && t.nip === wakaTeacher.nip)
+      )
+    : false;
+
+  // If in Guru role, filter matrix only to this teacher.
+  // If in Waka role and Waka is not registered in teachers list, prepend virtual Waka row.
+  const displayedTeachers: Teacher[] = currentTeacherId
     ? teachers.filter(t => t.id === currentTeacherId)
-    : teachers;
+    : (wakaTeacher && !isWakaAlreadyListed ? [wakaTeacher, ...teachers] : teachers);
 
   // Filter active monitored categories for matrix
   const activeCategories = categories.filter(c => c.isSupervisedInMatrix);
@@ -48,6 +60,14 @@ export const CurriculumMatrix: React.FC<CurriculumMatrixProps> = ({
   );
 
   const getDocForTeacherAndCategory = (teacher: Teacher, category: DocumentCategory) => {
+    if (wakaTeacher && teacher.id === wakaTeacher.id && !isWakaAlreadyListed) {
+      return semesterDocs.find(
+        d =>
+          (d.teacherId === wakaTeacher.id ||
+            (d.teacherName === teacher.name && !teachers.some(t => t.id === d.teacherId))) &&
+          d.category === category
+      );
+    }
     return semesterDocs.find(
       d => (d.teacherId === teacher.id ||
             d.teacherName === teacher.name ||
@@ -191,11 +211,20 @@ export const CurriculumMatrix: React.FC<CurriculumMatrixProps> = ({
                 ? Math.round((completedCount / activeCategories.length) * 100)
                 : 0;
 
+              const isVirtualWakaRow = Boolean(wakaTeacher && teacher.id === wakaTeacher.id && !isWakaAlreadyListed);
+
               return (
-                <tr key={teacher.id} className="hover:bg-slate-50/70 transition-colors">
+                <tr key={teacher.id} className={`transition-colors ${isVirtualWakaRow ? 'bg-indigo-50/35 hover:bg-indigo-50/60' : 'hover:bg-slate-50/70'}`}>
                   {/* Teacher & Subject */}
                   <td className="py-3 px-4">
-                    <div className="font-semibold text-slate-900">{teacher.name}</div>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className="font-semibold text-slate-900">{teacher.name}</span>
+                      {isVirtualWakaRow && (
+                        <span className="text-[10px] font-bold text-indigo-700 bg-indigo-100 border border-indigo-200 px-1.5 py-0.5 rounded">
+                          Waka Kurikulum
+                        </span>
+                      )}
+                    </div>
                     <div className="text-[11px] text-slate-500">
                       {teacher.subject} <span aria-hidden="true">·</span> NIP. {teacher.nip}
                     </div>

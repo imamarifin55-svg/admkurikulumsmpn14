@@ -39,7 +39,7 @@ import { ReportsView } from './components/ReportsView';
 import { SchoolProfileView } from './components/SchoolProfileView';
 import { CategoryManagementView } from './components/CategoryManagementView';
 import { TeacherManagementView } from './components/TeacherManagementView';
-import { AutoUploadModal } from './components/AutoUploadModal';
+import { AutoUploadModal, WAKA_SELF_TEACHER_ID } from './components/AutoUploadModal';
 import { DocumentDetailModal } from './components/DocumentDetailModal';
 import { EditDocumentModal } from './components/EditDocumentModal';
 import { PrintValidationSheet } from './components/PrintValidationSheet';
@@ -786,11 +786,22 @@ export default function App() {
   const handleOpenGeneralUpload = () => {
     if (currentUser.role === 'guru' && currentUser.teacherId) {
       setUploadTargetTeacherId(currentUser.teacherId);
+    } else if (currentUser.role === 'waka_kurikulum') {
+      setUploadTargetTeacherId(WAKA_SELF_TEACHER_ID);
     } else {
       setUploadTargetTeacherId(null);
     }
     setUploadTargetCategoryId(null);
     setIsUploadModalOpen(true);
+  };
+
+  const latestWakaDoc = documents.find(d => d.teacherId === WAKA_SELF_TEACHER_ID);
+  const wakaSelfTeacher: Teacher = {
+    id: WAKA_SELF_TEACHER_ID,
+    name: profile.curriculumViceName || currentUser.displayName || 'Waka Kurikulum',
+    nip: profile.curriculumViceNip || '-',
+    subject: profile.curriculumViceSubject?.trim() || latestWakaDoc?.subject || 'Tugas Mengajar Waka',
+    email: currentUser.email || 'waka@sekolah.sch.id'
   };
 
   // Role-Based Filtering:
@@ -964,6 +975,7 @@ export default function App() {
               onEditDocument={setEditDoc}
               onDeleteDocument={handleDeleteDocument}
               currentTeacherId={currentUser.role === 'guru' ? (currentUser.teacherId || null) : null}
+              wakaTeacher={currentUser.role === 'waka_kurikulum' ? wakaSelfTeacher : null}
             />
           )}
 
@@ -1071,6 +1083,8 @@ export default function App() {
           categories={categories}
           initialTeacherId={uploadTargetTeacherId}
           initialCategoryId={uploadTargetCategoryId}
+          userRole={currentUser.role}
+          currentUser={currentUser}
         />
       )}
 
@@ -1101,6 +1115,7 @@ export default function App() {
           teachers={teachers}
           categories={categories}
           userRole={currentUser.role}
+          wakaTeacher={currentUser.role === 'waka_kurikulum' ? wakaSelfTeacher : null}
         />
       )}
 

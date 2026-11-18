@@ -14,6 +14,7 @@ interface EditDocumentModalProps {
   teachers: Teacher[];
   categories: CategoryItem[];
   userRole?: AppUserRole;
+  wakaTeacher?: Teacher | null;
 }
 
 export const EditDocumentModal: React.FC<EditDocumentModalProps> = ({
@@ -23,7 +24,8 @@ export const EditDocumentModal: React.FC<EditDocumentModalProps> = ({
   onSave,
   teachers,
   categories,
-  userRole = 'waka_kurikulum'
+  userRole = 'waka_kurikulum',
+  wakaTeacher
 }) => {
   const [title, setTitle] = useState(document?.title || '');
   const [category, setCategory] = useState<DocumentCategory>(document?.category || 'silabus_atp');
@@ -64,7 +66,9 @@ export const EditDocumentModal: React.FC<EditDocumentModalProps> = ({
   if (!isOpen || !document) return null;
 
   const handleTeacherSelect = (selectedId: string) => {
-    const t = teachers.find(item => item.id === selectedId);
+    const t =
+      (wakaTeacher && selectedId === wakaTeacher.id ? wakaTeacher : undefined) ||
+      teachers.find(item => item.id === selectedId);
     if (t) {
       setTeacherId(t.id);
       setTeacherName(t.name);
@@ -178,6 +182,9 @@ export const EditDocumentModal: React.FC<EditDocumentModalProps> = ({
                 onChange={(e) => setSubject(e.target.value)}
                 className="w-full text-xs border border-slate-200 rounded-lg px-3 py-2 bg-white focus:border-indigo-500 focus:outline-none"
               >
+                {subject && !Object.values(SUBJECT_DICTIONARY).some(s => s.standardName === subject) && (
+                  <option value={subject}>{subject}</option>
+                )}
                 {Object.values(SUBJECT_DICTIONARY).map((sub) => (
                   <option key={sub.standardName} value={sub.standardName}>
                     {sub.standardName}
@@ -260,6 +267,11 @@ export const EditDocumentModal: React.FC<EditDocumentModalProps> = ({
                 className="w-full text-xs border border-slate-200 rounded-lg px-3 py-2 bg-white focus:border-indigo-500 focus:outline-none"
               >
                 <option value="">-- Tetapkan Guru Terdaftar --</option>
+                {isWaka && wakaTeacher && (
+                  <option value={wakaTeacher.id}>
+                    Waka Kurikulum — {wakaTeacher.name}
+                  </option>
+                )}
                 {teachers.map(t => (
                   <option key={t.id} value={t.id}>
                     {t.name} ({t.subject})

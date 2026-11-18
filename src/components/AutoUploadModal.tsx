@@ -6,8 +6,11 @@ import {
 } from 'lucide-react';
 import { 
   CurriculumDocument, DocumentCategory, GradeLevel, SemesterType, 
-  CurriculumType, Teacher, SchoolProfile, CategoryItem, DocumentFile 
+  CurriculumType, Teacher, SchoolProfile, CategoryItem, DocumentFile,
+  AppUser, AppUserRole
 } from '../types/curriculum';
+
+export const WAKA_SELF_TEACHER_ID = 'waka-kurikulum';
 import { 
   classifyCurriculumDocument, CATEGORY_LABELS, SUBJECT_DICTIONARY, 
   generateSuggestedCompetencies 
@@ -68,6 +71,8 @@ interface AutoUploadModalProps {
   categories: CategoryItem[];
   initialTeacherId?: string | null;
   initialCategoryId?: string | null;
+  userRole?: AppUserRole;
+  currentUser?: AppUser;
 }
 
 export const AutoUploadModal: React.FC<AutoUploadModalProps> = ({
@@ -80,15 +85,23 @@ export const AutoUploadModal: React.FC<AutoUploadModalProps> = ({
   currentAcademicYear,
   categories,
   initialTeacherId,
-  initialCategoryId
+  initialCategoryId,
+  userRole = 'waka_kurikulum',
+  currentUser
 }) => {
+  const isWakaUser = userRole === 'waka_kurikulum';
+
   // Mode selection: 'category_grid' (Pilihan Cepat per Kategori) or 'batch_scan' (Pemindaian Berkas Massal)
   const [activeTab, setActiveTab] = useState<'category_grid' | 'batch_scan'>('category_grid');
 
   // Teacher Context for Category-by-Category Quick Upload
   const [selectedTeacherId, setSelectedTeacherId] = useState<string>(
-    initialTeacherId || (teachers[0]?.id || '')
+    initialTeacherId || (isWakaUser ? WAKA_SELF_TEACHER_ID : (teachers[0]?.id || ''))
   );
+  const [wakaSubject, setWakaSubject] = useState<string>(
+    profile.curriculumViceSubject?.trim() || 'Matematika'
+  );
+  const [batchAssignToWaka, setBatchAssignToWaka] = useState<boolean>(isWakaUser);
   const [selectedGrade, setSelectedGrade] = useState<GradeLevel>('7');
   const [selectedSemester, setSelectedSemester] = useState<SemesterType>(currentSemester);
   const [selectedAcademicYear, setSelectedAcademicYear] = useState<string>(
@@ -112,6 +125,8 @@ export const AutoUploadModal: React.FC<AutoUploadModalProps> = ({
   useEffect(() => {
     if (initialTeacherId) {
       setSelectedTeacherId(initialTeacherId);
+    } else if (isWakaUser) {
+      setSelectedTeacherId(WAKA_SELF_TEACHER_ID);
     }
     if (currentSemester) {
       setSelectedSemester(currentSemester);
@@ -119,12 +134,28 @@ export const AutoUploadModal: React.FC<AutoUploadModalProps> = ({
     if (currentAcademicYear) {
       setSelectedAcademicYear(currentAcademicYear);
     }
-  }, [initialTeacherId, currentSemester, currentAcademicYear]);
+    if (profile.curriculumViceSubject?.trim()) {
+      setWakaSubject(profile.curriculumViceSubject.trim());
+    }
+  }, [initialTeacherId, currentSemester, currentAcademicYear, isWakaUser, profile.curriculumViceSubject]);
 
   if (!isOpen) return null;
 
-  const currentTeacher = teachers.find(t => t.id === selectedTeacherId) || teachers[0];
-  const currentSubject = currentTeacher?.subject || 'Matematika';
+  const wakaTeacherRecord: Teacher = {
+    id: WAKA_SELF_TEACHER_ID,
+    name: profile.curriculumViceName || currentUser?.displayName || 'Waka Kurikulum',
+    nip: profile.curriculumViceNip || '-',
+    subject: wakaSubject.trim() || profile.curriculumViceSubject || 'Matematika',
+    email: currentUser?.email || 'waka@sekolah.sch.id'
+  };
+
+  const isSelectedWakaSelf = selectedTeacherId === WAKA_SELF_TEACHER_ID;
+  const currentTeacher = isSelectedWakaSelf
+    ? wakaTeacherRecord
+    : (teachers.find(t => t.id === selectedTeacherId) || (isWakaUser ? wakaTeacherRecord : teachers[0]));
+  const currentSubject = isSelectedWakaSelf
+    ? (wakaSubject.trim() || 'Matematika')
+    : (currentTeacher?.subject || 'Matematika');
 
   // Handle file chosen for a specific category slot
   const handleCategoryFileSelect = (cat: CategoryItem, file: File) => {
@@ -210,6 +241,11 @@ export const AutoUploadModal: React.FC<AutoUploadModalProps> = ({
         result.detectedSubject.toLowerCase().includes(t.subject.toLowerCase())
       ) || teachers[0];
 
+      const resolvedTeacherId =
+        isWakaUser && batchAssignToWaka
+          ? WAKA_SELF_TEACHER_ID
+          : (matchedTeacher ? matchedTeacher.id : (isWakaUser ? WAKA_SELF_TEACHER_ID : ''));
+
       newStaged.push({
         id: `staged-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
         file,
@@ -220,7 +256,7 @@ export const AutoUploadModal: React.FC<AutoUploadModalProps> = ({
         semester: result.detectedSemester,
         academicYear: selectedAcademicYear,
         curriculumType: result.detectedCurriculum,
-        teacherId: matchedTeacher ? matchedTeacher.id : '',
+        teacherId: resolvedTeacherId,
         alokasiJp: result.detectedJp,
         competencies: result.detectedCompetencies,
         confidenceScore: result.confidenceScore,
@@ -312,7 +348,10 @@ export const AutoUploadModal: React.FC<AutoUploadModalProps> = ({
 
         for (let idx = 0; idx < stagedFiles.length; idx++) {
           const item = stagedFiles[idx];
-          const teacher = teachers.find(t => t.id === item.teacherId) || teachers[0];
+          const teacher =
+            item.teacherId === WAKA_SELF_TEACHER_ID
+              ? wakaTeacherRecord
+              : (teachers.find(t => t.id === item.teacherId) || (isWakaUser ? wakaTeacherRecord : teachers[0]));
           const matchedCat = categories.find(c => c.id === item.category);
           const catCode = matchedCat?.code || CATEGORY_LABELS[item.category]?.code || 'DOC';
           const uniqueSuffix = Math.random().toString(36).slice(2, 6).toUpperCase();
@@ -478,29 +517,61 @@ export const AutoUploadModal: React.FC<AutoUploadModalProps> = ({
                   {/* Teacher Select */}
                   <div>
                     <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                      Guru Pengampu
+                      Guru Pengampu / Penyusun
                     </label>
                     <select
                       value={selectedTeacherId}
                       onChange={(e) => setSelectedTeacherId(e.target.value)}
                       className="w-full text-xs font-semibold bg-white border border-slate-300 rounded-lg p-2 text-slate-900 focus:outline-none focus:border-indigo-500"
                     >
-                      {teachers.map(t => (
-                        <option key={t.id} value={t.id}>
-                          {t.name}
+                      {isWakaUser && (
+                        <option value={WAKA_SELF_TEACHER_ID}>
+                          Waka Kurikulum (Berkas Saya) — {wakaTeacherRecord.name}
                         </option>
-                      ))}
+                      )}
+                      {isWakaUser ? (
+                        <optgroup label="Guru Pengampu Terdaftar">
+                          {teachers.map(t => (
+                            <option key={t.id} value={t.id}>
+                              {t.name}
+                            </option>
+                          ))}
+                        </optgroup>
+                      ) : (
+                        teachers.map(t => (
+                          <option key={t.id} value={t.id}>
+                            {t.name}
+                          </option>
+                        ))
+                      )}
                     </select>
                   </div>
 
-                  {/* Subject (Auto-synced) */}
+                  {/* Subject (Editable dropdown when Waka self-upload, Auto-synced for registered teacher) */}
                   <div>
                     <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                      Mata Pelajaran
+                      Mata Pelajaran {isSelectedWakaSelf ? '(Pilih Mapel)' : ''}
                     </label>
-                    <div className="w-full text-xs font-semibold bg-slate-100 border border-slate-200 rounded-lg p-2 text-slate-800 truncate">
-                      {currentSubject}
-                    </div>
+                    {isSelectedWakaSelf ? (
+                      <select
+                        value={wakaSubject}
+                        onChange={(e) => setWakaSubject(e.target.value)}
+                        className="w-full text-xs font-semibold bg-white border border-indigo-300 rounded-lg p-2 text-slate-900 focus:outline-none focus:border-indigo-500"
+                      >
+                        {wakaSubject && !Object.values(SUBJECT_DICTIONARY).some(s => s.standardName === wakaSubject) && (
+                          <option value={wakaSubject}>{wakaSubject}</option>
+                        )}
+                        {Object.values(SUBJECT_DICTIONARY).map(sub => (
+                          <option key={sub.standardName} value={sub.standardName}>
+                            {sub.standardName}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <div className="w-full text-xs font-semibold bg-slate-100 border border-slate-200 rounded-lg p-2 text-slate-800 truncate">
+                        {currentSubject}
+                      </div>
+                    )}
                   </div>
 
                   {/* Grade */}
@@ -759,6 +830,38 @@ export const AutoUploadModal: React.FC<AutoUploadModalProps> = ({
           {/* TAB 2: BATCH SCAN DROPZONE */}
           {activeTab === 'batch_scan' && (
             <div className="space-y-6">
+              {isWakaUser && (
+                <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-xl bg-indigo-50/70 border border-indigo-200 text-xs">
+                  <div className="text-indigo-950 font-medium">
+                    Pemilik bawaan berkas yang dipindai:
+                  </div>
+                  <div className="inline-flex p-0.5 bg-white border border-indigo-200 rounded-lg">
+                    <button
+                      type="button"
+                      onClick={() => setBatchAssignToWaka(true)}
+                      className={`px-3 py-1 rounded-md font-semibold transition-colors cursor-pointer ${
+                        batchAssignToWaka
+                          ? 'bg-indigo-700 text-white'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      Waka Kurikulum ({wakaTeacherRecord.name})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setBatchAssignToWaka(false)}
+                      className={`px-3 py-1 rounded-md font-semibold transition-colors cursor-pointer ${
+                        !batchAssignToWaka
+                          ? 'bg-indigo-700 text-white'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      Cocokkan ke Guru Terdaftar
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* Batch Dropzone */}
               <div
                 onDragOver={(e) => { e.preventDefault(); setIsDraggingBatch(true); }}
@@ -821,11 +924,11 @@ export const AutoUploadModal: React.FC<AutoUploadModalProps> = ({
                       return (
                         <div
                           key={item.id}
-                          className="p-3 rounded-lg border border-slate-200 bg-white flex items-center justify-between gap-3 shadow-2xs"
+                          className="p-3 rounded-lg border border-slate-200 bg-white flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs"
                         >
-                          <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="flex items-center gap-2.5 min-w-0 flex-1">
                             <FileText className="w-4 h-4 text-indigo-600 shrink-0" />
-                            <div className="min-w-0">
+                            <div className="min-w-0 flex-1">
                               <div className="font-semibold text-slate-900 truncate">
                                 {item.title}
                               </div>
@@ -840,13 +943,57 @@ export const AutoUploadModal: React.FC<AutoUploadModalProps> = ({
                             </div>
                           </div>
 
-                          <button
-                            type="button"
-                            onClick={() => setStagedFiles(prev => prev.filter(f => f.id !== item.id))}
-                            className="text-slate-400 hover:text-rose-600 p-1"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          <div className="flex flex-wrap items-center gap-2 shrink-0">
+                            <select
+                              value={item.subject}
+                              onChange={(e) => {
+                                const nextSubject = e.target.value;
+                                setStagedFiles(prev =>
+                                  prev.map(f => (f.id === item.id ? { ...f, subject: nextSubject } : f))
+                                );
+                              }}
+                              className="text-[11px] font-semibold bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-slate-800 focus:outline-none focus:border-indigo-500 max-w-[200px]"
+                              title="Pilih Mata Pelajaran"
+                            >
+                              {item.subject && !Object.values(SUBJECT_DICTIONARY).some(s => s.standardName === item.subject) && (
+                                <option value={item.subject}>{item.subject}</option>
+                              )}
+                              {Object.values(SUBJECT_DICTIONARY).map(sub => (
+                                <option key={sub.standardName} value={sub.standardName}>
+                                  {sub.standardName}
+                                </option>
+                              ))}
+                            </select>
+
+                            {isWakaUser && (
+                              <select
+                                value={item.teacherId}
+                                onChange={(e) => {
+                                  const nextTeacherId = e.target.value;
+                                  setStagedFiles(prev =>
+                                    prev.map(f => (f.id === item.id ? { ...f, teacherId: nextTeacherId } : f))
+                                  );
+                                }}
+                                className="text-[11px] font-semibold bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-slate-800 focus:outline-none focus:border-indigo-500 max-w-[200px]"
+                              >
+                                <option value={WAKA_SELF_TEACHER_ID}>
+                                  Waka Kurikulum ({wakaTeacherRecord.name})
+                                </option>
+                                {teachers.map(t => (
+                                  <option key={t.id} value={t.id}>
+                                    {t.name}
+                                  </option>
+                                ))}
+                              </select>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => setStagedFiles(prev => prev.filter(f => f.id !== item.id))}
+                              className="text-slate-400 hover:text-rose-600 p-1"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
                         </div>
                       );
                     })}

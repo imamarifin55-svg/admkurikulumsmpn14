@@ -28,6 +28,7 @@ export const TeacherManagementView: React.FC<TeacherManagementViewProps> = ({
   // Pejabat Kurikulum quick edit state
   const [wakaName, setWakaName] = useState(profile.curriculumViceName);
   const [wakaNip, setWakaNip] = useState(profile.curriculumViceNip);
+  const [wakaSubject, setWakaSubject] = useState(profile.curriculumViceSubject || '');
   const [headmasterName, setHeadmasterName] = useState(profile.headmasterName);
   const [headmasterNip, setHeadmasterNip] = useState(profile.headmasterNip);
   const [isOfficialsSaved, setIsOfficialsSaved] = useState(false);
@@ -36,6 +37,7 @@ export const TeacherManagementView: React.FC<TeacherManagementViewProps> = ({
   useEffect(() => {
     setWakaName(profile.curriculumViceName);
     setWakaNip(profile.curriculumViceNip);
+    setWakaSubject(profile.curriculumViceSubject || '');
     setHeadmasterName(profile.headmasterName);
     setHeadmasterNip(profile.headmasterNip);
   }, [profile]);
@@ -63,6 +65,7 @@ export const TeacherManagementView: React.FC<TeacherManagementViewProps> = ({
       ...profile,
       curriculumViceName: wakaName.trim(),
       curriculumViceNip: wakaNip.trim(),
+      curriculumViceSubject: wakaSubject.trim(),
       headmasterName: headmasterName.trim(),
       headmasterNip: headmasterNip.trim()
     });
@@ -214,6 +217,30 @@ export const TeacherManagementView: React.FC<TeacherManagementViewProps> = ({
                 placeholder="Contoh: 19820815 200801 1 009"
                 className="w-full font-mono text-slate-800 bg-white border border-slate-200 rounded-lg p-2.5 focus:border-indigo-500 focus:outline-none"
               />
+            </div>
+
+            <div>
+              <label className="block font-semibold text-slate-700 mb-1">
+                Mata Pelajaran Diampu Waka (Jika Mengajar)
+              </label>
+              <select
+                value={wakaSubject}
+                onChange={(e) => setWakaSubject(e.target.value)}
+                className="w-full font-medium text-slate-800 bg-white border border-slate-200 rounded-lg p-2.5 focus:border-indigo-500 focus:outline-none"
+              >
+                <option value="">-- Pilih Mata Pelajaran (Opsional) --</option>
+                {wakaSubject && !subjectOptions.includes(wakaSubject) && (
+                  <option value={wakaSubject}>{wakaSubject}</option>
+                )}
+                {subjectOptions.map((sub) => (
+                  <option key={sub} value={sub}>
+                    {sub}
+                  </option>
+                ))}
+              </select>
+              <p className="text-[10px] text-slate-500 mt-1">
+                Waka Kurikulum dapat langsung mengunggah perangkat ajar pribadi dari akun Waka tanpa perlu didaftarkan sebagai guru.
+              </p>
             </div>
           </div>
 
@@ -485,20 +512,22 @@ export const TeacherManagementView: React.FC<TeacherManagementViewProps> = ({
                   <label className="block font-semibold text-slate-700 mb-1">
                     Mata Pelajaran Utama
                   </label>
-                  <input
-                    type="text"
+                  <select
                     required
-                    list="subject-suggestions"
                     value={formSubject}
                     onChange={(e) => setFormSubject(e.target.value)}
-                    placeholder="Pilih atau ketik mata pelajaran"
-                    className="w-full font-medium text-slate-900 border border-slate-200 rounded-lg p-2.5 focus:border-indigo-500 focus:outline-none"
-                  />
-                  <datalist id="subject-suggestions">
+                    className="w-full font-medium text-slate-900 bg-white border border-slate-200 rounded-lg p-2.5 focus:border-indigo-500 focus:outline-none"
+                  >
+                    <option value="" disabled>-- Pilih Mata Pelajaran --</option>
+                    {formSubject && !subjectOptions.includes(formSubject) && (
+                      <option value={formSubject}>{formSubject}</option>
+                    )}
                     {subjectOptions.map((sub) => (
-                      <option key={sub} value={sub} />
+                      <option key={sub} value={sub}>
+                        {sub}
+                      </option>
                     ))}
-                  </datalist>
+                  </select>
                 </div>
               </div>
 

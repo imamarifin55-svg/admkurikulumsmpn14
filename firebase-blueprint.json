@@ -111,6 +111,7 @@
         "principalNip": { "type": "string" },
         "curriculumViceName": { "type": "string" },
         "curriculumViceNip": { "type": "string" },
+        "curriculumViceSubject": { "type": "string", "maxLength": 120 },
         "currentAcademicYear": { "type": "string" },
         "currentSemester": { "type": "string" },
         "wakaPin": { "type": "string", "maxLength": 20 },

@@ -7,21 +7,45 @@
 import { DocumentCategory, GradeLevel, SemesterType, CurriculumType, AutoExtractionResult } from '../types/curriculum';
 
 export const SUBJECT_DICTIONARY: Record<string, { standardName: string; keywords: string[] }> = {
+  pai: {
+    standardName: 'Pendidikan Agama Islam dan Budi Pekerti',
+    keywords: ['pai', 'agama islam', 'pendidikan agama islam', 'al-quran', 'akidah', 'fiqih', 'akhlak']
+  },
+  pak_kristen: {
+    standardName: 'Pendidikan Agama Kristen dan Budi Pekerti',
+    keywords: ['agama kristen', 'pendidikan agama kristen', 'pak', 'alkitab', 'kristiani']
+  },
+  pak_katolik: {
+    standardName: 'Pendidikan Agama Katolik dan Budi Pekerti',
+    keywords: ['agama katolik', 'agama khatolik', 'pendidikan agama katolik', 'pendidikan agama khatolik', 'katolik', 'khatolik']
+  },
+  pah_hindu: {
+    standardName: 'Pendidikan Agama Hindu dan Budi Pekerti',
+    keywords: ['agama hindu', 'pendidikan agama hindu', 'hindu', 'weda', 'tri hita karana']
+  },
+  pab_buddha: {
+    standardName: 'Pendidikan Agama Buddha dan Budi Pekerti',
+    keywords: ['agama buddha', 'agama budha', 'pendidikan agama buddha', 'pendidikan agama budha', 'buddha', 'budha', 'dharma']
+  },
+  bahasa_indonesia: {
+    standardName: 'Bahasa Indonesia',
+    keywords: ['bahasa indonesia', 'bindo', 'teks deskripsi', 'teks narasi', 'puisi', 'laporan hasil observasi', 'resensi', 'surat resmi']
+  },
+  pendidikan_pancasila: {
+    standardName: 'Pendidikan Pancasila',
+    keywords: ['pendidikan pancasila', 'pancasila', 'ppkn', 'kewarganegaraan', 'uud 1945', 'bhinneka tunggal ika', 'norma dan keadilan']
+  },
   matematika: {
     standardName: 'Matematika',
     keywords: ['matematika', 'math', 'aljabar', 'geometri', 'bilangan', 'statistika', 'mtk']
   },
   ipa: {
-    standardName: 'Ilmu Pengetahuan Alam (IPA)',
+    standardName: 'Ilmu Pengetahuan Alam',
     keywords: ['ipa', 'ilmu pengetahuan alam', 'biologi', 'fisika', 'kimia', 'sains', 'ekosistem', 'sel', 'zat aditif']
   },
   ips: {
-    standardName: 'Ilmu Pengetahuan Sosial (IPS)',
+    standardName: 'Ilmu Pengetahuan Sosial',
     keywords: ['ips', 'ilmu pengetahuan sosial', 'sejarah', 'geografi', 'ekonomi', 'sosiologi', 'keragaman sosial']
-  },
-  bahasa_indonesia: {
-    standardName: 'Bahasa Indonesia',
-    keywords: ['bahasa indonesia', 'bindo', 'teks deskripsi', 'teks narasi', 'puisi', 'laporan hasil observasi', 'resensi', 'surat resmi']
   },
   bahasa_inggris: {
     standardName: 'Bahasa Inggris',
@@ -31,29 +55,21 @@ export const SUBJECT_DICTIONARY: Record<string, { standardName: string; keywords
     standardName: 'Informatika',
     keywords: ['informatika', 'komputer', 'tik', 'algoritma', 'coding', 'berpikir komputasional', 'sistem komputer', 'jaringan komputer']
   },
-  pendidikan_pancasila: {
-    standardName: 'Pendidikan Pancasila / PPKn',
-    keywords: ['pancasila', 'ppkn', 'kewarganegaraan', 'uud 1945', 'bhinneka tunggal ika', 'norma dan keadilan']
-  },
-  pai: {
-    standardName: 'Pendidikan Agama Islam & Budi Pekerti',
-    keywords: ['pai', 'agama islam', 'pendidikan agama', 'budi pekerti', 'al-quran', 'akidah', 'fiqih', 'akhlak']
-  },
-  pjok: {
-    standardName: 'PJOK (Penjasorkes)',
-    keywords: ['pjok', 'penjaskes', 'pendidikan jasmani', 'olahraga', 'kebugaran', 'senam', 'atletik', 'sepak bola', 'bola voli']
-  },
-  seni_budaya: {
-    standardName: 'Seni Budaya & Keterampilan',
-    keywords: ['seni budaya', 'seni rupa', 'seni musik', 'seni tari', 'seni teater', 'batik', 'ornamen']
-  },
   prakarya: {
-    standardName: 'Prakarya & Rekayasa',
+    standardName: 'Prakarya',
     keywords: ['prakarya', 'kerajinan', 'pengolahan', 'budidaya', 'rekayasa']
   },
-  bk: {
-    standardName: 'Bimbingan dan Konseling (BK)',
-    keywords: ['bimbingan konseling', 'bk', 'layanan klasikal', 'orientasi karir', 'psikososial']
+  penjaskes: {
+    standardName: 'Penjaskes',
+    keywords: ['penjaskes', 'pjok', 'penjasorkes', 'pendidikan jasmani', 'olahraga', 'kebugaran', 'senam', 'atletik', 'sepak bola', 'bola voli']
+  },
+  bahasa_lampung: {
+    standardName: 'Bahasa dan Aksara Lampung',
+    keywords: ['lampung', 'aksara lampung', 'bahasa lampung', 'kaganga', 'piil pesenggiri']
+  },
+  karakter_tubaba: {
+    standardName: 'Pendidikan Karakter Tubaba',
+    keywords: ['tubaba', 'karakter tubaba', 'pendidikan karakter tubaba', 'nemen nedes nerimo', 'tulang bawang barat']
   }
 };
 

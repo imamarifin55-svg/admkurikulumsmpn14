@@ -157,6 +157,7 @@ export interface SchoolProfile {
   headmasterNip: string;
   curriculumViceName: string; // Waka Kurikulum
   curriculumViceNip: string;
+  curriculumViceSubject?: string; // Mata pelajaran yang diampu Waka Kurikulum (opsional)
   currentAcademicYear: string;
   currentSemester: SemesterType;
   wakaPin?: string; // PIN keamanan khusus Waka Kurikulum (default: 123456)
