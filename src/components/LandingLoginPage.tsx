@@ -130,19 +130,31 @@ export const LandingLoginPage: React.FC<LandingLoginPageProps> = ({
 
       {/* 3-Zone Clean Header */}
       <header className="sticky top-0 z-30 bg-[#16836c]/60 backdrop-blur-md border-b border-white/15">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-8">
-          {/* Zone 1: Single Clean Brand Wordmark */}
-          <a href="#top" className="flex items-center gap-2.5 whitespace-nowrap shrink-0">
-            <span className="w-9 h-9 rounded-xl bg-white/15 ring-1 ring-white/30 text-white flex items-center justify-center font-bold text-sm shadow-xs shrink-0 overflow-hidden">
-              {profile.schoolLogoUrl ? (
-                <img src={profile.schoolLogoUrl} alt="Logo Sekolah" className="w-full h-full object-contain p-0.5 bg-white" />
-              ) : (
-                <School className="w-5 h-5" />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 min-h-20 py-2.5 flex items-center justify-between gap-4 lg:gap-8">
+          {/* Zone 1: Brand Wordmark + School Name & Address */}
+          <a href="#top" className="flex items-center gap-3.5 min-w-0">
+            {profile.schoolLogoUrl ? (
+              <img
+                src={profile.schoolLogoUrl}
+                alt="Logo Sekolah"
+                className="w-12 h-12 sm:w-14 sm:h-14 object-contain shrink-0 drop-shadow-sm"
+              />
+            ) : (
+              <School className="w-9 h-9 sm:w-10 sm:h-10 text-white shrink-0" />
+            )}
+            <div className="min-w-0">
+              <div className="font-bold text-white tracking-tight text-base sm:text-lg leading-tight">
+                ArsipKurikulum
+              </div>
+              <div className="text-[14px] font-semibold text-white/95 leading-snug">
+                {profile.name}
+              </div>
+              {profile.address && (
+                <div className="text-[11px] sm:text-xs text-white/80 leading-snug">
+                  {profile.address}
+                </div>
               )}
-            </span>
-            <span className="font-bold text-white tracking-tight text-base whitespace-nowrap">
-              ArsipKurikulum
-            </span>
+            </div>
           </a>
 
           {/* Zone 2: Concise Single-Line Nav Links */}
@@ -177,11 +189,7 @@ export const LandingLoginPage: React.FC<LandingLoginPageProps> = ({
           <div className="lg:col-span-7 space-y-6">
             {/* School Identity Header */}
             <div className="space-y-2">
-              <div className="flex flex-wrap items-center gap-2 text-xs text-emerald-100 font-semibold drop-shadow-xs">
-                <span>Kurikulum Merdeka</span>
-                <span aria-hidden="true">·</span>
-                <span>{profile.level}</span>
-                <span aria-hidden="true">·</span>
+              <div className="text-xs text-emerald-100 font-semibold drop-shadow-xs">
                 <span>Tahun Pelajaran {profile.currentAcademicYear}</span>
               </div>
 
@@ -264,7 +272,17 @@ export const LandingLoginPage: React.FC<LandingLoginPageProps> = ({
                     const meta = CATEGORY_LABEL_MAP[ann.category || 'edaran'] || CATEGORY_LABEL_MAP.edaran;
                     return (
                       <article key={ann.id} className="px-6 py-4 space-y-1.5 hover:bg-white/60 transition-colors">
-                        <div className="flex items-center gap-2 text-[11px] font-medium text-slate-600">
+                        {ann.title && (
+                          <h3 className="text-xs sm:text-sm font-bold text-slate-900 leading-snug">
+                            {ann.title}
+                          </h3>
+                        )}
+                        {ann.content && (
+                          <p className="text-xs text-slate-700 leading-relaxed whitespace-pre-wrap break-words">
+                            {ann.content}
+                          </p>
+                        )}
+                        <div className="flex items-center gap-2 text-[11px] font-medium text-slate-600 pt-0.5">
                           <span className={`font-bold ${meta.colorClass}`}>{meta.label}</span>
                           {ann.date && (
                             <>
@@ -273,12 +291,6 @@ export const LandingLoginPage: React.FC<LandingLoginPageProps> = ({
                             </>
                           )}
                         </div>
-                        <h3 className="text-xs sm:text-sm font-bold text-slate-900 leading-snug">
-                          {ann.title}
-                        </h3>
-                        <p className="text-xs text-slate-700 leading-relaxed">
-                          {ann.content}
-                        </p>
                       </article>
                     );
                   })}

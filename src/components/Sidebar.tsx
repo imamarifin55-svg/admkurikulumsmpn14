@@ -117,13 +117,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {/* Brand & School Header */}
         <div className="p-5 border-b border-slate-800/90 bg-slate-950/35 flex items-center justify-between">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold shadow-sm ring-1 ring-indigo-400/30 overflow-hidden shrink-0">
-              {profile.schoolLogoUrl ? (
-                <img src={profile.schoolLogoUrl} alt="Logo Sekolah" className="w-full h-full object-contain p-0.5 bg-white" />
-              ) : (
-                <Archive className="w-5 h-5" />
-              )}
-            </div>
+            {profile.schoolLogoUrl ? (
+              <img
+                src={profile.schoolLogoUrl}
+                alt="Logo Sekolah"
+                className="w-12 h-12 object-contain shrink-0"
+              />
+            ) : (
+              <div className="w-11 h-11 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold shadow-sm ring-1 ring-indigo-400/30 shrink-0">
+                <Archive className="w-6 h-6" />
+              </div>
+            )}
             <div className="min-w-0">
               <div className="text-base font-bold text-white tracking-wide leading-none truncate">
                 ArsipKurikulum
