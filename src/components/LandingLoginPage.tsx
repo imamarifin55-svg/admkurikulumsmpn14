@@ -321,15 +321,15 @@ export const LandingLoginPage: React.FC<LandingLoginPageProps> = ({
 
           {/* Right Column: Sticky Login Box */}
           <div id="login-form" className="lg:col-span-5 lg:sticky lg:top-24">
-            <div className="bg-[#f4f6f8]/95 backdrop-blur-md rounded-3xl border border-white/90 shadow-2xl shadow-slate-950/25 p-6 sm:p-8 space-y-5">
+            <div className="bg-gradient-to-br from-[#13786a]/75 via-[#1c6285]/80 to-[#2b4794]/85 backdrop-blur-xl rounded-3xl border border-white/25 shadow-2xl shadow-slate-950/35 p-6 sm:p-8 space-y-5">
               <div>
-                <h2 className="text-lg font-bold text-slate-900">
+                <h2 className="text-lg font-bold text-white tracking-tight drop-shadow-xs">
                   Masuk Sebagai
                 </h2>
               </div>
 
               {authError && (
-                <div className="p-3 text-xs text-rose-700 bg-rose-50 border border-rose-200 rounded-xl leading-normal">
+                <div className="p-3 text-xs text-rose-100 bg-rose-950/65 border border-rose-300/45 rounded-xl leading-normal">
                   {authError}
                 </div>
               )}
@@ -337,7 +337,7 @@ export const LandingLoginPage: React.FC<LandingLoginPageProps> = ({
               <form onSubmit={handleSubmitLogin} className="space-y-4">
                 {/* Role Switch: Waka vs Guru */}
                 <div>
-                  <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-xl">
+                  <div className="grid grid-cols-2 gap-2 p-1 bg-slate-950/25 border border-white/15 rounded-xl">
                     <button
                       type="button"
                       onClick={() => {
@@ -347,8 +347,8 @@ export const LandingLoginPage: React.FC<LandingLoginPageProps> = ({
                       }}
                       className={`flex items-center justify-center gap-1.5 py-2 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
                         selectedRole === 'waka_kurikulum'
-                          ? 'bg-white text-indigo-700 shadow-xs'
-                          : 'text-slate-600 hover:text-slate-900'
+                          ? 'bg-white text-[#274c9c] shadow-sm font-bold'
+                          : 'text-white/80 hover:text-white hover:bg-white/10'
                       }`}
                     >
                       <ShieldCheck className="w-4 h-4" />
@@ -364,8 +364,8 @@ export const LandingLoginPage: React.FC<LandingLoginPageProps> = ({
                       }}
                       className={`flex items-center justify-center gap-1.5 py-2 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
                         selectedRole === 'guru'
-                          ? 'bg-white text-emerald-700 shadow-xs'
-                          : 'text-slate-600 hover:text-slate-900'
+                          ? 'bg-white text-[#147a69] shadow-sm font-bold'
+                          : 'text-white/80 hover:text-white hover:bg-white/10'
                       }`}
                     >
                       <UserCheck className="w-4 h-4" />
@@ -376,7 +376,7 @@ export const LandingLoginPage: React.FC<LandingLoginPageProps> = ({
 
                 {/* Username Input */}
                 <div className="relative">
-                  <label htmlFor="username-input" className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  <label htmlFor="username-input" className="block text-xs font-semibold text-white/95 mb-1.5">
                     Nama Pengguna:
                   </label>
                   <div className="relative">
@@ -400,13 +400,13 @@ export const LandingLoginPage: React.FC<LandingLoginPageProps> = ({
                           ? 'Masukkan nama pengguna Waka Kurikulum'
                           : 'Ketik nama pengguna Anda'
                       }
-                      className="w-full text-xs font-semibold bg-white border border-slate-300 rounded-xl pl-9 pr-3 py-2.5 text-slate-900 placeholder:font-normal placeholder:text-slate-400 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                      className="w-full text-xs font-semibold bg-white/95 border border-white/60 rounded-xl pl-9 pr-3 py-2.5 text-slate-900 placeholder:font-normal placeholder:text-slate-400 focus:outline-none focus:border-emerald-200 focus:ring-2 focus:ring-white/30"
                     />
                   </div>
 
                   {/* Live Autocomplete Suggestions for Guru Pengampu (Name + Subject) */}
                   {selectedRole === 'guru' && isTeacherSuggestionsOpen && matchingTeachers.length > 0 && (
-                    <div className="mt-1.5 bg-white border border-slate-200 rounded-xl shadow-lg max-h-52 overflow-y-auto divide-y divide-slate-100">
+                    <div className="mt-1.5 bg-white border border-white/80 rounded-xl shadow-xl max-h-52 overflow-y-auto divide-y divide-slate-100">
                       {matchingTeachers.map((t) => {
                         const isSelected = selectedTeacherId === t.id;
                         return (
@@ -441,51 +441,39 @@ export const LandingLoginPage: React.FC<LandingLoginPageProps> = ({
                   )}
 
                   {selectedRole === 'guru' && matchedTeacher && (!isTeacherSuggestionsOpen || Boolean(selectedTeacherId)) && (
-                    <div className="mt-1.5 text-[11px] text-emerald-700 font-medium">
-                      Terhubung dengan profil: <span className="font-bold">{matchedTeacher.name}</span> ({matchedTeacher.subject})
+                    <div className="mt-1.5 text-[11px] text-emerald-200 font-medium">
+                      Terhubung dengan profil: <span className="font-bold text-white">{matchedTeacher.name}</span> ({matchedTeacher.subject})
                     </div>
                   )}
                 </div>
 
                 {/* Role-specific fields: Waka Password */}
                 {selectedRole === 'waka_kurikulum' && (
-                  <div className="space-y-3">
-                    <div>
-                      <label htmlFor="waka-pin-input" className="block text-xs font-semibold text-slate-700 mb-1.5">
-                        Password:
-                      </label>
-                      <div className="relative">
-                        <KeyRound className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                        <input
-                          id="waka-pin-input"
-                          type={showPin ? 'text' : 'password'}
-                          value={wakaPinInput}
-                          onChange={(e) => {
-                            setWakaPinInput(e.target.value);
-                            setAuthError(null);
-                          }}
-                          placeholder="Masukkan password"
-                          className="w-full text-xs font-mono font-semibold bg-white border border-slate-300 rounded-xl pl-9 pr-10 py-2.5 text-slate-900 placeholder:font-sans placeholder:font-normal placeholder:text-slate-400 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowPin(prev => !prev)}
-                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-1 cursor-pointer"
-                          title={showPin ? 'Sembunyikan Password' : 'Lihat Password'}
-                        >
-                          {showPin ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="p-3 bg-indigo-50/70 border border-indigo-200 rounded-xl text-xs text-indigo-900">
-                      <div className="font-bold flex items-center gap-1.5 mb-0.5">
-                        <ShieldCheck className="w-4 h-4 text-indigo-700" />
-                        <span>Waka Kurikulum: {profile.curriculumViceName}</span>
-                      </div>
-                      <p className="text-[11px] text-indigo-800 leading-relaxed">
-                        Akses penuh supervisi {teachers.length} guru, pengesahan SK, manajemen kategori, serta audit log aktivitas.
-                      </p>
+                  <div>
+                    <label htmlFor="waka-pin-input" className="block text-xs font-semibold text-white/95 mb-1.5">
+                      Password:
+                    </label>
+                    <div className="relative">
+                      <KeyRound className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      <input
+                        id="waka-pin-input"
+                        type={showPin ? 'text' : 'password'}
+                        value={wakaPinInput}
+                        onChange={(e) => {
+                          setWakaPinInput(e.target.value);
+                          setAuthError(null);
+                        }}
+                        placeholder="Masukkan password"
+                        className="w-full text-xs font-mono font-semibold bg-white/95 border border-white/60 rounded-xl pl-9 pr-10 py-2.5 text-slate-900 placeholder:font-sans placeholder:font-normal placeholder:text-slate-400 focus:outline-none focus:border-emerald-200 focus:ring-2 focus:ring-white/30"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPin(prev => !prev)}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-1 cursor-pointer"
+                        title={showPin ? 'Sembunyikan Password' : 'Lihat Password'}
+                      >
+                        {showPin ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
                     </div>
                   </div>
                 )}
@@ -494,7 +482,7 @@ export const LandingLoginPage: React.FC<LandingLoginPageProps> = ({
                 <button
                   type="submit"
                   disabled={isLoggingIn}
-                  className="w-full flex items-center justify-center gap-2 py-3 px-4 text-white bg-gradient-to-r from-[#1fa884] via-[#277ea1] to-[#3f62bd] hover:brightness-110 rounded-full text-xs font-bold shadow-md shadow-teal-950/20 transition-all active:scale-[0.99] cursor-pointer disabled:opacity-60"
+                  className="w-full flex items-center justify-center gap-2 py-3 px-4 text-white bg-gradient-to-r from-[#22c096] via-[#278db3] to-[#4b6fd4] hover:brightness-110 ring-1 ring-white/35 rounded-full text-xs font-bold shadow-lg shadow-slate-950/30 transition-all active:scale-[0.99] cursor-pointer disabled:opacity-60"
                 >
                   <span>
                     {isLoggingIn
