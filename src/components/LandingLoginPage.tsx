@@ -1,14 +1,23 @@
 import React, { useState, useMemo } from 'react';
 import { 
-  ShieldCheck, UserCheck, ArrowRight, School, User, KeyRound, Eye, EyeOff
+  ShieldCheck, UserCheck, ArrowRight, School, User, KeyRound, Eye, EyeOff,
+  Megaphone, Compass
 } from 'lucide-react';
-import { Teacher, SchoolProfile, AppUserRole } from '../types/curriculum';
+import { Teacher, SchoolProfile, AppUserRole, SchoolAnnouncement } from '../types/curriculum';
+import { INITIAL_SCHOOL_PROFILE } from '../data/initialCurriculumData';
 
 interface LandingLoginPageProps {
   profile: SchoolProfile;
   teachers: Teacher[];
   onUsernameLogin: (username: string, role: AppUserRole, matchedTeacherId?: string) => Promise<void>;
 }
+
+const CATEGORY_LABEL_MAP: Record<NonNullable<SchoolAnnouncement['category']>, { label: string; colorClass: string }> = {
+  penting: { label: 'Penting', colorClass: 'text-rose-700' },
+  jadwal: { label: 'Jadwal', colorClass: 'text-indigo-700' },
+  panduan: { label: 'Panduan', colorClass: 'text-emerald-700' },
+  edaran: { label: 'Edaran', colorClass: 'text-amber-700' }
+};
 
 export const LandingLoginPage: React.FC<LandingLoginPageProps> = ({
   profile,
@@ -25,6 +34,19 @@ export const LandingLoginPage: React.FC<LandingLoginPageProps> = ({
 
   const activeWakaPin = (profile.wakaPin || '123456').trim();
   const isUsingDefaultPin = activeWakaPin === '123456';
+
+  const visionText = (profile.schoolVision && profile.schoolVision.trim())
+    ? profile.schoolVision.trim()
+    : (INITIAL_SCHOOL_PROFILE.schoolVision || '');
+
+  const missionList = (profile.schoolMission && profile.schoolMission.length > 0)
+    ? profile.schoolMission.filter(m => m.trim().length > 0)
+    : (INITIAL_SCHOOL_PROFILE.schoolMission || []);
+
+  const announcementsList: SchoolAnnouncement[] =
+    profile.announcements !== undefined
+      ? profile.announcements
+      : (INITIAL_SCHOOL_PROFILE.announcements || []);
 
   // Auto-match typed username against teacher directory when role is Guru
   const matchedTeacher = useMemo(() => {
@@ -96,41 +118,51 @@ export const LandingLoginPage: React.FC<LandingLoginPageProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans">
+    <div className="relative min-h-screen bg-gradient-to-br from-[#168e70] via-[#247b9c] to-[#3d5cb5] text-slate-900 flex flex-col font-sans overflow-x-clip">
+      {/* Diagonal Translucent Geometric Bands inspired by Reference Palette */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
+        <div className="absolute -top-24 -left-24 w-[42%] h-[140%] -skew-x-[20deg] bg-gradient-to-b from-white/15 via-white/5 to-transparent" />
+        <div className="absolute -top-24 left-[22%] w-[18%] h-[140%] -skew-x-[20deg] bg-slate-950/[0.06]" />
+        <div className="absolute -top-24 left-[46%] w-[24%] h-[140%] -skew-x-[20deg] bg-white/[0.05]" />
+        <div className="absolute -top-24 right-[-10%] w-[28%] h-[140%] -skew-x-[20deg] bg-slate-950/[0.08]" />
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/20 via-transparent to-transparent" />
+      </div>
+
       {/* 3-Zone Clean Header */}
-      <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-slate-200">
+      <header className="sticky top-0 z-30 bg-[#16836c]/60 backdrop-blur-md border-b border-white/15">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-8">
-          {/* Zone 1: Wordmark */}
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-indigo-700 text-white flex items-center justify-center font-bold text-sm shadow-xs shrink-0 overflow-hidden">
+          {/* Zone 1: Single Clean Brand Wordmark */}
+          <a href="#top" className="flex items-center gap-2.5 whitespace-nowrap shrink-0">
+            <span className="w-9 h-9 rounded-xl bg-white/15 ring-1 ring-white/30 text-white flex items-center justify-center font-bold text-sm shadow-xs shrink-0 overflow-hidden">
               {profile.schoolLogoUrl ? (
-                <img src={profile.schoolLogoUrl} alt="Logo" className="w-full h-full object-contain p-0.5 bg-white" />
+                <img src={profile.schoolLogoUrl} alt="Logo Sekolah" className="w-full h-full object-contain p-0.5 bg-white" />
               ) : (
                 <School className="w-5 h-5" />
               )}
-            </div>
-            <div className="leading-none">
-              <span className="font-bold text-slate-900 tracking-tight text-base whitespace-nowrap">
-                ArsipKurikulum
-              </span>
-              <span className="hidden sm:inline text-xs text-slate-500 font-normal ml-2 truncate max-w-[200px]">
-                {profile.name}
-              </span>
-            </div>
-          </div>
+            </span>
+            <span className="font-bold text-white tracking-tight text-base whitespace-nowrap">
+              ArsipKurikulum
+            </span>
+          </a>
 
-          {/* Zone 2: Navigation Links */}
-          <nav className="hidden md:flex items-center gap-6 text-xs font-semibold text-slate-600">
-            <a href="#fitur" className="hover:text-slate-900 transition-colors whitespace-nowrap">Fitur Terpadu</a>
-            <a href="#alur" className="hover:text-slate-900 transition-colors whitespace-nowrap">Alur Supervisi</a>
-            <a href="#keamanan" className="hover:text-slate-900 transition-colors whitespace-nowrap">Cloud Real-Time</a>
+          {/* Zone 2: Concise Single-Line Nav Links */}
+          <nav className="hidden md:flex items-center gap-7 text-xs font-semibold text-white/85">
+            <a href="#visi-misi" className="hover:text-white hover:underline underline-offset-4 transition-colors whitespace-nowrap shrink-0">
+              Visi &amp; Misi
+            </a>
+            <a href="#pengumuman" className="hover:text-white hover:underline underline-offset-4 transition-colors whitespace-nowrap shrink-0">
+              Pengumuman Guru
+            </a>
+            <a href="#login-form" className="hover:text-white hover:underline underline-offset-4 transition-colors whitespace-nowrap shrink-0">
+              Portal Masuk
+            </a>
           </nav>
 
-          {/* Zone 3: Direct Action */}
-          <div className="flex items-center gap-2.5">
+          {/* Zone 3: Direct Primary Action */}
+          <div className="flex items-center shrink-0">
             <a
               href="#login-form"
-              className="px-4 py-2 text-xs font-semibold text-white bg-indigo-700 hover:bg-indigo-800 rounded-lg shadow-xs transition-colors whitespace-nowrap"
+              className="px-4 py-2 text-xs font-semibold text-white border border-white/60 bg-white/10 hover:bg-white hover:text-[#1e6f7f] rounded-full shadow-xs transition-colors whitespace-nowrap shrink-0"
             >
               Masuk Portal
             </a>
@@ -138,71 +170,126 @@ export const LandingLoginPage: React.FC<LandingLoginPageProps> = ({
         </div>
       </header>
 
-      {/* Hero & Login Section Split */}
-      <section className="py-10 lg:py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full my-auto">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
-          {/* Left Column: School Context & Hero Content */}
+      {/* Main Split Section: School Vision/Mission & Announcements + Login Form */}
+      <main id="top" className="relative z-10 py-8 lg:py-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full flex-1">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-start">
+          {/* Left Column: School Identity, Vision & Mission, and Teacher Announcements */}
           <div className="lg:col-span-7 space-y-6">
-            <div className="flex items-center gap-2 text-xs text-indigo-700 font-semibold">
-              <span>Kurikulum Merdeka</span>
-              <span aria-hidden="true">·</span>
-              <span>Fase D SMP</span>
-              <span aria-hidden="true">·</span>
-              <span>Tahun Pelajaran {profile.currentAcademicYear}</span>
+            {/* School Identity Header */}
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-center gap-2 text-xs text-emerald-100 font-semibold drop-shadow-xs">
+                <span>Kurikulum Merdeka</span>
+                <span aria-hidden="true">·</span>
+                <span>{profile.level}</span>
+                <span aria-hidden="true">·</span>
+                <span>Tahun Pelajaran {profile.currentAcademicYear}</span>
+              </div>
+
+              <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight leading-tight text-balance max-w-2xl drop-shadow-xs">
+                {profile.name}
+              </h1>
             </div>
 
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-slate-900 tracking-tight leading-tight text-balance">
-              Sistem Informasi Arsip Kurikulum &amp; Supervisi Terpadu
-            </h1>
+            {/* Visi & Misi Sekolah Section */}
+            <section id="visi-misi" className="pt-2 space-y-5">
+              <div className="flex items-center justify-between gap-4 pb-3 border-b border-white/20">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-white/15 ring-1 ring-white/25 text-white flex items-center justify-center shrink-0">
+                    <Compass className="w-4 h-4" />
+                  </div>
+                  <h2 className="text-base font-bold text-white tracking-tight drop-shadow-xs">
+                    Visi &amp; Misi Sekolah
+                  </h2>
+                </div>
+                <span className="text-[11px] font-medium text-emerald-100/90 whitespace-nowrap">
+                  Pedoman Mutu Kurikulum
+                </span>
+              </div>
 
-            <p className="text-sm sm:text-base text-slate-600 leading-relaxed max-w-2xl">
-              Portal terintegrasi antara <strong>Dashboard Utama Waka Kurikulum</strong> untuk telaah dan pengesahan seluruh perangkat ajar sekolah, dengan <strong>Portal Mandiri Guru</strong> untuk pengarsipan silabus, modul ajar, dan program semester secara real-time di semua perangkat.
-            </p>
+              <div className="space-y-2">
+                <div className="text-[11px] font-bold text-emerald-200 tracking-wide">
+                  Visi Satuan Pendidikan
+                </div>
+                <p className="text-sm font-medium text-white/95 leading-relaxed drop-shadow-xs">
+                  &ldquo;{visionText}&rdquo;
+                </p>
+              </div>
 
-            {/* Visual Campus Showcase Card */}
-            <div className="relative rounded-2xl overflow-hidden border border-slate-200 shadow-sm max-h-72">
-              <img
-                src="/src/assets/images/school_hero_curriculum_1793926950298.jpg"
-                alt="Kampus Satuan Pendidikan"
-                className="w-full h-full object-cover"
-                referrerPolicy="no-referrer"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-900/30 to-transparent flex flex-col justify-end p-5 text-white">
-                <div className="text-xs font-bold text-white/90">
-                  {profile.name} · NPSN: {profile.npsn}
+              <div className="pt-4 border-t border-white/20 space-y-3">
+                <div className="text-[11px] font-bold text-emerald-200 tracking-wide">
+                  Misi Sekolah
                 </div>
-                <div className="text-[11px] text-white/70">
-                  {profile.regionalGovernment} · {profile.educationDepartment}
-                </div>
+                {missionList.length === 0 ? (
+                  <p className="text-xs text-white/75">
+                    Poin misi sekolah belum diisi oleh Waka Kurikulum.
+                  </p>
+                ) : (
+                  <ol className="space-y-2.5">
+                    {missionList.map((item, idx) => (
+                      <li key={idx} className="flex items-start gap-3 text-xs sm:text-[13px] text-white/95 leading-relaxed">
+                        <span className="font-mono font-bold text-emerald-200 tabular-nums shrink-0 mt-0.5">
+                          {String(idx + 1).padStart(2, '0')}.
+                        </span>
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ol>
+                )}
               </div>
-            </div>
+            </section>
 
-            {/* Key Pillars */}
-            <div id="fitur" className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
-              <div className="p-3.5 bg-white rounded-xl border border-slate-200 shadow-2xs">
-                <div className="font-bold text-slate-900 text-xs">Keamanan Peran</div>
-                <div className="text-[11px] text-slate-500 mt-0.5">
-                  Guru masuk cepat pakai nama, Waka Kurikulum dilindungi PIN.
+            {/* Informasi & Pengumuman Kurikulum untuk Guru */}
+            <section id="pengumuman" className="bg-gradient-to-b from-red-600 via-red-200 to-white rounded-2xl border border-red-200/80 shadow-xl shadow-slate-950/20 overflow-hidden">
+              <div className="px-6 py-4 border-b border-white/25 flex items-center justify-between gap-4">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-white/20 ring-1 ring-white/30 text-white flex items-center justify-center shrink-0">
+                    <Megaphone className="w-4 h-4" />
+                  </div>
+                  <h2 className="text-base font-bold text-white tracking-tight drop-shadow-xs">
+                    Informasi &amp; Pengumuman untuk Guru
+                  </h2>
                 </div>
+                <span className="text-[11px] font-semibold text-white/90 tabular-nums whitespace-nowrap">
+                  {announcementsList.length} informasi aktif
+                </span>
               </div>
-              <div id="alur" className="p-3.5 bg-white rounded-xl border border-slate-200 shadow-2xs">
-                <div className="font-bold text-slate-900 text-xs">Arsip &amp; Unduh Berkas</div>
-                <div className="text-[11px] text-slate-500 mt-0.5">
-                  Lampiran dokumen &amp; tautan tersimpan di Cloud lintas perangkat.
+
+              {announcementsList.length === 0 ? (
+                <div className="px-6 py-8 text-center text-xs text-slate-700 bg-gradient-to-b from-white/60 to-white/95">
+                  Belum ada pengumuman terbaru dari Waka Kurikulum saat ini.
                 </div>
-              </div>
-              <div id="keamanan" className="p-3.5 bg-white rounded-xl border border-slate-200 shadow-2xs">
-                <div className="font-bold text-slate-900 text-xs">Cloud Real-Time</div>
-                <div className="text-[11px] text-slate-500 mt-0.5">
-                  Otomatis tersinkron antar HP dan laptop beserta log aktivitas.
+              ) : (
+                <div className="divide-y divide-red-200/60 bg-gradient-to-b from-white/55 via-white/80 to-white/95">
+                  {announcementsList.map((ann) => {
+                    const meta = CATEGORY_LABEL_MAP[ann.category || 'edaran'] || CATEGORY_LABEL_MAP.edaran;
+                    return (
+                      <article key={ann.id} className="px-6 py-4 space-y-1.5 hover:bg-white/60 transition-colors">
+                        <div className="flex items-center gap-2 text-[11px] font-medium text-slate-600">
+                          <span className={`font-bold ${meta.colorClass}`}>{meta.label}</span>
+                          {ann.date && (
+                            <>
+                              <span aria-hidden="true">·</span>
+                              <span className="tabular-nums">{ann.date}</span>
+                            </>
+                          )}
+                        </div>
+                        <h3 className="text-xs sm:text-sm font-bold text-slate-900 leading-snug">
+                          {ann.title}
+                        </h3>
+                        <p className="text-xs text-slate-700 leading-relaxed">
+                          {ann.content}
+                        </p>
+                      </article>
+                    );
+                  })}
                 </div>
-              </div>
-            </div>
+              )}
+            </section>
           </div>
 
-          {/* Right Column: Simple Username + Role (+ Waka PIN) Login Box */}
-          <div id="login-form" className="lg:col-span-5">
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-lg p-6 sm:p-8 space-y-5">
+          {/* Right Column: Sticky Login Box */}
+          <div id="login-form" className="lg:col-span-5 lg:sticky lg:top-24">
+            <div className="bg-[#f4f6f8]/95 backdrop-blur-md rounded-3xl border border-white/90 shadow-2xl shadow-slate-950/25 p-6 sm:p-8 space-y-5">
               <div>
                 <h2 className="text-lg font-bold text-slate-900">
                   Masuk ke Sistem Arsip
@@ -378,11 +465,7 @@ export const LandingLoginPage: React.FC<LandingLoginPageProps> = ({
                 <button
                   type="submit"
                   disabled={isLoggingIn}
-                  className={`w-full flex items-center justify-center gap-2 py-3 px-4 text-white rounded-xl text-xs font-bold shadow-xs transition-all active:scale-[0.99] cursor-pointer disabled:opacity-60 ${
-                    selectedRole === 'waka_kurikulum'
-                      ? 'bg-indigo-700 hover:bg-indigo-800'
-                      : 'bg-emerald-700 hover:bg-emerald-800'
-                  }`}
+                  className="w-full flex items-center justify-center gap-2 py-3 px-4 text-white bg-gradient-to-r from-[#1fa884] via-[#277ea1] to-[#3f62bd] hover:brightness-110 rounded-full text-xs font-bold shadow-md shadow-teal-950/20 transition-all active:scale-[0.99] cursor-pointer disabled:opacity-60"
                 >
                   <span>
                     {isLoggingIn
@@ -392,32 +475,18 @@ export const LandingLoginPage: React.FC<LandingLoginPageProps> = ({
                   <ArrowRight className="w-4 h-4 shrink-0" />
                 </button>
               </form>
-
-              {/* Real-Time Info Snapshot */}
-              <div className="pt-3 border-t border-slate-100 flex items-center gap-3">
-                <img
-                  src="/src/assets/images/teacher_portal_preview_1793926950156.jpg"
-                  alt="Guru Beraktivitas"
-                  className="w-12 h-12 rounded-lg object-cover shrink-0 border border-slate-200"
-                  referrerPolicy="no-referrer"
-                />
-                <div className="text-[11px] text-slate-500 leading-tight">
-                  <strong className="text-slate-800 block">Langsung Terhubung Real-Time:</strong>
-                  Unggah atau verifikasi berkas langsung tersinkron otomatis ke seluruh perangkat sekolah.
-                </div>
-              </div>
             </div>
           </div>
         </div>
-      </section>
+      </main>
 
       {/* Footer */}
-      <footer className="border-t border-slate-200 bg-white py-6 px-4 sm:px-6 lg:px-8 mt-auto text-xs text-slate-500">
+      <footer className="relative z-10 border-t border-white/15 bg-slate-950/20 backdrop-blur-sm py-6 px-4 sm:px-6 lg:px-8 mt-auto text-xs text-white/85">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
           <div>
             &copy; {new Date().getFullYear()} {profile.name} · Repositori Kurikulum Merdeka Digital
           </div>
-          <div className="flex items-center gap-4 text-slate-400">
+          <div className="flex items-center gap-4 text-white/75">
             <span>NPSN: {profile.npsn}</span>
             <span aria-hidden="true">·</span>
             <span>Akreditasi: {profile.accreditation}</span>

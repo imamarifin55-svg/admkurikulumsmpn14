@@ -115,7 +115,10 @@
         "currentSemester": { "type": "string" },
         "wakaPin": { "type": "string", "maxLength": 20 },
         "headmasterSignatureUrl": { "type": "string" },
-        "wakaSignatureUrl": { "type": "string" }
+        "wakaSignatureUrl": { "type": "string" },
+        "schoolVision": { "type": "string", "maxLength": 1000 },
+        "schoolMission": { "type": "array" },
+        "announcements": { "type": "array" }
       },
       "required": ["id", "name", "npsn"]
     },

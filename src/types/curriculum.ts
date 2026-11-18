@@ -133,6 +133,14 @@ export interface Teacher {
   email: string;
 }
 
+export interface SchoolAnnouncement {
+  id: string;
+  title: string;
+  content: string;
+  date: string;
+  category?: 'penting' | 'jadwal' | 'panduan' | 'edaran';
+}
+
 export interface SchoolProfile {
   name: string;
   npsn: string;
@@ -156,6 +164,9 @@ export interface SchoolProfile {
   pemdaLogoUrl?: string; // Base64 data URL or external asset
   wakaSignatureUrl?: string; // Tanda tangan / paraf Waka Kurikulum
   headmasterSignatureUrl?: string; // Tanda tangan & stempel Kepala Sekolah
+  schoolVision?: string; // Visi sekolah yang tampil di landing page login
+  schoolMission?: string[]; // Daftar poin misi sekolah di landing page login
+  announcements?: SchoolAnnouncement[]; // Informasi & pengumuman kurikulum untuk guru
 }
 
 export interface AutoExtractionResult {

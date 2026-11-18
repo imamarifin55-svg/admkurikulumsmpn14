@@ -1,9 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { 
   Building2, Upload, Trash2, CheckCircle2, Save, Sparkles, 
-  Eye, ShieldCheck, MapPin, Phone, Mail, Globe, Award, FileText 
+  Eye, ShieldCheck, MapPin, Phone, Mail, Globe, Award, FileText,
+  Compass, Megaphone, Plus 
 } from 'lucide-react';
-import { SchoolProfile, SemesterType } from '../types/curriculum';
+import { SchoolProfile, SchoolAnnouncement, SemesterType } from '../types/curriculum';
+import { INITIAL_SCHOOL_PROFILE } from '../data/initialCurriculumData';
 
 interface SchoolProfileViewProps {
   profile: SchoolProfile;
@@ -21,6 +23,77 @@ export const SchoolProfileView: React.FC<SchoolProfileViewProps> = ({
   useEffect(() => {
     setFormData(profile);
   }, [profile]);
+
+  const effectiveVision =
+    formData.schoolVision !== undefined
+      ? formData.schoolVision
+      : (INITIAL_SCHOOL_PROFILE.schoolVision || '');
+
+  const effectiveMission =
+    formData.schoolMission !== undefined
+      ? formData.schoolMission
+      : (INITIAL_SCHOOL_PROFILE.schoolMission || []);
+
+  const effectiveAnnouncements =
+    formData.announcements !== undefined
+      ? formData.announcements
+      : (INITIAL_SCHOOL_PROFILE.announcements || []);
+
+  const handleUpdateMissionItem = (index: number, value: string) => {
+    const next = [...effectiveMission];
+    next[index] = value;
+    setFormData(prev => ({ ...prev, schoolMission: next }));
+  };
+
+  const handleAddMissionItem = () => {
+    setFormData(prev => ({ ...prev, schoolMission: [...effectiveMission, ''] }));
+  };
+
+  const handleRemoveMissionItem = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      schoolMission: effectiveMission.filter((_, i) => i !== index)
+    }));
+  };
+
+  const handleAddAnnouncement = () => {
+    const todayFormatted = new Date().toLocaleDateString('id-ID', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric'
+    });
+    const newItem: SchoolAnnouncement = {
+      id: `ann-${Date.now()}`,
+      title: '',
+      content: '',
+      date: todayFormatted,
+      category: 'penting'
+    };
+    setFormData(prev => ({
+      ...prev,
+      announcements: [newItem, ...effectiveAnnouncements]
+    }));
+  };
+
+  const handleUpdateAnnouncement = (
+    id: string,
+    field: keyof SchoolAnnouncement,
+    value: string
+  ) => {
+    setFormData(prev => ({
+      ...prev,
+      announcements: effectiveAnnouncements.map(a =>
+        a.id === id ? { ...a, [field]: value } : a
+      )
+    }));
+  };
+
+  const handleRemoveAnnouncement = (id: string) => {
+    setFormData(prev => ({
+      ...prev,
+      announcements: effectiveAnnouncements.filter(a => a.id !== id)
+    }));
+  };
 
   const schoolLogoInputRef = useRef<HTMLInputElement>(null);
   const pemdaLogoInputRef = useRef<HTMLInputElement>(null);
@@ -107,7 +180,22 @@ export const SchoolProfileView: React.FC<SchoolProfileViewProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSaveProfile(formData);
+    const cleanedMission = effectiveMission.map(m => m.trim()).filter(Boolean);
+    const cleanedAnnouncements = effectiveAnnouncements
+      .map(a => ({
+        ...a,
+        title: a.title.trim(),
+        content: a.content.trim(),
+        date: a.date.trim()
+      }))
+      .filter(a => a.title.length > 0 || a.content.length > 0);
+
+    onSaveProfile({
+      ...formData,
+      schoolVision: effectiveVision.trim(),
+      schoolMission: cleanedMission,
+      announcements: cleanedAnnouncements
+    });
     setIsSaved(true);
     setTimeout(() => setIsSaved(false), 3000);
   };
@@ -705,10 +793,186 @@ export const SchoolProfileView: React.FC<SchoolProfileViewProps> = ({
           </div>
         </div>
 
+        {/* Visi, Misi & Pengumuman Guru (Tampil di Halaman Login) */}
+        <div className="pt-4 border-t border-slate-200 space-y-5">
+          <div>
+            <h4 className="font-bold text-slate-900 text-xs flex items-center gap-1.5">
+              <Compass className="w-4 h-4 text-indigo-600" />
+              Visi, Misi &amp; Papan Pengumuman Guru (Halaman Login)
+            </h4>
+            <p className="text-[11px] text-slate-500 mt-0.5">
+              Seluruh informasi di bawah ini langsung tampil di halaman depan sebelum guru masuk portal.
+            </p>
+          </div>
+
+          {/* Visi Sekolah */}
+          <div>
+            <label className="block font-semibold text-slate-700 mb-1">
+              Visi Sekolah
+            </label>
+            <textarea
+              rows={2}
+              value={effectiveVision}
+              onChange={(e) => setFormData(prev => ({ ...prev, schoolVision: e.target.value }))}
+              placeholder="Tuliskan visi resmi sekolah..."
+              className="w-full text-slate-800 border border-slate-200 rounded-lg p-2.5 focus:border-indigo-500 focus:outline-none leading-relaxed"
+            />
+          </div>
+
+          {/* Misi Sekolah */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <label className="font-semibold text-slate-700">
+                Poin Misi Sekolah ({effectiveMission.length} poin)
+              </label>
+              <button
+                type="button"
+                onClick={handleAddMissionItem}
+                className="inline-flex items-center gap-1 px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-lg font-semibold cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Tambah Poin Misi</span>
+              </button>
+            </div>
+
+            {effectiveMission.length === 0 ? (
+              <div className="p-3 bg-slate-50 border border-dashed border-slate-300 rounded-lg text-slate-400 text-center">
+                Belum ada poin misi. Klik &ldquo;Tambah Poin Misi&rdquo; untuk menambahkan.
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {effectiveMission.map((m, idx) => (
+                  <div key={idx} className="flex items-center gap-2">
+                    <span className="font-mono font-bold text-slate-500 w-6 text-right shrink-0">
+                      {idx + 1}.
+                    </span>
+                    <input
+                      type="text"
+                      value={m}
+                      onChange={(e) => handleUpdateMissionItem(idx, e.target.value)}
+                      placeholder={`Poin misi ke-${idx + 1}...`}
+                      className="flex-1 text-slate-800 border border-slate-200 rounded-lg p-2 focus:border-indigo-500 focus:outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveMissionItem(idx)}
+                      className="p-2 text-rose-600 hover:bg-rose-50 rounded-lg cursor-pointer shrink-0"
+                      title="Hapus poin misi"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Pengumuman & Informasi Guru */}
+          <div className="space-y-3 pt-2">
+            <div className="flex items-center justify-between gap-2">
+              <label className="font-semibold text-slate-700 flex items-center gap-1.5">
+                <Megaphone className="w-4 h-4 text-amber-600" />
+                <span>Informasi &amp; Pengumuman untuk Guru ({effectiveAnnouncements.length})</span>
+              </label>
+              <button
+                type="button"
+                onClick={handleAddAnnouncement}
+                className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 rounded-lg font-semibold cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Tambah Pengumuman</span>
+              </button>
+            </div>
+
+            {effectiveAnnouncements.length === 0 ? (
+              <div className="p-4 bg-slate-50 border border-dashed border-slate-300 rounded-xl text-slate-400 text-center">
+                Belum ada pengumuman aktif di halaman login.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {effectiveAnnouncements.map((ann, idx) => (
+                  <div key={ann.id} className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2.5">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="font-bold text-slate-700">
+                        Pengumuman #{idx + 1}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveAnnouncement(ann.id)}
+                        className="inline-flex items-center gap-1 text-rose-600 hover:bg-rose-50 px-2 py-1 rounded-md font-medium cursor-pointer"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Hapus</span>
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
+                      <div className="sm:col-span-6">
+                        <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                          Judul Pengumuman
+                        </label>
+                        <input
+                          type="text"
+                          value={ann.title}
+                          onChange={(e) => handleUpdateAnnouncement(ann.id, 'title', e.target.value)}
+                          placeholder="Contoh: Batas Akhir Unggah ATP"
+                          className="w-full bg-white font-semibold text-slate-900 border border-slate-200 rounded-lg p-2 focus:border-indigo-500 focus:outline-none"
+                        />
+                      </div>
+
+                      <div className="sm:col-span-3">
+                        <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                          Kategori
+                        </label>
+                        <select
+                          value={ann.category || 'edaran'}
+                          onChange={(e) => handleUpdateAnnouncement(ann.id, 'category', e.target.value)}
+                          className="w-full bg-white text-slate-800 border border-slate-200 rounded-lg p-2 focus:border-indigo-500 focus:outline-none"
+                        >
+                          <option value="penting">Penting</option>
+                          <option value="jadwal">Jadwal</option>
+                          <option value="panduan">Panduan</option>
+                          <option value="edaran">Edaran</option>
+                        </select>
+                      </div>
+
+                      <div className="sm:col-span-3">
+                        <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                          Tanggal Info
+                        </label>
+                        <input
+                          type="text"
+                          value={ann.date}
+                          onChange={(e) => handleUpdateAnnouncement(ann.id, 'date', e.target.value)}
+                          placeholder="Mis. 17 Nov 2026"
+                          className="w-full bg-white text-slate-800 border border-slate-200 rounded-lg p-2 focus:border-indigo-500 focus:outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                        Isi Pesan untuk Guru
+                      </label>
+                      <textarea
+                        rows={2}
+                        value={ann.content}
+                        onChange={(e) => handleUpdateAnnouncement(ann.id, 'content', e.target.value)}
+                        placeholder="Tuliskan detail pengumuman atau instruksi kurikulum..."
+                        className="w-full bg-white text-slate-800 border border-slate-200 rounded-lg p-2 focus:border-indigo-500 focus:outline-none leading-relaxed"
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* Submit Bar */}
         <div className="pt-4 border-t border-slate-200 flex items-center justify-between">
           <div className="text-slate-500 text-[11px]">
-            * Data profil ini secara langsung menentukan identitas kop surat, tanda tangan cetak, PIN Waka, dan repositori kurikulum.
+            * Data profil ini secara langsung menentukan identitas kop surat, tanda tangan cetak, PIN Waka, serta Visi, Misi &amp; Pengumuman di halaman login.
           </div>
           <button
             type="submit"

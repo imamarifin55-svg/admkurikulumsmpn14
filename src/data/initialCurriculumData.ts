@@ -97,7 +97,38 @@ export const INITIAL_SCHOOL_PROFILE: SchoolProfile = {
   schoolLogoUrl: '',
   pemdaLogoUrl: '',
   wakaSignatureUrl: '',
-  headmasterSignatureUrl: ''
+  headmasterSignatureUrl: '',
+  schoolVision:
+    'Terwujudnya peserta didik yang beriman, bertakwa, berakhlak mulia, bernalar kritis, kreatif, unggul dalam prestasi, serta berwawasan lingkungan melalui ekosistem Kurikulum Merdeka.',
+  schoolMission: [
+    'Menyelenggarakan pembelajaran berdiferensiasi yang berpusat pada murid sesuai capaian Kurikulum Merdeka.',
+    'Meningkatkan profesionalisme guru melalui penyusunan perangkat ajar yang sistematis, terukur, dan terdokumentasi digital.',
+    'Mengembangkan budaya literasi, numerasi, dan penguatan karakter Profil Pelajar Pancasila melalui projek P5.',
+    'Membangun tata kelola supervisi akademik yang transparan, kolaboratif, dan akuntabel.'
+  ],
+  announcements: [
+    {
+      id: 'ann-1',
+      title: 'Batas Akhir Unggah Perangkat Ajar Tahun Pelajaran 2026/2027',
+      content: 'Bapak/Ibu Guru dimohon mengunggah ATP, Modul Ajar, Promes, dan Prota paling lambat akhir pekan ke-2 awal semester untuk ditelaah oleh Waka Kurikulum.',
+      date: '17 Nov 2026',
+      category: 'penting'
+    },
+    {
+      id: 'ann-2',
+      title: 'Panduan Ukuran Berkas PDF / Word (Maks. 10 MB)',
+      content: 'Lampiran berkas langsung tersimpan di sistem. Disarankan mengekspor file ke PDF standar (ukuran ≤ 1 MB per file) agar cepat dibuka dan menghemat kuota penyimpanan sekolah.',
+      date: '16 Nov 2026',
+      category: 'panduan'
+    },
+    {
+      id: 'ann-3',
+      title: 'Jadwal Supervisi & Pengesahan Kepala Sekolah',
+      content: 'Verifikasi dokumen dilakukan bertahap setiap hari kerja. Status persetujuan, catatan revisi, dan cetak Lembar Pengesahan dapat dipantau langsung setelah login.',
+      date: '15 Nov 2026',
+      category: 'jadwal'
+    }
+  ]
 };
 
 export const INITIAL_TEACHERS: Teacher[] = [
