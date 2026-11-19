@@ -64,16 +64,44 @@ export const CurriculumMatrix: React.FC<CurriculumMatrixProps> = ({
       return semesterDocs.find(
         d =>
           (d.teacherId === wakaTeacher.id ||
-            (d.teacherName === teacher.name && !teachers.some(t => t.id === d.teacherId))) &&
+            (!d.teacherId && d.teacherName === teacher.name && !teachers.some(t => t.id === d.teacherId))) &&
           d.category === category
       );
     }
-    return semesterDocs.find(
-      d => (d.teacherId === teacher.id ||
-            d.teacherName === teacher.name ||
-            (teacher.nip && teacher.nip !== '-' && d.teacherNip === teacher.nip)) &&
-           d.category === category
+
+    const samePersonTeachers = teachers.filter(
+      t =>
+        t.name.toLowerCase() === teacher.name.toLowerCase() ||
+        (teacher.nip && teacher.nip !== '-' && t.nip === teacher.nip)
     );
+    const hasMultipleSubjects = samePersonTeachers.length > 1;
+
+    return semesterDocs.find((d) => {
+      if (d.category !== category) return false;
+
+      if (d.teacherId) {
+        if (d.teacherId !== teacher.id) return false;
+        if (
+          hasMultipleSubjects &&
+          d.subject &&
+          teacher.subject &&
+          d.subject.toLowerCase() !== teacher.subject.toLowerCase()
+        ) {
+          return false;
+        }
+        return true;
+      }
+
+      // Legacy fallback only when doc has no teacherId
+      const matchesPerson =
+        d.teacherName === teacher.name ||
+        (teacher.nip && teacher.nip !== '-' && d.teacherNip === teacher.nip);
+      if (!matchesPerson) return false;
+      if (hasMultipleSubjects && d.subject && teacher.subject) {
+        return d.subject.toLowerCase() === teacher.subject.toLowerCase();
+      }
+      return true;
+    });
   };
 
   // Calculate pending reviews
@@ -226,7 +254,7 @@ export const CurriculumMatrix: React.FC<CurriculumMatrixProps> = ({
                       )}
                     </div>
                     <div className="text-[11px] text-slate-500">
-                      {teacher.subject} <span aria-hidden="true">·</span> NIP. {teacher.nip}
+                      <span className="font-semibold text-indigo-700">{teacher.subject}</span> <span aria-hidden="true">·</span> NIP. {teacher.nip}
                     </div>
                   </td>
 

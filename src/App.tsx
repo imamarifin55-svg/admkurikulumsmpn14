@@ -240,7 +240,16 @@ export default function App() {
 
     const isGuruScoped = currentUser.role === 'guru' && Boolean(currentUser.teacherId);
     if (isGuruScoped && currentUser.teacherId && currentUser.displayName) {
-      backfillTeacherIdForLegacyDocs(currentUser.teacherId, currentUser.displayName).catch(() => {});
+      const loggedTeacher = teachersRef.current.find(t => t.id === currentUser.teacherId);
+      const sameNameTeacherIds = teachersRef.current
+        .filter(t => t.name.toLowerCase() === (loggedTeacher?.name || currentUser.displayName).toLowerCase())
+        .map(t => t.id);
+      backfillTeacherIdForLegacyDocs(
+        currentUser.teacherId,
+        loggedTeacher?.name || currentUser.displayName,
+        loggedTeacher?.subject,
+        sameNameTeacherIds
+      ).catch(() => {});
     }
 
     const unsubDocs = subscribeToDocuments(
@@ -637,14 +646,21 @@ export default function App() {
     const nextDocs = documents.map(d => {
       const isLinked =
         d.teacherId === updatedTeacher.id ||
-        (previousTeacher && d.teacherName === previousTeacher.name);
+        (!d.teacherId &&
+          previousTeacher &&
+          d.teacherName === previousTeacher.name &&
+          (!d.subject || d.subject.toLowerCase() === previousTeacher.subject.toLowerCase()));
       if (isLinked) {
         const syncedDoc: CurriculumDocument = {
           ...d,
           teacherId: updatedTeacher.id,
           teacherName: updatedTeacher.name,
           teacherNip: updatedTeacher.nip,
-          teacherEmail: updatedTeacher.email
+          teacherEmail: updatedTeacher.email,
+          subject:
+            previousTeacher && d.subject === previousTeacher.subject
+              ? updatedTeacher.subject
+              : d.subject
         };
         modifiedDocs.push(syncedDoc);
         return syncedDoc;
@@ -837,14 +853,29 @@ export default function App() {
   };
 
   // Role-Based Filtering:
-  // When role === 'guru', only documents matching that teacher's id or username are shown!
+  // When role === 'guru', only documents matching that exact teacher+subject profile (teacherId) are shown!
   const currentLoggedInTeacher = teachers.find(t => t.id === currentUser.teacherId);
   const visibleDocuments = currentUser.role === 'guru'
-    ? documents.filter(d => 
-        (currentUser.teacherId && d.teacherId === currentUser.teacherId) ||
-        (currentLoggedInTeacher && d.teacherName.toLowerCase().includes(currentLoggedInTeacher.name.split(' ')[0].toLowerCase())) ||
-        (!currentLoggedInTeacher && currentUser.displayName && d.teacherName.toLowerCase().includes(currentUser.displayName.toLowerCase()))
-      )
+    ? documents.filter(d => {
+        if (currentUser.teacherId) {
+          if (d.teacherId) {
+            return d.teacherId === currentUser.teacherId;
+          }
+          if (currentLoggedInTeacher) {
+            const samePerson =
+              d.teacherName.toLowerCase() === currentLoggedInTeacher.name.toLowerCase() ||
+              (currentLoggedInTeacher.nip !== '-' && d.teacherNip === currentLoggedInTeacher.nip);
+            const sameSubject =
+              !d.subject || d.subject.toLowerCase() === currentLoggedInTeacher.subject.toLowerCase();
+            return samePerson && sameSubject;
+          }
+          return false;
+        }
+        return Boolean(
+          currentUser.displayName &&
+            d.teacherName.toLowerCase() === currentUser.displayName.toLowerCase()
+        );
+      })
     : documents;
 
   // Counts for tabs & navigation

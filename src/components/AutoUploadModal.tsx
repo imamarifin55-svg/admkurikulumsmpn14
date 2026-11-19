@@ -121,7 +121,9 @@ export const AutoUploadModal: React.FC<AutoUploadModalProps> = ({
 
   // Sync initial props when opened
   useEffect(() => {
-    if (initialTeacherId) {
+    if (!isWakaUser && currentUser?.teacherId) {
+      setSelectedTeacherId(currentUser.teacherId);
+    } else if (initialTeacherId) {
       setSelectedTeacherId(initialTeacherId);
     } else if (isWakaUser) {
       setSelectedTeacherId(WAKA_SELF_TEACHER_ID);
@@ -138,7 +140,7 @@ export const AutoUploadModal: React.FC<AutoUploadModalProps> = ({
     if (profile.curriculumViceSubject?.trim()) {
       setWakaSubject(profile.curriculumViceSubject.trim());
     }
-  }, [initialTeacherId, initialCategoryId, currentSemester, currentAcademicYear, isWakaUser, profile.curriculumViceSubject]);
+  }, [initialTeacherId, initialCategoryId, currentSemester, currentAcademicYear, isWakaUser, currentUser?.teacherId, profile.curriculumViceSubject]);
 
   useEffect(() => {
     if (isOpen && initialCategoryId && activeTab === 'category_grid') {
@@ -253,17 +255,22 @@ export const AutoUploadModal: React.FC<AutoUploadModalProps> = ({
         result.detectedSubject.toLowerCase().includes(t.subject.toLowerCase())
       ) || teachers[0];
 
-      const resolvedTeacherId =
-        isWakaUser && batchAssignToWaka
-          ? WAKA_SELF_TEACHER_ID
-          : (matchedTeacher ? matchedTeacher.id : (isWakaUser ? WAKA_SELF_TEACHER_ID : ''));
+      const resolvedTeacherId = !isWakaUser
+        ? (currentUser?.teacherId || selectedTeacherId || (matchedTeacher ? matchedTeacher.id : ''))
+        : (batchAssignToWaka
+            ? WAKA_SELF_TEACHER_ID
+            : (matchedTeacher ? matchedTeacher.id : WAKA_SELF_TEACHER_ID));
+
+      const resolvedSubject = !isWakaUser && currentTeacher?.subject
+        ? currentTeacher.subject
+        : result.detectedSubject;
 
       newStaged.push({
         id: `staged-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
         file,
         title: result.detectedTitle,
         category: result.detectedCategory,
-        subject: result.detectedSubject,
+        subject: resolvedSubject,
         grade: result.detectedGrade,
         semester: result.detectedSemester,
         academicYear: selectedAcademicYear,
@@ -529,32 +536,28 @@ export const AutoUploadModal: React.FC<AutoUploadModalProps> = ({
                     <label className="block text-[11px] font-semibold text-slate-700 mb-1">
                       Guru Pengampu / Penyusun
                     </label>
-                    <select
-                      value={selectedTeacherId}
-                      onChange={(e) => setSelectedTeacherId(e.target.value)}
-                      className="w-full text-xs font-semibold bg-white border border-slate-300 rounded-lg p-2 text-slate-900 focus:outline-none focus:border-indigo-500"
-                    >
-                      {isWakaUser && (
+                    {isWakaUser ? (
+                      <select
+                        value={selectedTeacherId}
+                        onChange={(e) => setSelectedTeacherId(e.target.value)}
+                        className="w-full text-xs font-semibold bg-white border border-slate-300 rounded-lg p-2 text-slate-900 focus:outline-none focus:border-indigo-500"
+                      >
                         <option value={WAKA_SELF_TEACHER_ID}>
                           Waka Kurikulum (Berkas Saya) — {wakaTeacherRecord.name}
                         </option>
-                      )}
-                      {isWakaUser ? (
                         <optgroup label="Guru Pengampu Terdaftar">
                           {teachers.map(t => (
                             <option key={t.id} value={t.id}>
-                              {t.name}
+                              {t.name} ({t.subject})
                             </option>
                           ))}
                         </optgroup>
-                      ) : (
-                        teachers.map(t => (
-                          <option key={t.id} value={t.id}>
-                            {t.name}
-                          </option>
-                        ))
-                      )}
-                    </select>
+                      </select>
+                    ) : (
+                      <div className="w-full text-xs font-semibold bg-slate-100 border border-slate-200 rounded-lg p-2 text-slate-900 truncate" title={`${currentTeacher?.name} (${currentSubject})`}>
+                        {currentTeacher?.name || currentUser?.displayName || 'Guru Pengampu'}
+                      </div>
+                    )}
                   </div>
 
                   {/* Subject (Editable dropdown when Waka self-upload, Auto-synced for registered teacher) */}
@@ -1030,18 +1033,27 @@ export const AutoUploadModal: React.FC<AutoUploadModalProps> = ({
                                 value={item.teacherId}
                                 onChange={(e) => {
                                   const nextTeacherId = e.target.value;
+                                  const nextTeacher = teachers.find(t => t.id === nextTeacherId);
                                   setStagedFiles(prev =>
-                                    prev.map(f => (f.id === item.id ? { ...f, teacherId: nextTeacherId } : f))
+                                    prev.map(f =>
+                                      f.id === item.id
+                                        ? {
+                                            ...f,
+                                            teacherId: nextTeacherId,
+                                            subject: nextTeacher?.subject || f.subject
+                                          }
+                                        : f
+                                    )
                                   );
                                 }}
-                                className="text-[11px] font-semibold bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-slate-800 focus:outline-none focus:border-indigo-500 max-w-[180px]"
+                                className="text-[11px] font-semibold bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-slate-800 focus:outline-none focus:border-indigo-500 max-w-[200px]"
                               >
                                 <option value={WAKA_SELF_TEACHER_ID}>
                                   Waka Kurikulum ({wakaTeacherRecord.name})
                                 </option>
                                 {teachers.map(t => (
                                   <option key={t.id} value={t.id}>
-                                    {t.name}
+                                    {t.name} ({t.subject})
                                   </option>
                                 ))}
                               </select>

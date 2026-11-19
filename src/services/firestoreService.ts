@@ -179,14 +179,16 @@ export async function fetchAllDocumentsFromFirestore(): Promise<CurriculumDocume
   }
 }
 
-// One-time legacy compatibility helper: attaches missing teacherId on older docs matched by exact teacherName
+// One-time legacy compatibility helper: attaches missing teacherId (or repairs subject-specific teacherId) without touching other subjects
 export async function backfillTeacherIdForLegacyDocs(
   teacherId: string,
-  teacherName: string
+  teacherName: string,
+  teacherSubject?: string,
+  sameNameTeacherIds: string[] = []
 ): Promise<number> {
   if (!teacherId || !teacherName) return 0;
   try {
-    const storageKey = `arsip_teacher_id_migrated_${teacherId}`;
+    const storageKey = `arsip_teacher_subject_migrated_v2_${teacherId}`;
     if (localStorage.getItem(storageKey) === 'true') {
       return 0;
     }
@@ -194,9 +196,26 @@ export async function backfillTeacherIdForLegacyDocs(
     const q = query(collection(db, 'documents'), where('teacherName', '==', teacherName));
     const snap = await getDocs(q);
     const toUpdate: CurriculumDocument[] = [];
+    const hasMultipleSubjects = sameNameTeacherIds.length > 1;
+    const normalizedTargetSubject = (teacherSubject || '').trim().toLowerCase();
+
     snap.forEach((docSnap) => {
       const data = docSnap.data() as CurriculumDocument;
-      if (data.teacherId !== teacherId) {
+      const docSubject = (data.subject || '').trim().toLowerCase();
+      const matchesSubject = !normalizedTargetSubject || !docSubject || docSubject === normalizedTargetSubject;
+
+      if (!data.teacherId) {
+        if (!hasMultipleSubjects || matchesSubject) {
+          toUpdate.push({ ...data, teacherId });
+        }
+      } else if (
+        hasMultipleSubjects &&
+        normalizedTargetSubject &&
+        docSubject === normalizedTargetSubject &&
+        sameNameTeacherIds.includes(data.teacherId) &&
+        data.teacherId !== teacherId
+      ) {
+        // Repair docs whose teacherId was previously overwritten by another subject entry of the same teacher
         toUpdate.push({ ...data, teacherId });
       }
     });

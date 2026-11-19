@@ -85,6 +85,9 @@ export const EditDocumentModal: React.FC<EditDocumentModalProps> = ({
       setTeacherName(t.name);
       setTeacherNip(t.nip);
       setTeacherEmail(t.email);
+      if (t.id !== wakaTeacher?.id && t.subject) {
+        setSubject(t.subject);
+      }
     }
   };
 
@@ -333,24 +336,34 @@ export const EditDocumentModal: React.FC<EditDocumentModalProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block font-semibold text-slate-700 mb-1">
-                Pilih Guru Pengampu
+                {isWaka ? 'Pilih Guru Pengampu' : 'Guru Pengampu'}
               </label>
-              <select
-                onChange={(e) => handleTeacherSelect(e.target.value)}
-                className="w-full text-xs border border-slate-200 rounded-lg px-3 py-2 bg-white focus:border-indigo-500 focus:outline-none"
-              >
-                <option value="">-- Tetapkan Guru Terdaftar --</option>
-                {isWaka && wakaTeacher && (
-                  <option value={wakaTeacher.id}>
-                    Waka Kurikulum — {wakaTeacher.name}
-                  </option>
-                )}
-                {teachers.map(t => (
-                  <option key={t.id} value={t.id}>
-                    {t.name} ({t.subject})
-                  </option>
-                ))}
-              </select>
+              {isWaka ? (
+                <select
+                  value={teacherId}
+                  onChange={(e) => handleTeacherSelect(e.target.value)}
+                  className="w-full text-xs border border-slate-200 rounded-lg px-3 py-2 bg-white focus:border-indigo-500 focus:outline-none"
+                >
+                  <option value="">-- Tetapkan Guru Terdaftar --</option>
+                  {wakaTeacher && (
+                    <option value={wakaTeacher.id}>
+                      Waka Kurikulum — {wakaTeacher.name}
+                    </option>
+                  )}
+                  {teachers.map(t => (
+                    <option key={t.id} value={t.id}>
+                      {t.name} ({t.subject})
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  type="text"
+                  value={teacherName}
+                  readOnly
+                  className="w-full text-xs font-semibold bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-700 focus:outline-none"
+                />
+              )}
             </div>
 
             <div>
