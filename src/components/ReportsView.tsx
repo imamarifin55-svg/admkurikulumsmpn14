@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { 
-  CurriculumDocument, SchoolProfile, Teacher, SemesterType, 
+  CurriculumDocument, SchoolProfile,
   CategoryItem, ActivityLog, ActivityAction 
 } from '../types/curriculum';
 import { CATEGORY_LABELS } from '../utils/documentClassifier';
@@ -11,11 +11,9 @@ import {
 
 interface ReportsViewProps {
   documents: CurriculumDocument[];
-  teachers: Teacher[];
   profile: SchoolProfile;
   categories: CategoryItem[];
   activityLogs: ActivityLog[];
-  currentSemester: SemesterType;
   academicYear: string;
   onRestoreBackup: (docs: CurriculumDocument[]) => void;
   onFetchAllYearsDocuments?: () => Promise<CurriculumDocument[]>;
@@ -36,11 +34,9 @@ const ACTION_BADGE_MAP: Record<ActivityAction, { label: string; style: string }>
 
 export const ReportsView: React.FC<ReportsViewProps> = ({
   documents,
-  teachers: _teachers,
   profile,
   categories,
   activityLogs,
-  currentSemester: _currentSemester,
   academicYear,
   onRestoreBackup,
   onFetchAllYearsDocuments

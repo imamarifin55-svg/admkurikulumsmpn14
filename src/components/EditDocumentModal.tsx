@@ -1,16 +1,18 @@
-import React, { useState, useEffect } from 'react';
-import { X, Save, Edit3, Trash2, Calendar, BookOpen, User } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { X, Save, Edit3, UploadCloud, FileText, CheckCircle2, AlertCircle, RefreshCw, Trash2 } from 'lucide-react';
 import { 
   CurriculumDocument, DocumentCategory, GradeLevel, SemesterType, 
-  CurriculumType, Teacher, VerificationStatus, CategoryItem, AppUserRole 
+  CurriculumType, Teacher, VerificationStatus, CategoryItem, AppUserRole, DocumentFile 
 } from '../types/curriculum';
 import { SUBJECT_DICTIONARY } from '../utils/documentClassifier';
+
+const MAX_CLOUD_FILE_BYTES = 10 * 1024 * 1024; // 10 MB
 
 interface EditDocumentModalProps {
   document: CurriculumDocument | null;
   isOpen: boolean;
   onClose: () => void;
-  onSave: (updatedDoc: CurriculumDocument) => void;
+  onSave: (updatedDoc: CurriculumDocument, newAttachedFile?: DocumentFile) => Promise<void> | void;
   teachers: Teacher[];
   categories: CategoryItem[];
   userRole?: AppUserRole;
@@ -41,7 +43,13 @@ export const EditDocumentModal: React.FC<EditDocumentModalProps> = ({
   const [status, setStatus] = useState<VerificationStatus>(document?.status || 'draft');
   const [supervisorNotes, setSupervisorNotes] = useState(document?.supervisorNotes || '');
   const [curriculumType, setCurriculumType] = useState<CurriculumType>(document?.curriculumType || 'Kurikulum Merdeka');
-  const [externalFileUrl, setExternalFileUrl] = useState(document?.externalFileUrl || '');
+
+  // Real file upload state
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isDraggingFile, setIsDraggingFile] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (document) {
@@ -59,7 +67,10 @@ export const EditDocumentModal: React.FC<EditDocumentModalProps> = ({
       setStatus(document.status);
       setSupervisorNotes(document.supervisorNotes || '');
       setCurriculumType(document.curriculumType);
-      setExternalFileUrl(document.externalFileUrl || '');
+      setSelectedFile(null);
+      setUploadError(null);
+      setIsSaving(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   }, [document]);
 
@@ -77,31 +88,93 @@ export const EditDocumentModal: React.FC<EditDocumentModalProps> = ({
     }
   };
 
+  const handlePickFile = (file: File | null) => {
+    setUploadError(null);
+    if (!file) {
+      setSelectedFile(null);
+      return;
+    }
+    if (file.size === 0) {
+      setUploadError('File kosong (0 byte). Silakan pilih file lain yang valid.');
+      setSelectedFile(null);
+      return;
+    }
+    if (file.size > MAX_CLOUD_FILE_BYTES) {
+      setUploadError('Ukuran file melebihi batas maksimal 10 MB untuk penyimpanan Cloud.');
+      setSelectedFile(null);
+      return;
+    }
+    setSelectedFile(file);
+  };
+
   const isWaka = userRole === 'waka_kurikulum';
 
-  const handleFormSubmit = (e: React.FormEvent) => {
+  const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const updated: CurriculumDocument = {
-      ...document,
-      title,
-      category,
-      subject,
-      grade,
-      semester,
-      academicYear,
-      teacherId: teacherId || document.teacherId,
-      teacherName,
-      teacherNip,
-      teacherEmail: teacherEmail || document.teacherEmail,
-      alokasiJp: Number(alokasiJp),
-      status: isWaka ? status : document.status,
-      supervisorNotes: isWaka ? supervisorNotes : document.supervisorNotes,
-      curriculumType,
-      externalFileUrl: externalFileUrl.trim() || undefined,
-      lastModified: new Date().toISOString()
-    };
-    onSave(updated);
-    onClose();
+    if (isSaving) return;
+    if (selectedFile && selectedFile.size > MAX_CLOUD_FILE_BYTES) {
+      setUploadError('Ukuran file melebihi batas maksimal 10 MB.');
+      return;
+    }
+
+    setIsSaving(true);
+    setUploadError(null);
+    try {
+      let newFilePayload: DocumentFile | undefined;
+      if (selectedFile) {
+        const dataUrl = await new Promise<string | null>((resolve) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : null);
+          reader.onerror = () => resolve(null);
+          reader.readAsDataURL(selectedFile);
+        });
+        if (!dataUrl) {
+          setUploadError('Gagal membaca file dari perangkat. Silakan coba lagi.');
+          setIsSaving(false);
+          return;
+        }
+        newFilePayload = {
+          id: document.id,
+          documentId: document.id,
+          fileName: selectedFile.name.slice(0, 255),
+          mimeType: (selectedFile.type || 'application/octet-stream').slice(0, 120),
+          fileSize: selectedFile.size,
+          dataUrl,
+          uploadedAt: new Date().toISOString()
+        };
+      }
+
+      const updated: CurriculumDocument = {
+        ...document,
+        title,
+        category,
+        subject,
+        grade,
+        semester,
+        academicYear,
+        teacherId: teacherId || document.teacherId,
+        teacherName,
+        teacherNip,
+        teacherEmail: teacherEmail || document.teacherEmail,
+        alokasiJp: Number(alokasiJp),
+        status: isWaka ? status : document.status,
+        supervisorNotes: isWaka ? supervisorNotes : document.supervisorNotes,
+        curriculumType,
+        originalFileName: selectedFile ? selectedFile.name.slice(0, 255) : document.originalFileName,
+        fileSize: selectedFile ? selectedFile.size : document.fileSize,
+        fileType: selectedFile
+          ? (selectedFile.name.split('.').pop()?.toLowerCase() || 'file').slice(0, 20)
+          : document.fileType,
+        hasStoredFile: newFilePayload ? true : document.hasStoredFile,
+        externalFileUrl: newFilePayload ? undefined : document.externalFileUrl,
+        lastModified: new Date().toISOString()
+      };
+
+      await onSave(updated, newFilePayload);
+      onClose();
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -293,19 +366,119 @@ export const EditDocumentModal: React.FC<EditDocumentModalProps> = ({
             </div>
           </div>
 
-          {/* Status & Supervisor Notes */}
+          {/* Real Cloud File Upload & Status */}
           <div className="pt-2 border-t border-slate-200 space-y-3">
             <div>
-              <label className="block font-semibold text-slate-700 mb-1">
-                Tautan Berkas Cloud / Google Drive (Opsional)
+              <label className="block font-semibold text-slate-700 mb-1.5">
+                Unggah / Ganti Berkas File (Semua Format, Maks. 10 MB)
               </label>
-              <input
-                type="url"
-                value={externalFileUrl}
-                onChange={(e) => setExternalFileUrl(e.target.value)}
-                placeholder="https://drive.google.com/file/d/..."
-                className="w-full text-xs border border-slate-200 rounded-lg px-3 py-2 focus:border-indigo-500 focus:outline-none"
-              />
+
+              {/* Current Stored File Info */}
+              <div className="mb-2 px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <FileText className="w-4 h-4 text-slate-500 shrink-0" />
+                  <div className="min-w-0">
+                    <div className="text-[11px] font-semibold text-slate-800 truncate">
+                      Berkas saat ini: {document.originalFileName}
+                    </div>
+                    <div className="text-[10px] text-slate-500 font-mono">
+                      {(document.fileSize / 1024 / 1024).toFixed(2)} MB ·{' '}
+                      {document.hasStoredFile ? (
+                        <span className="text-emerald-700 font-semibold">Tersimpan di Cloud</span>
+                      ) : (
+                        <span className="text-amber-700 font-semibold">Belum ada file fisik di Cloud</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Dropzone / File Picker */}
+              <div
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setIsDraggingFile(true);
+                }}
+                onDragLeave={() => setIsDraggingFile(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setIsDraggingFile(false);
+                  const dropped = e.dataTransfer.files?.[0] || null;
+                  handlePickFile(dropped);
+                }}
+                className={`rounded-xl border-2 border-dashed p-3.5 transition-all ${
+                  isDraggingFile
+                    ? 'border-indigo-500 bg-indigo-50/70'
+                    : selectedFile
+                    ? 'border-emerald-300 bg-emerald-50/50'
+                    : 'border-slate-300 bg-slate-50/50 hover:border-indigo-400'
+                }`}
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  onChange={(e) => handlePickFile(e.target.files?.[0] || null)}
+                  className="hidden"
+                />
+
+                {selectedFile ? (
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                      <div className="min-w-0">
+                        <div className="font-bold text-slate-900 truncate text-xs">
+                          File Baru Siap Diunggah: {selectedFile.name}
+                        </div>
+                        <div className="text-[11px] text-emerald-700 font-mono">
+                          {(selectedFile.size / 1024).toFixed(1)} KB ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB) · Akan disimpan langsung ke Cloud
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="px-2 py-1 text-[11px] font-semibold text-indigo-700 bg-white border border-indigo-200 hover:bg-indigo-50 rounded-lg cursor-pointer"
+                      >
+                        Ganti
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedFile(null);
+                          setUploadError(null);
+                          if (fileInputRef.current) fileInputRef.current.value = '';
+                        }}
+                        className="p-1 text-slate-400 hover:text-rose-600 rounded-lg cursor-pointer"
+                        title="Batalkan pilihan file baru"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="w-full flex flex-col items-center justify-center gap-1 text-center py-1 cursor-pointer"
+                  >
+                    <UploadCloud className="w-5 h-5 text-indigo-600" />
+                    <span className="text-xs font-semibold text-slate-800">
+                      Klik untuk Memilih File atau Tarik File ke Sini
+                    </span>
+                    <span className="text-[10px] text-slate-500">
+                      Mendukung semua jenis file: JPG, JPEG, PNG, PDF, Word (DOCX/DOC), Excel (XLSX/XLS), PowerPoint, dll.
+                    </span>
+                  </button>
+                )}
+              </div>
+
+              {uploadError && (
+                <div className="mt-2 flex items-center gap-1.5 text-[11px] text-rose-700 bg-rose-50 border border-rose-200 rounded-lg px-2.5 py-1.5">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                  <span>{uploadError}</span>
+                </div>
+              )}
             </div>
 
             {isWaka ? (
@@ -357,16 +530,27 @@ export const EditDocumentModal: React.FC<EditDocumentModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-900 bg-white border border-slate-300 rounded-lg transition-colors"
+              disabled={isSaving}
+              className="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-900 bg-white border border-slate-300 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
             >
               Batal
             </button>
             <button
               type="submit"
-              className="px-5 py-2 text-xs font-semibold text-white bg-indigo-700 hover:bg-indigo-800 rounded-lg shadow-xs transition-colors flex items-center gap-1.5"
+              disabled={isSaving}
+              className="px-5 py-2 text-xs font-semibold text-white bg-indigo-700 hover:bg-indigo-800 rounded-lg shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-60"
             >
-              <Save className="w-4 h-4" />
-              <span>Simpan Perubahan</span>
+              {isSaving ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  <span>{selectedFile ? 'Mengunggah & Menyimpan...' : 'Menyimpan...'}</span>
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4" />
+                  <span>Simpan Perubahan</span>
+                </>
+              )}
             </button>
           </div>
         </form>

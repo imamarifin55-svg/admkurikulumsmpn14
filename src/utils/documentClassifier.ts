@@ -215,7 +215,6 @@ export function classifyCurriculumDocument(
   }
 
   // 6. Generate Clean Title
-  const cleanBaseName = fileName.replace(/\.[^/.]+$/, '').replace(/[_\\-]/g, ' ');
   const categoryInfo = CATEGORY_LABELS[detectedCategory];
   const detectedTitle = `${categoryInfo.name} ${detectedSubject} Kelas ${detectedGrade} Semester ${detectedSemester === 'ganjil' ? 'Ganjil' : 'Genap'}`;
 

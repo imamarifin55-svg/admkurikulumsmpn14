@@ -1,10 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { 
-  Building2, Upload, Trash2, CheckCircle2, Save, Sparkles, 
-  Eye, ShieldCheck, MapPin, Phone, Mail, Globe, Award, FileText,
+  Building2, Upload, Trash2, CheckCircle2, Save, 
+  Eye, ShieldCheck, Award, 
   Compass, Megaphone, Plus 
 } from 'lucide-react';
-import { SchoolProfile, SchoolAnnouncement, SemesterType } from '../types/curriculum';
+import { SchoolProfile, SchoolAnnouncement } from '../types/curriculum';
 import { INITIAL_SCHOOL_PROFILE } from '../data/initialCurriculumData';
 
 interface SchoolProfileViewProps {
@@ -151,10 +151,6 @@ export const SchoolProfileView: React.FC<SchoolProfileViewProps> = ({
     reader.readAsDataURL(file);
   };
 
-  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>, type: 'school' | 'pemda') => {
-    handleImageUpload(e, type === 'school' ? 'schoolLogoUrl' : 'pemdaLogoUrl');
-  };
-
   const handleRemoveLogo = (type: 'school' | 'pemda') => {
     if (type === 'school') {
       setFormData(prev => ({ ...prev, schoolLogoUrl: '' }));
@@ -192,6 +188,7 @@ export const SchoolProfileView: React.FC<SchoolProfileViewProps> = ({
 
     onSaveProfile({
       ...formData,
+      wakaPin: (formData.wakaPin ?? '').trim() || '123456',
       schoolVision: effectiveVision.trim(),
       schoolMission: cleanedMission,
       announcements: cleanedAnnouncements
@@ -287,7 +284,7 @@ export const SchoolProfileView: React.FC<SchoolProfileViewProps> = ({
               <input
                 type="file"
                 ref={pemdaLogoInputRef}
-                onChange={(e) => handleLogoUpload(e, 'pemda')}
+                onChange={(e) => handleImageUpload(e, 'pemdaLogoUrl')}
                 accept="image/*"
                 className="hidden"
               />
@@ -363,7 +360,7 @@ export const SchoolProfileView: React.FC<SchoolProfileViewProps> = ({
               <input
                 type="file"
                 ref={schoolLogoInputRef}
-                onChange={(e) => handleLogoUpload(e, 'school')}
+                onChange={(e) => handleImageUpload(e, 'schoolLogoUrl')}
                 accept="image/*"
                 className="hidden"
               />
@@ -694,7 +691,7 @@ export const SchoolProfileView: React.FC<SchoolProfileViewProps> = ({
           </div>
         </div>
 
-        {/* Tanda Tangan / Stempel Digital & PIN Keamanan Waka */}
+        {/* Tanda Tangan / Stempel Digital & Password Login Waka */}
         <div className="pt-4 border-t border-slate-200 grid grid-cols-1 md:grid-cols-3 gap-5">
           {/* TTD Waka */}
           <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2.5">
@@ -770,25 +767,25 @@ export const SchoolProfileView: React.FC<SchoolProfileViewProps> = ({
             </div>
           </div>
 
-          {/* PIN Keamanan Waka */}
+          {/* Password Login Waka */}
           <div className="p-4 rounded-xl bg-indigo-50/50 border border-indigo-200 space-y-2">
             <div className="font-bold text-indigo-950 flex items-center gap-1.5">
               <ShieldCheck className="w-4 h-4 text-indigo-700" />
-              <span>PIN Login Waka Kurikulum</span>
+              <span>Password Login Waka Kurikulum</span>
             </div>
             <p className="text-[11px] text-indigo-800 leading-relaxed">
               Melindungi akses admin Waka Kurikulum saat masuk di halaman login.
             </p>
             <input
               type="text"
-              maxLength={20}
-              value={formData.wakaPin || '123456'}
+              maxLength={32}
+              value={formData.wakaPin ?? ''}
               onChange={(e) => setFormData(prev => ({ ...prev, wakaPin: e.target.value }))}
-              placeholder="Contoh: 123456"
-              className="w-full font-mono font-bold text-slate-900 bg-white border border-indigo-300 rounded-lg p-2.5 focus:border-indigo-600 focus:outline-none"
+              placeholder="Kosongkan untuk bawaan (123456)"
+              className="w-full font-mono font-bold text-slate-900 bg-white border border-indigo-300 rounded-lg p-2.5 focus:border-indigo-600 focus:outline-none placeholder:font-sans placeholder:font-normal placeholder:text-slate-400"
             />
             <div className="text-[10px] text-indigo-700">
-              Disarankan ganti dari PIN bawaan (<span className="font-mono">123456</span>).
+              Disarankan ubah dari password bawaan (<span className="font-mono">123456</span>).
             </div>
           </div>
         </div>
@@ -972,7 +969,7 @@ export const SchoolProfileView: React.FC<SchoolProfileViewProps> = ({
         {/* Submit Bar */}
         <div className="pt-4 border-t border-slate-200 flex items-center justify-between">
           <div className="text-slate-500 text-[11px]">
-            * Data profil ini secara langsung menentukan identitas kop surat, tanda tangan cetak, PIN Waka, serta Visi, Misi &amp; Pengumuman di halaman login.
+            * Data profil ini secara langsung menentukan identitas kop surat, tanda tangan cetak, Password Waka, serta Visi, Misi &amp; Pengumuman di halaman login.
           </div>
           <button
             type="submit"

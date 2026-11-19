@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { 
   FolderKanban, Plus, Pencil, Trash2, CheckCircle2, X, 
-  Save, AlertCircle, Info, ShieldCheck, ToggleLeft, ToggleRight 
+  Save, AlertCircle, Info 
 } from 'lucide-react';
 import { CategoryItem } from '../types/curriculum';
 

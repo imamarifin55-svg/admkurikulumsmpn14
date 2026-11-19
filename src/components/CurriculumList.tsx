@@ -1,11 +1,11 @@
 import React, { useState, useMemo } from 'react';
 import { 
-  CurriculumDocument, DocumentCategory, GradeLevel, SemesterType, VerificationStatus, CategoryItem 
+  CurriculumDocument, SemesterType, VerificationStatus, CategoryItem 
 } from '../types/curriculum';
 import { CATEGORY_LABELS } from '../utils/documentClassifier';
 import { 
   Search, Filter, FileText, CheckCircle2, Clock, AlertTriangle, 
-  ShieldCheck, Eye, Printer, Trash2, ArrowUpDown, Download, Sparkles 
+  ShieldCheck, Eye, Pencil, Printer, Trash2, ArrowUpDown, Sparkles 
 } from 'lucide-react';
 
 interface CurriculumListProps {
@@ -14,6 +14,7 @@ interface CurriculumListProps {
   academicYear: string;
   categories: CategoryItem[];
   onSelectDocument: (doc: CurriculumDocument) => void;
+  onEditDocument: (doc: CurriculumDocument) => void;
   onPrintValidationSheet: (doc: CurriculumDocument) => void;
   onDeleteDocument: (docId: string) => void;
   onOpenUpload: () => void;
@@ -25,6 +26,7 @@ export const CurriculumList: React.FC<CurriculumListProps> = ({
   academicYear,
   categories,
   onSelectDocument,
+  onEditDocument,
   onPrintValidationSheet,
   onDeleteDocument,
   onOpenUpload
@@ -149,15 +151,30 @@ export const CurriculumList: React.FC<CurriculumListProps> = ({
 
           {/* Quick Stats & Sort */}
           <div className="flex items-center gap-2 self-end sm:self-auto">
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as 'date' | 'title' | 'jp')}
+              className="px-2.5 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-500 cursor-pointer"
+              title="Urutkan berdasarkan"
+            >
+              <option value="date">Urutkan: Tanggal</option>
+              <option value="title">Urutkan: Judul</option>
+              <option value="jp">Urutkan: Alokasi JP</option>
+            </select>
+
             <button
-              onClick={() => {
-                if (sortBy === 'date') setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
-                else { setSortBy('date'); setSortOrder('desc'); }
-              }}
-              className="px-2.5 py-1.5 text-xs font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 flex items-center gap-1.5"
+              type="button"
+              onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
+              className="px-2.5 py-1.5 text-xs font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 flex items-center gap-1.5 cursor-pointer"
             >
               <ArrowUpDown className="w-3.5 h-3.5 text-slate-400" />
-              <span>Tanggal {sortOrder === 'desc' ? 'Terbaru' : 'Terlama'}</span>
+              <span>
+                {sortBy === 'date'
+                  ? (sortOrder === 'desc' ? 'Terbaru' : 'Terlama')
+                  : sortBy === 'title'
+                  ? (sortOrder === 'asc' ? 'A–Z' : 'Z–A')
+                  : (sortOrder === 'desc' ? 'JP Terbesar' : 'JP Terkecil')}
+              </span>
             </button>
           </div>
         </div>
@@ -359,16 +376,27 @@ export const CurriculumList: React.FC<CurriculumListProps> = ({
                     <td className="py-3.5 px-4 text-right">
                       <div className="flex items-center justify-end gap-1.5">
                         <button
+                          type="button"
                           onClick={() => onSelectDocument(doc)}
-                          className="p-1.5 text-slate-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg transition-colors"
+                          className="p-1.5 text-slate-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
                           title="Lihat Pratinjau Dokumen & Catatan"
                         >
                           <Eye className="w-4 h-4" />
                         </button>
 
                         <button
+                          type="button"
+                          onClick={() => onEditDocument(doc)}
+                          className="p-1.5 text-slate-600 hover:text-amber-700 hover:bg-amber-50 rounded-lg transition-colors cursor-pointer"
+                          title="Edit Metadata & Unggah Berkas"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
+
+                        <button
+                          type="button"
                           onClick={() => onPrintValidationSheet(doc)}
-                          className="p-1.5 text-slate-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors"
+                          className="p-1.5 text-slate-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer"
                           title="Cetak Lembar Pengesahan Resmi"
                         >
                           <Printer className="w-4 h-4" />

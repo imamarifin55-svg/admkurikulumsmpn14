@@ -1,5 +1,5 @@
 import React from 'react';
-import { SemesterType } from '../types/curriculum';
+import { AppUserRole, SemesterType } from '../types/curriculum';
 import { Calendar, LayoutGrid, ListFilter, ClipboardCheck, FileText } from 'lucide-react';
 
 interface SemesterControlsProps {
@@ -7,10 +7,11 @@ interface SemesterControlsProps {
   onSemesterChange: (semester: SemesterType) => void;
   academicYear: string;
   onAcademicYearChange: (year: string) => void;
-  activeView: 'list' | 'matrix' | 'supervision' | 'reports' | 'profile' | 'categories';
-  onViewChange: (view: 'list' | 'matrix' | 'supervision' | 'reports' | 'profile' | 'categories') => void;
+  activeView: 'list' | 'matrix' | 'supervision' | 'reports' | 'profile' | 'categories' | 'teachers';
+  onViewChange: (view: 'list' | 'matrix' | 'supervision' | 'reports' | 'profile' | 'categories' | 'teachers') => void;
   ganjilCount: number;
   genapCount: number;
+  userRole?: AppUserRole;
 }
 
 export const SemesterControls: React.FC<SemesterControlsProps> = ({
@@ -21,7 +22,8 @@ export const SemesterControls: React.FC<SemesterControlsProps> = ({
   activeView,
   onViewChange,
   ganjilCount,
-  genapCount
+  genapCount,
+  userRole = 'waka_kurikulum'
 }) => {
   return (
     <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -105,31 +107,35 @@ export const SemesterControls: React.FC<SemesterControlsProps> = ({
           <span>Matriks Kelengkapan Guru</span>
         </button>
 
-        <button
-          type="button"
-          onClick={() => onViewChange('supervision')}
-          className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 flex items-center gap-1.5 ${
-            activeView === 'supervision'
-              ? 'bg-white text-slate-900 shadow-xs font-semibold'
-              : 'text-slate-600 hover:text-slate-900'
-          }`}
-        >
-          <ClipboardCheck className="w-3.5 h-3.5" />
-          <span>Supervisi &amp; Pengesahan</span>
-        </button>
+        {userRole === 'waka_kurikulum' && (
+          <>
+            <button
+              type="button"
+              onClick={() => onViewChange('supervision')}
+              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 flex items-center gap-1.5 ${
+                activeView === 'supervision'
+                  ? 'bg-white text-slate-900 shadow-xs font-semibold'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <ClipboardCheck className="w-3.5 h-3.5" />
+              <span>Supervisi &amp; Pengesahan</span>
+            </button>
 
-        <button
-          type="button"
-          onClick={() => onViewChange('reports')}
-          className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 flex items-center gap-1.5 ${
-            activeView === 'reports'
-              ? 'bg-white text-slate-900 shadow-xs font-semibold'
-              : 'text-slate-600 hover:text-slate-900'
-          }`}
-        >
-          <FileText className="w-3.5 h-3.5" />
-          <span>Rekapitulasi</span>
-        </button>
+            <button
+              type="button"
+              onClick={() => onViewChange('reports')}
+              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 flex items-center gap-1.5 ${
+                activeView === 'reports'
+                  ? 'bg-white text-slate-900 shadow-xs font-semibold'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <FileText className="w-3.5 h-3.5" />
+              <span>Rekapitulasi</span>
+            </button>
+          </>
+        )}
       </div>
     </div>
   );

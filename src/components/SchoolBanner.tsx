@@ -1,6 +1,7 @@
 import React from 'react';
 import { SchoolProfile, CurriculumDocument, SemesterType, Teacher, CategoryItem } from '../types/curriculum';
 import { FileCheck, ShieldCheck, Sparkles, Building2 } from 'lucide-react';
+import schoolHeaderBanner from '../assets/images/school_header_banner_1793849402937.jpg';
 
 interface SchoolBannerProps {
   profile: SchoolProfile;
@@ -43,9 +44,8 @@ export const SchoolBanner: React.FC<SchoolBannerProps> = ({
       {/* Background with measured contrast scrim */}
       <div className="absolute inset-0 z-0">
         <img
-          src="/src/assets/images/school_header_banner_1793849402937.jpg"
-          alt="Gedung SMP Negeri 1 Mentari Bangsa"
-          referrerPolicy="no-referrer"
+          src={schoolHeaderBanner}
+          alt={profile.name}
           className="w-full h-full object-cover object-center opacity-25 filter saturate-75"
         />
         <div className="absolute inset-0 bg-gradient-to-r from-slate-900/90 via-slate-900/75 to-slate-900/40" />

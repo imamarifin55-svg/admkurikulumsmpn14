@@ -1,8 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { 
-  X, UploadCloud, FileText, CheckCircle2, Sparkles, AlertCircle, 
-  Trash2, Plus, Info, Check, ShieldAlert, ArrowRight, Layers, 
-  Upload, FileSpreadsheet, FileCheck, RefreshCw 
+  X, UploadCloud, FileText, CheckCircle2, Sparkles, 
+  Trash2, Info, Check, Layers, RefreshCw 
 } from 'lucide-react';
 import { 
   CurriculumDocument, DocumentCategory, GradeLevel, SemesterType, 
@@ -37,7 +36,6 @@ interface CategoryUploadSlot {
   title: string;
   alokasiJp: number;
   competencies: string[];
-  externalFileUrl?: string;
   notes?: string;
 }
 
@@ -55,7 +53,6 @@ interface StagedBatchFile {
   alokasiJp: number;
   competencies: string[];
   confidenceScore: number;
-  externalFileUrl?: string;
   tags: string[];
   notes: string;
 }
@@ -107,7 +104,7 @@ export const AutoUploadModal: React.FC<AutoUploadModalProps> = ({
   const [selectedAcademicYear, setSelectedAcademicYear] = useState<string>(
     currentAcademicYear || profile.currentAcademicYear || '2026/2027'
   );
-  const [selectedCurriculum, setSelectedCurriculum] = useState<CurriculumType>('Kurikulum Merdeka');
+  const selectedCurriculum: CurriculumType = 'Kurikulum Merdeka';
 
   // Slots for category-by-category uploads
   const [categorySlots, setCategorySlots] = useState<Record<string, CategoryUploadSlot>>({});
@@ -118,8 +115,9 @@ export const AutoUploadModal: React.FC<AutoUploadModalProps> = ({
   const [isSaving, setIsSaving] = useState(false);
   const batchFileInputRef = useRef<HTMLInputElement>(null);
 
-  // Individual file input refs for each category
+  // Individual file input refs & card refs for each category
   const categoryFileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const categoryCardRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   // Sync initial props when opened
   useEffect(() => {
@@ -127,6 +125,9 @@ export const AutoUploadModal: React.FC<AutoUploadModalProps> = ({
       setSelectedTeacherId(initialTeacherId);
     } else if (isWakaUser) {
       setSelectedTeacherId(WAKA_SELF_TEACHER_ID);
+    }
+    if (initialCategoryId) {
+      setActiveTab('category_grid');
     }
     if (currentSemester) {
       setSelectedSemester(currentSemester);
@@ -137,7 +138,18 @@ export const AutoUploadModal: React.FC<AutoUploadModalProps> = ({
     if (profile.curriculumViceSubject?.trim()) {
       setWakaSubject(profile.curriculumViceSubject.trim());
     }
-  }, [initialTeacherId, currentSemester, currentAcademicYear, isWakaUser, profile.curriculumViceSubject]);
+  }, [initialTeacherId, initialCategoryId, currentSemester, currentAcademicYear, isWakaUser, profile.curriculumViceSubject]);
+
+  useEffect(() => {
+    if (isOpen && initialCategoryId && activeTab === 'category_grid') {
+      const targetCard = categoryCardRefs.current[initialCategoryId];
+      if (targetCard) {
+        setTimeout(() => {
+          targetCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 100);
+      }
+    }
+  }, [isOpen, initialCategoryId, activeTab]);
 
   if (!isOpen) return null;
 
@@ -187,7 +199,7 @@ export const AutoUploadModal: React.FC<AutoUploadModalProps> = ({
 
   const handleUpdateCategorySlotField = (
     categoryId: string, 
-    field: 'title' | 'alokasiJp' | 'externalFileUrl', 
+    field: 'title' | 'alokasiJp', 
     value: string | number
   ) => {
     setCategorySlots(prev => {
@@ -305,8 +317,8 @@ export const AutoUploadModal: React.FC<AutoUploadModalProps> = ({
               attachedFiles.push({
                 id: docId,
                 documentId: docId,
-                fileName: slot.file.name,
-                mimeType: slot.file.type || 'application/octet-stream',
+                fileName: slot.file.name.slice(0, 255),
+                mimeType: (slot.file.type || 'application/octet-stream').slice(0, 120),
                 fileSize: slot.file.size,
                 dataUrl,
                 uploadedAt: now
@@ -317,9 +329,9 @@ export const AutoUploadModal: React.FC<AutoUploadModalProps> = ({
           finalDocs.push({
             id: docId,
             title: slot.title,
-            originalFileName: slot.file.name,
+            originalFileName: slot.file.name.slice(0, 255),
             fileSize: slot.file.size || 1850000,
-            fileType: slot.file.name.split('.').pop()?.toLowerCase() || 'pdf',
+            fileType: (slot.file.name.split('.').pop()?.toLowerCase() || 'file').slice(0, 20),
             category: slot.categoryId,
             subject: currentSubject,
             grade: selectedGrade,
@@ -338,7 +350,6 @@ export const AutoUploadModal: React.FC<AutoUploadModalProps> = ({
             supervisorNotes: 'Diunggah via Pilihan Cepat Kategori Guru. Menunggu telaah supervisi Waka Kurikulum.',
             approvalNumber: regNumber,
             contentPreview: `Dokumen resmi ${slot.title}. Disusun sesuai standar ${selectedCurriculum} Fase D SMP.`,
-            externalFileUrl: slot.externalFileUrl?.trim() || undefined,
             hasStoredFile,
             tags: [selectedCurriculum, `Kelas ${selectedGrade}`, `Sem. ${selectedSemester}`, catCode]
           });
@@ -366,8 +377,8 @@ export const AutoUploadModal: React.FC<AutoUploadModalProps> = ({
               attachedFiles.push({
                 id: docId,
                 documentId: docId,
-                fileName: item.file.name,
-                mimeType: item.file.type || 'application/octet-stream',
+                fileName: item.file.name.slice(0, 255),
+                mimeType: (item.file.type || 'application/octet-stream').slice(0, 120),
                 fileSize: item.file.size,
                 dataUrl,
                 uploadedAt: now
@@ -378,9 +389,9 @@ export const AutoUploadModal: React.FC<AutoUploadModalProps> = ({
           finalDocs.push({
             id: docId,
             title: item.title,
-            originalFileName: item.file.name,
+            originalFileName: item.file.name.slice(0, 255),
             fileSize: item.file.size || 1540000,
-            fileType: item.file.name.split('.').pop()?.toLowerCase() || 'pdf',
+            fileType: (item.file.name.split('.').pop()?.toLowerCase() || 'file').slice(0, 20),
             category: item.category,
             subject: item.subject,
             grade: item.grade,
@@ -399,7 +410,6 @@ export const AutoUploadModal: React.FC<AutoUploadModalProps> = ({
             supervisorNotes: 'Diunggah via Sistem Ekstraksi Otomatis. Menunggu telaah kelayakan oleh Waka Kurikulum.',
             approvalNumber: regNumber,
             contentPreview: `Dokumen resmi ${item.title}. Disusun berdasarkan standar ${item.curriculumType} Fase D SMP.`,
-            externalFileUrl: item.externalFileUrl?.trim() || undefined,
             hasStoredFile,
             tags: item.tags
           });
@@ -632,7 +642,7 @@ export const AutoUploadModal: React.FC<AutoUploadModalProps> = ({
                       2. Field Unggah Berkas per Kategori Perangkat Ajar:
                     </h3>
                     <p className="text-[11px] text-slate-500">
-                      Setiap kategori memiliki tombol dan kolom unggah langsung. Guru dapat mengunggah berkas format PDF, DOCX, atau XLSX.
+                      Setiap kategori memiliki tombol dan kolom unggah langsung. Mendukung semua format file (PDF, Word, Excel, JPG/JPEG/PNG, PPT, dll.).
                     </p>
                   </div>
 
@@ -650,6 +660,9 @@ export const AutoUploadModal: React.FC<AutoUploadModalProps> = ({
                     return (
                       <div
                         key={cat.id}
+                        ref={(el) => {
+                          categoryCardRefs.current[cat.id] = el;
+                        }}
                         className={`rounded-xl border p-4 transition-all flex flex-col justify-between ${
                           isUploaded
                             ? 'bg-emerald-50/40 border-emerald-300 shadow-xs'
@@ -757,21 +770,12 @@ export const AutoUploadModal: React.FC<AutoUploadModalProps> = ({
                               <div className="text-[10px]">
                                 {(uploadedItem.file.size || 0) > 0 && (uploadedItem.file.size || 0) <= MAX_CLOUD_FILE_BYTES ? (
                                   <span className="text-emerald-700 font-medium">
-                                    ✓ Tersimpan utuh langsung ke Cloud aplikasi (mendukung hingga 10 MB, tanpa Google Drive).
+                                    ✓ Tersimpan utuh langsung ke Cloud aplikasi (mendukung hingga 10 MB).
                                   </span>
                                 ) : (
-                                  <div className="space-y-1">
-                                    <span className="text-amber-700 font-medium block">
-                                      Berkas &gt; 10 MB: kompres PDF di bawah 10 MB atau tempelkan link Google Drive (opsional):
-                                    </span>
-                                    <input
-                                      type="url"
-                                      value={uploadedItem.externalFileUrl || ''}
-                                      onChange={(e) => handleUpdateCategorySlotField(cat.id, 'externalFileUrl', e.target.value)}
-                                      placeholder="https://drive.google.com/file/d/..."
-                                      className="w-full text-[11px] border border-amber-300 rounded p-1.5 bg-white focus:border-indigo-500 focus:outline-none"
-                                    />
-                                  </div>
+                                  <span className="text-rose-600 font-medium block">
+                                    Ukuran berkas melebihi 10 MB. Harap kompres atau pilih file berukuran ≤ 10 MB agar tersimpan penuh di Cloud.
+                                  </span>
                                 )}
                               </div>
                             </div>
@@ -787,7 +791,6 @@ export const AutoUploadModal: React.FC<AutoUploadModalProps> = ({
                                   const f = e.target.files?.[0];
                                   if (f) handleCategoryFileSelect(cat, f);
                                 }}
-                                accept=".pdf,.docx,.doc,.xlsx,.xls,.pptx"
                                 className="hidden"
                               />
 
@@ -801,7 +804,7 @@ export const AutoUploadModal: React.FC<AutoUploadModalProps> = ({
                                   Pilih Berkas {cat.code}
                                 </span>
                                 <span className="text-[9px] text-slate-400">
-                                  Klik atau tarik file PDF / DOCX di sini
+                                  Klik untuk unggah PDF / Word / Excel / Gambar / file apa pun
                                 </span>
                               </button>
                             </div>
@@ -880,7 +883,6 @@ export const AutoUploadModal: React.FC<AutoUploadModalProps> = ({
                     if (e.target.files) processBatchFileList(Array.from(e.target.files));
                   }}
                   multiple
-                  accept=".pdf,.docx,.doc,.xlsx,.xls,.pptx"
                   className="hidden"
                 />
 
@@ -945,6 +947,64 @@ export const AutoUploadModal: React.FC<AutoUploadModalProps> = ({
 
                           <div className="flex flex-wrap items-center gap-2 shrink-0">
                             <select
+                              value={item.category}
+                              onChange={(e) => {
+                                const nextCategory = e.target.value as DocumentCategory;
+                                const catMeta = categories.find(c => c.id === nextCategory);
+                                setStagedFiles(prev =>
+                                  prev.map(f =>
+                                    f.id === item.id
+                                      ? {
+                                          ...f,
+                                          category: nextCategory,
+                                          alokasiJp: catMeta?.defaultJp ?? f.alokasiJp
+                                        }
+                                      : f
+                                  )
+                                );
+                              }}
+                              className="text-[11px] font-semibold bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-slate-800 focus:outline-none focus:border-indigo-500 max-w-[160px]"
+                              title="Pilih Kategori Perangkat"
+                            >
+                              {categories.map(cat => (
+                                <option key={cat.id} value={cat.id}>
+                                  {cat.code} — {cat.name}
+                                </option>
+                              ))}
+                            </select>
+
+                            <select
+                              value={item.grade}
+                              onChange={(e) => {
+                                const nextGrade = e.target.value as GradeLevel;
+                                setStagedFiles(prev =>
+                                  prev.map(f => (f.id === item.id ? { ...f, grade: nextGrade } : f))
+                                );
+                              }}
+                              className="text-[11px] font-semibold bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-slate-800 focus:outline-none focus:border-indigo-500"
+                              title="Pilih Kelas"
+                            >
+                              <option value="7">Kls 7</option>
+                              <option value="8">Kls 8</option>
+                              <option value="9">Kls 9</option>
+                            </select>
+
+                            <select
+                              value={item.semester}
+                              onChange={(e) => {
+                                const nextSemester = e.target.value as SemesterType;
+                                setStagedFiles(prev =>
+                                  prev.map(f => (f.id === item.id ? { ...f, semester: nextSemester } : f))
+                                );
+                              }}
+                              className="text-[11px] font-semibold bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-slate-800 focus:outline-none focus:border-indigo-500"
+                              title="Pilih Semester"
+                            >
+                              <option value="ganjil">Ganjil</option>
+                              <option value="genap">Genap</option>
+                            </select>
+
+                            <select
                               value={item.subject}
                               onChange={(e) => {
                                 const nextSubject = e.target.value;
@@ -952,7 +1012,7 @@ export const AutoUploadModal: React.FC<AutoUploadModalProps> = ({
                                   prev.map(f => (f.id === item.id ? { ...f, subject: nextSubject } : f))
                                 );
                               }}
-                              className="text-[11px] font-semibold bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-slate-800 focus:outline-none focus:border-indigo-500 max-w-[200px]"
+                              className="text-[11px] font-semibold bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-slate-800 focus:outline-none focus:border-indigo-500 max-w-[180px]"
                               title="Pilih Mata Pelajaran"
                             >
                               {item.subject && !Object.values(SUBJECT_DICTIONARY).some(s => s.standardName === item.subject) && (
@@ -974,7 +1034,7 @@ export const AutoUploadModal: React.FC<AutoUploadModalProps> = ({
                                     prev.map(f => (f.id === item.id ? { ...f, teacherId: nextTeacherId } : f))
                                   );
                                 }}
-                                className="text-[11px] font-semibold bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-slate-800 focus:outline-none focus:border-indigo-500 max-w-[200px]"
+                                className="text-[11px] font-semibold bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-slate-800 focus:outline-none focus:border-indigo-500 max-w-[180px]"
                               >
                                 <option value={WAKA_SELF_TEACHER_ID}>
                                   Waka Kurikulum ({wakaTeacherRecord.name})

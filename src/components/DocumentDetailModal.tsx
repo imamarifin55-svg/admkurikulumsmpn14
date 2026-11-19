@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  X, ShieldCheck, Printer, Save, Download, BookOpen, ExternalLink, 
-  FileText, Send, UploadCloud, AlertTriangle, CheckCircle2 
+  X, ShieldCheck, Printer, Save, BookOpen, 
+  Send, UploadCloud, AlertTriangle, CheckCircle2, Eye, EyeOff
 } from 'lucide-react';
 import { 
   CurriculumDocument, VerificationStatus, CategoryItem, 
@@ -9,6 +9,7 @@ import {
 } from '../types/curriculum';
 import { CATEGORY_LABELS } from '../utils/documentClassifier';
 import { getDocumentFileFromFirestore } from '../services/firestoreService';
+import { UniversalFilePreview } from './UniversalFilePreview';
 
 const MAX_CLOUD_FILE_BYTES = 10 * 1024 * 1024; // 10 MB langsung ke Cloud Firestore
 
@@ -38,10 +39,10 @@ interface DocumentDetailModalProps {
   onUpdateStatus: (docId: string, newStatus: VerificationStatus, supervisorNotes: string) => void;
   onResubmitRevision?: (
     doc: CurriculumDocument,
-    updatedExternalUrl?: string,
     newAttachedFile?: DocumentFile
   ) => Promise<void>;
   onPrintValidationSheet: (doc: CurriculumDocument) => void;
+  onRequestEditUpload?: (doc: CurriculumDocument) => void;
   categories?: CategoryItem[];
   userRole: AppUserRole;
 }
@@ -53,6 +54,7 @@ export const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({
   onUpdateStatus,
   onResubmitRevision,
   onPrintValidationSheet,
+  onRequestEditUpload,
   categories,
   userRole
 }) => {
@@ -60,13 +62,12 @@ export const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({
   const [notes, setNotes] = useState<string>(document?.supervisorNotes || '');
   const [isSavedNotice, setIsSavedNotice] = useState(false);
 
-  // Stored file fetching & inline preview
+  // Stored file fetching & universal inline preview
   const [storedFile, setStoredFile] = useState<DocumentFile | null>(null);
   const [isLoadingFile, setIsLoadingFile] = useState(false);
-  const [showPdfPreview, setShowPdfPreview] = useState(false);
+  const [showFilePreview, setShowFilePreview] = useState(true);
 
   // Teacher revision resubmit state
-  const [externalUrlInput, setExternalUrlInput] = useState<string>(document?.externalFileUrl || '');
   const [revisionFile, setRevisionFile] = useState<File | null>(null);
   const [isResubmitting, setIsResubmitting] = useState(false);
 
@@ -74,25 +75,22 @@ export const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({
     if (document) {
       setCurrentStatus(document.status);
       setNotes(document.supervisorNotes || '');
-      setExternalUrlInput(document.externalFileUrl || '');
       setRevisionFile(null);
-      setShowPdfPreview(false);
+      setShowFilePreview(true);
       setStoredFile(null);
 
-      if (document.hasStoredFile) {
-        setIsLoadingFile(true);
-        getDocumentFileFromFirestore(document.id)
-          .then((f) => setStoredFile(f))
-          .finally(() => setIsLoadingFile(false));
-      }
+      setIsLoadingFile(true);
+      getDocumentFileFromFirestore(document.id)
+        .then((f) => setStoredFile(f))
+        .finally(() => setIsLoadingFile(false));
     }
   }, [document]);
 
-  // Blob URL for reliable PDF iframe preview & multi-MB downloads
+  // Blob URL for reliable PDF/media/image preview & multi-MB downloads
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!storedFile?.dataUrl) {
+    if (!storedFile?.dataUrl || storedFile.dataUrl === 'CHUNKED') {
       setBlobUrl(null);
       return;
     }
@@ -131,6 +129,7 @@ export const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({
 
   const handleGuruResubmit = async () => {
     if (!onResubmitRevision) return;
+    if (revisionFile && revisionFile.size > MAX_CLOUD_FILE_BYTES) return;
     setIsResubmitting(true);
     try {
       let newFilePayload: DocumentFile | undefined;
@@ -145,8 +144,8 @@ export const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({
           newFilePayload = {
             id: document.id,
             documentId: document.id,
-            fileName: revisionFile.name,
-            mimeType: revisionFile.type || 'application/octet-stream',
+            fileName: revisionFile.name.slice(0, 255),
+            mimeType: (revisionFile.type || 'application/octet-stream').slice(0, 120),
             fileSize: revisionFile.size,
             dataUrl,
             uploadedAt: new Date().toISOString()
@@ -156,19 +155,20 @@ export const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({
 
       const updatedDoc: CurriculumDocument = {
         ...document,
-        originalFileName: revisionFile ? revisionFile.name : document.originalFileName,
+        originalFileName: revisionFile ? revisionFile.name.slice(0, 255) : document.originalFileName,
         fileSize: revisionFile ? revisionFile.size : document.fileSize,
         fileType: revisionFile
-          ? (revisionFile.name.split('.').pop()?.toLowerCase() || document.fileType)
+          ? (revisionFile.name.split('.').pop()?.toLowerCase() || 'file').slice(0, 20)
           : document.fileType,
-        externalFileUrl: externalUrlInput.trim() || undefined,
+        externalFileUrl: newFilePayload ? undefined : document.externalFileUrl,
         hasStoredFile: newFilePayload ? true : document.hasStoredFile,
         status: 'diajukan',
         lastModified: new Date().toISOString()
       };
 
-      await onResubmitRevision(updatedDoc, externalUrlInput.trim() || undefined, newFilePayload);
+      await onResubmitRevision(updatedDoc, newFilePayload);
       if (newFilePayload) setStoredFile(newFilePayload);
+      setRevisionFile(null);
       setIsSavedNotice(true);
       setTimeout(() => setIsSavedNotice(false), 2500);
     } finally {
@@ -176,11 +176,9 @@ export const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({
     }
   };
 
-  const isPdfFile = storedFile?.mimeType === 'application/pdf' || storedFile?.fileName.toLowerCase().endsWith('.pdf');
-
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-xl border border-slate-200 w-full max-w-3xl overflow-hidden my-8 flex flex-col max-h-[92vh]">
+      <div className="bg-white rounded-2xl shadow-xl border border-slate-200 w-full max-w-4xl overflow-hidden my-6 flex flex-col max-h-[92vh]">
         {/* Header */}
         <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
           <div className="flex items-center gap-3 min-w-0">
@@ -254,71 +252,35 @@ export const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({
             </div>
           </div>
 
-          {/* Real Cloud File Download & Inline PDF Preview */}
-          {(storedFile || isLoadingFile || document.externalFileUrl) && (
-            <div className="p-4 rounded-xl border border-emerald-200 bg-emerald-50/40 space-y-3">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <FileText className="w-5 h-5 text-emerald-700 shrink-0" />
-                  <div className="min-w-0">
-                    <div className="font-bold text-slate-900">Lampiran Berkas Cloud Real-Time</div>
-                    <div className="text-[11px] text-slate-600 truncate">
-                      {isLoadingFile
-                        ? 'Memuat berkas dari Cloud...'
-                        : storedFile
-                        ? `${storedFile.fileName} (${Math.max(1, Math.round(storedFile.fileSize / 1024))} KB)`
-                        : 'Tautan Cloud Eksternal tersedia'}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2 shrink-0">
-                  {storedFile && isPdfFile && (
-                    <button
-                      type="button"
-                      onClick={() => setShowPdfPreview(prev => !prev)}
-                      className="px-3 py-1.5 text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg cursor-pointer"
-                    >
-                      {showPdfPreview ? 'Tutup Pratinjau PDF' : 'Pratinjau PDF'}
-                    </button>
-                  )}
-
-                  {storedFile && (
-                    <button
-                      type="button"
-                      onClick={handleDownloadStoredFile}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-xs cursor-pointer"
-                    >
-                      <Download className="w-3.5 h-3.5" />
-                      <span>Unduh Berkas Asli</span>
-                    </button>
-                  )}
-
-                  {document.externalFileUrl && (
-                    <a
-                      href={document.externalFileUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-indigo-700 bg-white hover:bg-indigo-50 border border-indigo-300 rounded-lg"
-                    >
-                      <ExternalLink className="w-3.5 h-3.5" />
-                      <span>Buka Link Drive</span>
-                    </a>
-                  )}
-                </div>
+          {/* Universal File Preview (Images, PDF, Word, Excel, PowerPoint, Text, Media, Any File) */}
+          <div className="space-y-2.5">
+            <div className="flex items-center justify-between">
+              <div className="font-bold text-slate-900 text-xs">
+                Pratinjau Berkas Unggahan
               </div>
-
-              {showPdfPreview && storedFile && isPdfFile && (
-                <div className="border border-slate-300 rounded-xl overflow-hidden bg-white h-96">
-                  <iframe
-                    src={blobUrl || storedFile.dataUrl}
-                    title={storedFile.fileName}
-                    className="w-full h-full"
-                  />
-                </div>
+              {storedFile && (
+                <button
+                  type="button"
+                  onClick={() => setShowFilePreview(prev => !prev)}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg cursor-pointer"
+                >
+                  {showFilePreview ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                  <span>{showFilePreview ? 'Sembunyikan Pratinjau' : 'Tampilkan Pratinjau'}</span>
+                </button>
               )}
             </div>
-          )}
+
+            {showFilePreview && (
+              <UniversalFilePreview
+                storedFile={storedFile}
+                blobUrl={blobUrl}
+                documentMeta={document}
+                isLoading={isLoadingFile}
+                onDownload={storedFile ? handleDownloadStoredFile : undefined}
+                onRequestUpload={onRequestEditUpload ? () => onRequestEditUpload(document) : undefined}
+              />
+            )}
+          </div>
 
           {/* Competencies / Tujuan Pembelajaran List */}
           <div>
@@ -457,41 +419,26 @@ export const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({
                   <div className="font-bold text-slate-800">
                     Kirim Perbaikan &amp; Ajukan Ulang ke Waka Kurikulum:
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                    <div>
-                      <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                        Unggah Berkas Revisi (Langsung ke Cloud, maks. 10 MB):
-                      </label>
-                      <label className="flex items-center gap-2 px-3 py-2 bg-white border border-dashed border-slate-300 hover:border-indigo-400 rounded-lg cursor-pointer text-[11px] font-medium text-slate-700">
-                        <UploadCloud className="w-4 h-4 text-indigo-600 shrink-0" />
-                        <span className="truncate">
-                          {revisionFile ? revisionFile.name : 'Pilih file revisi baru...'}
-                        </span>
-                        <input
-                          type="file"
-                          onChange={(e) => setRevisionFile(e.target.files?.[0] || null)}
-                          accept=".pdf,.docx,.doc,.xlsx,.xls,.pptx"
-                          className="hidden"
-                        />
-                      </label>
-                      {revisionFile && revisionFile.size > MAX_CLOUD_FILE_BYTES && (
-                        <p className="text-[10px] text-rose-600 mt-1">
-                          Ukuran file melebihi 10 MB. Harap kompres berkas atau gunakan link Google Drive.
-                        </p>
-                      )}
-                    </div>
-                    <div>
-                      <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                        Tautan Drive Tambahan (Opsional jika &gt; 10 MB):
-                      </label>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                      Unggah Berkas Revisi (Semua format file, maks. 10 MB):
+                    </label>
+                    <label className="flex items-center gap-2 px-3 py-2.5 bg-white border border-dashed border-slate-300 hover:border-indigo-400 rounded-lg cursor-pointer text-[11px] font-medium text-slate-700">
+                      <UploadCloud className="w-4 h-4 text-indigo-600 shrink-0" />
+                      <span className="truncate">
+                        {revisionFile ? `${revisionFile.name} (${(revisionFile.size / 1024).toFixed(0)} KB)` : 'Pilih file revisi baru (PDF, Word, Excel, JPG/PNG, dll.)...'}
+                      </span>
                       <input
-                        type="url"
-                        value={externalUrlInput}
-                        onChange={(e) => setExternalUrlInput(e.target.value)}
-                        placeholder="https://drive.google.com/..."
-                        className="w-full text-[11px] border border-slate-300 rounded-lg p-2 bg-white focus:border-indigo-500 focus:outline-none"
+                        type="file"
+                        onChange={(e) => setRevisionFile(e.target.files?.[0] || null)}
+                        className="hidden"
                       />
-                    </div>
+                    </label>
+                    {revisionFile && revisionFile.size > MAX_CLOUD_FILE_BYTES && (
+                      <p className="text-[10px] text-rose-600 mt-1">
+                        Ukuran file melebihi batas Cloud 10 MB. Harap kompres berkas terlebih dahulu sebelum mengunggah.
+                      </p>
+                    )}
                   </div>
                   <div className="flex items-center justify-between pt-1">
                     <span className="text-emerald-700 font-medium">
@@ -499,7 +446,7 @@ export const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({
                     </span>
                     <button
                       type="button"
-                      disabled={isResubmitting}
+                      disabled={isResubmitting || Boolean(revisionFile && revisionFile.size > MAX_CLOUD_FILE_BYTES)}
                       onClick={handleGuruResubmit}
                       className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-white bg-indigo-700 hover:bg-indigo-800 rounded-lg shadow-xs cursor-pointer disabled:opacity-60"
                     >

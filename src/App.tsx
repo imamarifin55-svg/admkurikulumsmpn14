@@ -142,6 +142,7 @@ export default function App() {
   // Toast / feedback notification
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
+  const toastTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Keep latest state refs for auth / seeding callbacks
   const teachersRef = React.useRef<Teacher[]>(teachers);
@@ -306,9 +307,25 @@ export default function App() {
     }
   }, [teachers]);
 
+  useEffect(() => {
+    if (
+      currentUser.role === 'guru' &&
+      (activeView === 'supervision' ||
+        activeView === 'reports' ||
+        activeView === 'profile' ||
+        activeView === 'categories' ||
+        activeView === 'teachers')
+    ) {
+      setActiveView('matrix');
+    }
+  }, [currentUser.role, activeView]);
+
   const showToast = (msg: string) => {
     setToastMessage(msg);
-    setTimeout(() => {
+    if (toastTimerRef.current) {
+      clearTimeout(toastTimerRef.current);
+    }
+    toastTimerRef.current = setTimeout(() => {
       setToastMessage(null);
     }, 3500);
   };
@@ -487,7 +504,6 @@ export default function App() {
   // Resubmit document after revision (Guru workflow)
   const handleResubmitRevision = async (
     updatedDoc: CurriculumDocument,
-    _updatedExternalUrl?: string,
     newAttachedFile?: DocumentFile
   ) => {
     setDocuments(prev => prev.map(d => (d.id === updatedDoc.id ? updatedDoc : d)));
@@ -511,16 +527,32 @@ export default function App() {
     }
   };
 
-  // Update existing document from Edit Modal
-  const handleSaveEditedDocument = async (updatedDoc: CurriculumDocument) => {
+  // Update existing document from Edit Modal (including optional newly uploaded real file)
+  const handleSaveEditedDocument = async (
+    updatedDoc: CurriculumDocument,
+    newAttachedFile?: DocumentFile
+  ) => {
     setDocuments(prev => prev.map(d => d.id === updatedDoc.id ? updatedDoc : d));
     if (selectedDoc?.id === updatedDoc.id) {
       setSelectedDoc(updatedDoc);
     }
     try {
+      if (newAttachedFile) {
+        await saveDocumentFileToFirestore(newAttachedFile);
+      }
       await saveDocumentToFirestore(updatedDoc);
-      logActivity('UPDATE_DOC', updatedDoc.title, `Memperbarui metadata berkas (${updatedDoc.subject}, Kelas ${updatedDoc.grade}).`);
-      showToast(`Perubahan berkas "${updatedDoc.title}" tersinkron ke Cloud Real-Time.`);
+      logActivity(
+        'UPDATE_DOC',
+        updatedDoc.title,
+        newAttachedFile
+          ? `Memperbarui berkas unggahan (${newAttachedFile.fileName}) dan metadata dokumen.`
+          : `Memperbarui metadata berkas (${updatedDoc.subject}, Kelas ${updatedDoc.grade}).`
+      );
+      showToast(
+        newAttachedFile
+          ? `Berkas "${newAttachedFile.fileName}" berhasil diunggah & tersinkron ke Cloud!`
+          : `Perubahan berkas "${updatedDoc.title}" tersinkron ke Cloud Real-Time.`
+      );
     } catch (err) {
       console.error(err);
       showToast('Gagal memperbarui berkas ke Cloud Firestore.');
@@ -535,7 +567,7 @@ export default function App() {
     }
     try {
       await saveSchoolProfileToFirestore(updatedProfile);
-      logActivity('CONFIG', updatedProfile.name, 'Memperbarui profil sekolah, tanda tangan digital, atau PIN keamanan Waka.');
+      logActivity('CONFIG', updatedProfile.name, 'Memperbarui profil sekolah, tanda tangan digital, atau password login Waka.');
       showToast('Profil sekolah dan logo tersimpan & tersinkron real-time ke semua perangkat.');
     } catch (err) {
       console.error(err);
@@ -902,7 +934,7 @@ export default function App() {
                     Perhatian: {revisionDocsForGuru.length} Dokumen Memerlukan Revisi dari Waka Kurikulum
                   </h3>
                   <p className="text-xs text-rose-700 mt-0.5">
-                    Silakan tinjau catatan supervisi dan unggah perbaikan atau tautan berkas terbaru untuk diajukan ulang.
+                    Silakan tinjau catatan supervisi dan unggah berkas perbaikan terbaru untuk diajukan ulang.
                   </p>
                   <div className="mt-3 space-y-2">
                     {revisionDocsForGuru.slice(0, 3).map(doc => (
@@ -958,6 +990,7 @@ export default function App() {
               onViewChange={setActiveView}
               ganjilCount={ganjilCount}
               genapCount={genapCount}
+              userRole={currentUser.role}
             />
           )}
 
@@ -986,16 +1019,16 @@ export default function App() {
               academicYear={academicYear}
               categories={categories}
               onSelectDocument={setSelectedDoc}
+              onEditDocument={setEditDoc}
               onPrintValidationSheet={setPrintDoc}
               onDeleteDocument={handleDeleteDocument}
               onOpenUpload={handleOpenGeneralUpload}
             />
           )}
 
-          {activeView === 'supervision' && (
+          {currentUser.role === 'waka_kurikulum' && activeView === 'supervision' && (
             <SupervisionView
               documents={visibleDocuments}
-              profile={profile}
               categories={categories}
               currentSemester={currentSemester}
               academicYear={academicYear}
@@ -1005,14 +1038,12 @@ export default function App() {
             />
           )}
 
-          {activeView === 'reports' && (
+          {currentUser.role === 'waka_kurikulum' && activeView === 'reports' && (
             <ReportsView
               documents={visibleDocuments}
-              teachers={teachers}
               profile={profile}
               categories={categories}
               activityLogs={activityLogs}
-              currentSemester={currentSemester}
               academicYear={academicYear}
               onRestoreBackup={handleRestoreBackup}
               onFetchAllYearsDocuments={fetchAllDocumentsFromFirestore}
@@ -1020,7 +1051,7 @@ export default function App() {
           )}
 
           {/* Profil Satuan Pendidikan & Upload Logo */}
-          {activeView === 'profile' && (
+          {currentUser.role === 'waka_kurikulum' && activeView === 'profile' && (
             <SchoolProfileView
               profile={profile}
               onSaveProfile={handleSaveProfile}
@@ -1028,7 +1059,7 @@ export default function App() {
           )}
 
           {/* Kelola Kategori Perangkat Pembelajaran */}
-          {activeView === 'categories' && (
+          {currentUser.role === 'waka_kurikulum' && activeView === 'categories' && (
             <CategoryManagementView
               categories={categories}
               onAddCategory={handleAddCategory}
@@ -1038,7 +1069,7 @@ export default function App() {
           )}
 
           {/* Kelola Data Guru Pengampu & Pejabat Waka Kurikulum */}
-          {activeView === 'teachers' && (
+          {currentUser.role === 'waka_kurikulum' && activeView === 'teachers' && (
             <TeacherManagementView
               teachers={teachers}
               documents={documents}
@@ -1099,6 +1130,10 @@ export default function App() {
           onPrintValidationSheet={(doc) => {
             setSelectedDoc(null);
             setPrintDoc(doc);
+          }}
+          onRequestEditUpload={(doc) => {
+            setSelectedDoc(null);
+            setEditDoc(doc);
           }}
           categories={categories}
           userRole={currentUser.role}

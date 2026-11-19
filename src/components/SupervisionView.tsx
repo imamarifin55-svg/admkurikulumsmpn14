@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CurriculumDocument, VerificationStatus, SchoolProfile, CategoryItem, SemesterType } from '../types/curriculum';
+import { CurriculumDocument, VerificationStatus, CategoryItem, SemesterType } from '../types/curriculum';
 import { CATEGORY_LABELS } from '../utils/documentClassifier';
 import { 
   CheckCircle2, MessageSquare, Check, RotateCcw, Eye, Printer 
@@ -7,7 +7,6 @@ import {
 
 interface SupervisionViewProps {
   documents: CurriculumDocument[];
-  profile: SchoolProfile;
   categories: CategoryItem[];
   currentSemester: SemesterType;
   academicYear: string;
@@ -18,7 +17,6 @@ interface SupervisionViewProps {
 
 export const SupervisionView: React.FC<SupervisionViewProps> = ({
   documents,
-  profile: _profile,
   categories,
   currentSemester,
   academicYear,
