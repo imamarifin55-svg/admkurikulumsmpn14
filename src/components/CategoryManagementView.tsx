@@ -3,21 +3,24 @@ import {
   FolderKanban, Plus, Pencil, Trash2, CheckCircle2, X, 
   Save, AlertCircle, Info 
 } from 'lucide-react';
-import { CategoryItem } from '../types/curriculum';
+import { CategoryItem, CategoryScope } from '../types/curriculum';
 
 interface CategoryManagementViewProps {
   categories: CategoryItem[];
   onAddCategory: (newCategory: CategoryItem) => void;
   onUpdateCategory: (updatedCategory: CategoryItem) => void;
   onDeleteCategory: (categoryId: string) => void;
+  scope?: CategoryScope;
 }
 
 export const CategoryManagementView: React.FC<CategoryManagementViewProps> = ({
   categories,
   onAddCategory,
   onUpdateCategory,
-  onDeleteCategory
+  onDeleteCategory,
+  scope = 'kurikulum'
 }) => {
+  const isWalas = scope === 'wali_kelas';
   const [editingCategory, setEditingCategory] = useState<CategoryItem | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [confirmDeleteCat, setConfirmDeleteCat] = useState<CategoryItem | null>(null);
@@ -25,14 +28,14 @@ export const CategoryManagementView: React.FC<CategoryManagementViewProps> = ({
   // Form State for Adding / Editing
   const [code, setCode] = useState('');
   const [name, setName] = useState('');
-  const [defaultJp, setDefaultJp] = useState<number>(36);
+  const [defaultJp, setDefaultJp] = useState<number>(isWalas ? 0 : 36);
   const [description, setDescription] = useState('');
   const [isSupervisedInMatrix, setIsSupervisedInMatrix] = useState(true);
 
   const handleOpenAddModal = () => {
     setCode('');
     setName('');
-    setDefaultJp(36);
+    setDefaultJp(isWalas ? 0 : 36);
     setDescription('');
     setIsSupervisedInMatrix(true);
     setEditingCategory(null);
@@ -58,20 +61,23 @@ export const CategoryManagementView: React.FC<CategoryManagementViewProps> = ({
         ...editingCategory,
         code: code.trim().toUpperCase(),
         name: name.trim(),
-        defaultJp: Number(defaultJp),
+        defaultJp: isWalas ? 0 : Number(defaultJp),
         description: description.trim(),
-        isSupervisedInMatrix
+        isSupervisedInMatrix,
+        scope: editingCategory.scope || scope
       });
     } else {
-      const generatedId = `cat_${Date.now()}_${code.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+      const prefix = isWalas ? 'wl_cat' : 'cat';
+      const generatedId = `${prefix}_${Date.now()}_${code.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
       onAddCategory({
         id: generatedId,
         code: code.trim().toUpperCase(),
         name: name.trim(),
-        defaultJp: Number(defaultJp),
+        defaultJp: isWalas ? 0 : Number(defaultJp),
         description: description.trim(),
         isSupervisedInMatrix,
-        isSystemDefault: false
+        isSystemDefault: false,
+        scope
       });
     }
 
@@ -92,23 +98,27 @@ export const CategoryManagementView: React.FC<CategoryManagementViewProps> = ({
         <div>
           <div className="flex items-center gap-2">
             <h2 className="text-base font-bold text-slate-900">
-              Kelola Kategori Perangkat Pembelajaran &amp; Silabus
+              {isWalas
+                ? 'Kelola Kategori Administrasi Wali Kelas'
+                : 'Kelola Kategori Perangkat Pembelajaran & Silabus'}
             </h2>
             <span className="font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded px-2 py-0.5">
               {categories.length} Kategori Terdaftar
             </span>
           </div>
           <p className="text-slate-500 mt-1">
-            Konfigurasikan jenis dokumen kurikulum sekolah. Kategori yang ditandai aktif di matriks akan otomatis muncul sebagai kolom pemantauan supervisi guru.
+            {isWalas
+              ? 'Konfigurasikan jenis dokumen administrasi khusus Wali Kelas (di luar kategori kurikulum). Kategori aktif akan tampil sebagai kolom pada Matriks Wali Kelas.'
+              : 'Konfigurasikan jenis dokumen kurikulum sekolah. Kategori yang ditandai aktif di matriks akan otomatis muncul sebagai kolom pemantauan supervisi guru.'}
           </p>
         </div>
 
         <button
           onClick={handleOpenAddModal}
-          className="inline-flex items-center gap-1.5 px-4 py-2 font-semibold text-white bg-indigo-700 hover:bg-indigo-800 rounded-lg shadow-xs transition-colors shrink-0"
+          className="inline-flex items-center gap-1.5 px-4 py-2 font-semibold text-white bg-indigo-700 hover:bg-indigo-800 rounded-lg shadow-xs transition-colors shrink-0 cursor-pointer"
         >
           <Plus className="w-4 h-4 stroke-[2.5]" />
-          <span>Tambah Kategori Baru</span>
+          <span>{isWalas ? 'Tambah Kategori Walas' : 'Tambah Kategori Baru'}</span>
         </button>
       </div>
 
@@ -117,7 +127,7 @@ export const CategoryManagementView: React.FC<CategoryManagementViewProps> = ({
         <div className="p-4 border-b border-slate-200 bg-slate-50/50 flex items-center justify-between">
           <div className="font-bold text-slate-900 flex items-center gap-2">
             <FolderKanban className="w-4 h-4 text-indigo-600" />
-            <span>Daftar Kategori Instrumen Perangkat Ajar</span>
+            <span>{isWalas ? 'Daftar Kategori Administrasi Wali Kelas' : 'Daftar Kategori Instrumen Perangkat Ajar'}</span>
           </div>
           <span className="text-[11px] text-slate-500">
             Kolom Matriks: {categories.filter(c => c.isSupervisedInMatrix).length} terpilih
@@ -159,10 +169,14 @@ export const CategoryManagementView: React.FC<CategoryManagementViewProps> = ({
             <thead>
               <tr className="bg-slate-100/75 border-b border-slate-200 text-slate-700 font-semibold">
                 <th className="py-3 px-4 min-w-[90px] text-center">Kode</th>
-                <th className="py-3 px-4 min-w-[240px]">Nama Kategori Perangkat</th>
-                <th className="py-3 px-3 min-w-[90px] text-center">Default JP</th>
+                <th className="py-3 px-4 min-w-[240px]">
+                  {isWalas ? 'Nama Kategori Administrasi Walas' : 'Nama Kategori Perangkat'}
+                </th>
+                {!isWalas && <th className="py-3 px-3 min-w-[90px] text-center">Default JP</th>}
                 <th className="py-3 px-4 min-w-[260px]">Deskripsi &amp; Panduan Penggunaan</th>
-                <th className="py-3 px-4 min-w-[140px] text-center">Pantau di Matriks Guru</th>
+                <th className="py-3 px-4 min-w-[140px] text-center">
+                  {isWalas ? 'Pantau di Matriks Walas' : 'Pantau di Matriks Guru'}
+                </th>
                 <th className="py-3 px-4 min-w-[100px] text-right">Aksi</th>
               </tr>
             </thead>
@@ -186,9 +200,11 @@ export const CategoryManagementView: React.FC<CategoryManagementViewProps> = ({
                     </td>
 
                     {/* Default JP */}
-                    <td className="py-3 px-3 text-center font-mono font-semibold text-slate-800 tabular-nums">
-                      {cat.defaultJp > 0 ? `${cat.defaultJp} JP` : '-'}
-                    </td>
+                    {!isWalas && (
+                      <td className="py-3 px-3 text-center font-mono font-semibold text-slate-800 tabular-nums">
+                        {cat.defaultJp > 0 ? `${cat.defaultJp} JP` : '-'}
+                      </td>
+                    )}
 
                     {/* Description */}
                     <td className="py-3 px-4 text-slate-600 leading-relaxed">
@@ -252,7 +268,15 @@ export const CategoryManagementView: React.FC<CategoryManagementViewProps> = ({
       <div className="p-4 bg-indigo-50/60 border border-indigo-200 rounded-2xl flex items-start gap-3 text-indigo-900">
         <Info className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
         <div className="leading-relaxed">
-          <strong>Integrasi Otomatis:</strong> Setiap kategori yang Anda tambahkan atau ubah di sini akan langsung tersedia pada formulir <strong>Unggah Dokumen Otomatis</strong>, formulir <strong>Edit Dokumen</strong>, dan sebagai kolom pemantauan pada <strong>Matriks Kelengkapan Supervisi Guru</strong>.
+          {isWalas ? (
+            <>
+              <strong>Terpisah dari Kurikulum:</strong> Kategori di sini hanya berlaku untuk menu <strong>Arsip Wali Kelas</strong> dan tidak bercampur dengan daftar kategori perangkat ajar kurikulum.
+            </>
+          ) : (
+            <>
+              <strong>Integrasi Otomatis:</strong> Setiap kategori yang Anda tambahkan atau ubah di sini akan langsung tersedia pada formulir <strong>Unggah Dokumen Otomatis</strong>, formulir <strong>Edit Dokumen</strong>, dan sebagai kolom pemantauan pada <strong>Matriks Kelengkapan Supervisi Guru</strong>.
+            </>
+          )}
         </div>
       </div>
 
@@ -262,11 +286,13 @@ export const CategoryManagementView: React.FC<CategoryManagementViewProps> = ({
           <div className="bg-white rounded-2xl shadow-xl border border-slate-200 w-full max-w-lg overflow-hidden my-8">
             <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
               <h3 className="font-bold text-slate-900 text-sm">
-                {editingCategory ? 'Edit Kategori Perangkat Pembelajaran' : 'Tambah Kategori Perangkat Baru'}
+                {editingCategory
+                  ? isWalas ? 'Edit Kategori Administrasi Wali Kelas' : 'Edit Kategori Perangkat Pembelajaran'
+                  : isWalas ? 'Tambah Kategori Wali Kelas Baru' : 'Tambah Kategori Perangkat Baru'}
               </h3>
               <button
                 onClick={() => setIsAddModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -274,7 +300,7 @@ export const CategoryManagementView: React.FC<CategoryManagementViewProps> = ({
 
             <form onSubmit={handleFormSubmit} className="p-6 space-y-4">
               {/* Code & Default JP */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className={isWalas ? 'grid grid-cols-1 gap-4' : 'grid grid-cols-2 gap-4'}>
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">
                     Kode Singkat (Huruf Kapital)
@@ -282,27 +308,29 @@ export const CategoryManagementView: React.FC<CategoryManagementViewProps> = ({
                   <input
                     type="text"
                     required
-                    maxLength={10}
+                    maxLength={15}
                     value={code}
                     onChange={(e) => setCode(e.target.value.toUpperCase())}
-                    placeholder="Contoh: LKPD, ATP, RPP"
+                    placeholder={isWalas ? 'Contoh: PRESENSI, JURNAL, LEGER' : 'Contoh: LKPD, ATP, RPP'}
                     className="w-full uppercase font-mono font-bold text-slate-900 border border-slate-200 rounded-lg p-2.5 focus:border-indigo-500 focus:outline-none"
                   />
                 </div>
 
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">
-                    Alokasi JP Standar
-                  </label>
-                  <input
-                    type="number"
-                    min={0}
-                    max={150}
-                    value={defaultJp}
-                    onChange={(e) => setDefaultJp(Number(e.target.value))}
-                    className="w-full font-mono font-semibold text-slate-900 border border-slate-200 rounded-lg p-2.5 focus:border-indigo-500 focus:outline-none"
-                  />
-                </div>
+                {!isWalas && (
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">
+                      Alokasi JP Standar
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      max={150}
+                      value={defaultJp}
+                      onChange={(e) => setDefaultJp(Number(e.target.value))}
+                      className="w-full font-mono font-semibold text-slate-900 border border-slate-200 rounded-lg p-2.5 focus:border-indigo-500 focus:outline-none"
+                    />
+                  </div>
+                )}
               </div>
 
               {/* Name */}

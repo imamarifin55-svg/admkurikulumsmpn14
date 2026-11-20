@@ -3,8 +3,10 @@ import { Menu, Plus, ChevronRight } from 'lucide-react';
 import { AppUser, AppUserRole, SemesterType, Teacher } from '../types/curriculum';
 import { RoleSwitcher } from './RoleSwitcher';
 
+import { SidebarActiveView } from './Sidebar';
+
 interface HeaderProps {
-  activeView: 'list' | 'matrix' | 'supervision' | 'reports' | 'profile' | 'categories' | 'teachers';
+  activeView: SidebarActiveView;
   currentSemester: SemesterType;
   academicYear: string;
   onOpenUpload: () => void;
@@ -15,6 +17,7 @@ interface HeaderProps {
   teachers: Teacher[];
   onLogout: () => void;
   wakaName?: string;
+  activeHomeroomClass?: string | null;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -28,7 +31,8 @@ export const Header: React.FC<HeaderProps> = ({
   onRoleChange,
   teachers,
   onLogout,
-  wakaName
+  wakaName,
+  activeHomeroomClass
 }) => {
   const getViewTitle = () => {
     switch (activeView) {
@@ -36,6 +40,10 @@ export const Header: React.FC<HeaderProps> = ({
         return currentUser.role === 'guru' ? 'Matriks Berkas Saya' : 'Matriks Kelengkapan Supervisi Guru';
       case 'list':
         return currentUser.role === 'guru' ? 'Daftar Berkas Perangkat Ajar Saya' : 'Daftar Dokumen & Silabus';
+      case 'wali_kelas':
+        return currentUser.role === 'guru'
+          ? `Arsip Wali Kelas ${activeHomeroomClass || ''}`
+          : 'Monitoring Arsip Wali Kelas';
       case 'supervision':
         return 'Panel Supervisi & Validasi';
       case 'reports':
@@ -98,10 +106,16 @@ export const Header: React.FC<HeaderProps> = ({
 
           <button
             onClick={onOpenUpload}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-indigo-700 hover:bg-indigo-800 rounded-lg shadow-xs transition-colors whitespace-nowrap focus-visible:outline-2 focus-visible:outline-indigo-600"
+            className={`inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white rounded-lg shadow-xs transition-colors whitespace-nowrap focus-visible:outline-2 focus-visible:outline-indigo-600 cursor-pointer ${
+              activeView === 'wali_kelas'
+                ? 'bg-emerald-700 hover:bg-emerald-800'
+                : 'bg-indigo-700 hover:bg-indigo-800'
+            }`}
           >
             <Plus className="w-4 h-4 stroke-[2.5]" />
-            <span className="hidden sm:inline">Unggah Dokumen</span>
+            <span className="hidden sm:inline">
+              {activeView === 'wali_kelas' ? 'Unggah Arsip Walas' : 'Unggah Dokumen'}
+            </span>
             <span className="sm:hidden">Unggah</span>
           </button>
         </div>

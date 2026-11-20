@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { 
-  CurriculumDocument, SemesterType, VerificationStatus, CategoryItem 
+  CurriculumDocument, SemesterType, VerificationStatus, CategoryItem, SCHOOL_CLASS_GROUPS 
 } from '../types/curriculum';
 import { CATEGORY_LABELS } from '../utils/documentClassifier';
 import { 
@@ -206,9 +206,22 @@ export const CurriculumList: React.FC<CurriculumListProps> = ({
             className="text-xs font-medium bg-white border border-slate-200 rounded-lg px-2.5 py-1 text-slate-700 focus:outline-none focus:border-indigo-500"
           >
             <option value="all">Semua Kelas</option>
-            <option value="7">Kelas 7</option>
-            <option value="8">Kelas 8</option>
-            <option value="9">Kelas 9</option>
+            {SCHOOL_CLASS_GROUPS.map((group) => (
+              <optgroup key={group.level} label={group.groupLabel}>
+                {group.classes.map((cls) => (
+                  <option key={cls.value} value={cls.value}>
+                    {cls.label}
+                  </option>
+                ))}
+              </optgroup>
+            ))}
+            {documents.some(d => ['7', '8', '9'].includes(d.grade)) && (
+              <optgroup label="Arsip Lama">
+                <option value="7">Kelas 7 (Umum)</option>
+                <option value="8">Kelas 8 (Umum)</option>
+                <option value="9">Kelas 9 (Umum)</option>
+              </optgroup>
+            )}
           </select>
 
           {/* Status Filter */}

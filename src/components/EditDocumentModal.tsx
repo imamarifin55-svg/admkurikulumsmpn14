@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { X, Save, Edit3, UploadCloud, FileText, CheckCircle2, AlertCircle, RefreshCw, Trash2 } from 'lucide-react';
 import { 
   CurriculumDocument, DocumentCategory, GradeLevel, SemesterType, 
-  CurriculumType, Teacher, VerificationStatus, CategoryItem, AppUserRole, DocumentFile 
+  CurriculumType, Teacher, VerificationStatus, CategoryItem, AppUserRole, DocumentFile,
+  SCHOOL_CLASS_GROUPS, SCHOOL_CLASS_VALUES
 } from '../types/curriculum';
 import { SUBJECT_DICTIONARY } from '../utils/documentClassifier';
 
@@ -32,7 +33,8 @@ export const EditDocumentModal: React.FC<EditDocumentModalProps> = ({
   const [title, setTitle] = useState(document?.title || '');
   const [category, setCategory] = useState<DocumentCategory>(document?.category || 'silabus_atp');
   const [subject, setSubject] = useState(document?.subject || 'Matematika');
-  const [grade, setGrade] = useState<GradeLevel>(document?.grade || '7');
+  const [homeroomClass, setHomeroomClass] = useState(document?.homeroomClass || '');
+  const [grade, setGrade] = useState<GradeLevel>(document?.grade || '7.1');
   const [semester, setSemester] = useState<SemesterType>(document?.semester || 'ganjil');
   const [academicYear, setAcademicYear] = useState(document?.academicYear || '2026/2027');
   const [teacherId, setTeacherId] = useState(document?.teacherId || '');
@@ -56,6 +58,7 @@ export const EditDocumentModal: React.FC<EditDocumentModalProps> = ({
       setTitle(document.title);
       setCategory(document.category);
       setSubject(document.subject);
+      setHomeroomClass(document.homeroomClass || '');
       setGrade(document.grade);
       setSemester(document.semester);
       setAcademicYear(document.academicYear);
@@ -76,6 +79,11 @@ export const EditDocumentModal: React.FC<EditDocumentModalProps> = ({
 
   if (!isOpen || !document) return null;
 
+  const isWalasDoc = document.archiveScope === 'wali_kelas';
+  const scopedCategories = categories.filter(
+    c => (c.scope || 'kurikulum') === (isWalasDoc ? 'wali_kelas' : 'kurikulum')
+  );
+
   const handleTeacherSelect = (selectedId: string) => {
     const t =
       (wakaTeacher && selectedId === wakaTeacher.id ? wakaTeacher : undefined) ||
@@ -85,7 +93,19 @@ export const EditDocumentModal: React.FC<EditDocumentModalProps> = ({
       setTeacherName(t.name);
       setTeacherNip(t.nip);
       setTeacherEmail(t.email);
-      if (t.id !== wakaTeacher?.id && t.subject) {
+      if (isWalasDoc) {
+        const cls = t.homeroomClass || homeroomClass;
+        if (cls) {
+          setHomeroomClass(cls);
+          setSubject(`Wali Kelas ${cls}`);
+          if (SCHOOL_CLASS_VALUES.includes(cls as (typeof SCHOOL_CLASS_VALUES)[number])) {
+            setGrade(cls as GradeLevel);
+          } else {
+            const digit = cls.match(/^[789]/)?.[0] as GradeLevel | undefined;
+            if (digit) setGrade(digit);
+          }
+        }
+      } else if (t.id !== wakaTeacher?.id && t.subject) {
         setSubject(t.subject);
       }
     }
@@ -147,19 +167,27 @@ export const EditDocumentModal: React.FC<EditDocumentModalProps> = ({
         };
       }
 
+      const normalizedClass = homeroomClass.trim().toUpperCase();
       const updated: CurriculumDocument = {
         ...document,
         title,
         category,
-        subject,
-        grade,
+        subject: isWalasDoc && normalizedClass ? `Wali Kelas ${normalizedClass}` : subject,
+        homeroomClass: isWalasDoc ? normalizedClass : document.homeroomClass,
+        grade: isWalasDoc
+          ? (SCHOOL_CLASS_VALUES.includes(normalizedClass as (typeof SCHOOL_CLASS_VALUES)[number])
+              ? (normalizedClass as GradeLevel)
+              : normalizedClass.match(/^[789]/)
+              ? (normalizedClass.match(/^[789]/)![0] as GradeLevel)
+              : grade)
+          : grade,
         semester,
         academicYear,
         teacherId: teacherId || document.teacherId,
         teacherName,
         teacherNip,
         teacherEmail: teacherEmail || document.teacherEmail,
-        alokasiJp: Number(alokasiJp),
+        alokasiJp: isWalasDoc ? 0 : Number(alokasiJp),
         status: isWaka ? status : document.status,
         supervisorNotes: isWaka ? supervisorNotes : document.supervisorNotes,
         curriculumType,
@@ -191,10 +219,12 @@ export const EditDocumentModal: React.FC<EditDocumentModalProps> = ({
             </div>
             <div>
               <h2 className="text-base font-bold text-slate-900">
-                Edit Metadata Dokumen Kurikulum
+                {isWalasDoc ? 'Edit Dokumen Administrasi Wali Kelas' : 'Edit Metadata Dokumen Kurikulum'}
               </h2>
               <p className="text-xs text-slate-500">
-                Perbarui rincian, alokasi jam pelajaran, guru pengampu, atau status validasi dokumen.
+                {isWalasDoc
+                  ? 'Perbarui rincian kelas binaan, kategori wali kelas, berkas unggahan, atau status validasi.'
+                  : 'Perbarui rincian, alokasi jam pelajaran, guru pengampu, atau status validasi dokumen.'}
               </p>
             </div>
           </div>
@@ -223,25 +253,25 @@ export const EditDocumentModal: React.FC<EditDocumentModalProps> = ({
             />
           </div>
 
-          {/* Category & Subject */}
+          {/* Category & Subject / Kelas Binaan */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block font-semibold text-slate-700 mb-1">
-                Kategori Dokumen
+                {isWalasDoc ? 'Kategori Administrasi Wali Kelas' : 'Kategori Dokumen'}
               </label>
               <select
                 value={category}
                 onChange={(e) => {
                   const newCat = e.target.value;
                   setCategory(newCat);
-                  const matched = categories.find(c => c.id === newCat);
-                  if (matched && matched.defaultJp) {
+                  const matched = scopedCategories.find(c => c.id === newCat);
+                  if (!isWalasDoc && matched && matched.defaultJp) {
                     setAlokasiJp(matched.defaultJp);
                   }
                 }}
                 className="w-full text-xs border border-slate-200 rounded-lg px-3 py-2 bg-white focus:border-indigo-500 focus:outline-none"
               >
-                {categories.map((cat) => (
+                {scopedCategories.map((cat) => (
                   <option key={cat.id} value={cat.id}>
                     {cat.name} ({cat.code})
                   </option>
@@ -249,43 +279,84 @@ export const EditDocumentModal: React.FC<EditDocumentModalProps> = ({
               </select>
             </div>
 
-            <div>
-              <label className="block font-semibold text-slate-700 mb-1">
-                Mata Pelajaran
-              </label>
-              <select
-                value={subject}
-                onChange={(e) => setSubject(e.target.value)}
-                className="w-full text-xs border border-slate-200 rounded-lg px-3 py-2 bg-white focus:border-indigo-500 focus:outline-none"
-              >
-                {subject && !Object.values(SUBJECT_DICTIONARY).some(s => s.standardName === subject) && (
-                  <option value={subject}>{subject}</option>
-                )}
-                {Object.values(SUBJECT_DICTIONARY).map((sub) => (
-                  <option key={sub.standardName} value={sub.standardName}>
-                    {sub.standardName}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {isWalasDoc ? (
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  Kelas Binaan (Wali Kelas)
+                </label>
+                <select
+                  required
+                  value={homeroomClass}
+                  onChange={(e) => setHomeroomClass(e.target.value)}
+                  className="w-full text-xs font-semibold border border-slate-200 rounded-lg px-3 py-2 bg-white focus:border-indigo-500 focus:outline-none"
+                >
+                  <option value="">-- Pilih Kelas Wali Kelas --</option>
+                  {homeroomClass &&
+                    !SCHOOL_CLASS_VALUES.includes(homeroomClass as (typeof SCHOOL_CLASS_VALUES)[number]) && (
+                      <option value={homeroomClass}>Kelas {homeroomClass} (Data Lama)</option>
+                    )}
+                  {SCHOOL_CLASS_GROUPS.map((group) => (
+                    <optgroup key={group.level} label={group.groupLabel}>
+                      {group.classes.map((cls) => (
+                        <option key={cls.value} value={cls.value}>
+                          {cls.label}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  Mata Pelajaran
+                </label>
+                <select
+                  value={subject}
+                  onChange={(e) => setSubject(e.target.value)}
+                  className="w-full text-xs border border-slate-200 rounded-lg px-3 py-2 bg-white focus:border-indigo-500 focus:outline-none"
+                >
+                  {subject && !Object.values(SUBJECT_DICTIONARY).some(s => s.standardName === subject) && (
+                    <option value={subject}>{subject}</option>
+                  )}
+                  {Object.values(SUBJECT_DICTIONARY).map((sub) => (
+                    <option key={sub.standardName} value={sub.standardName}>
+                      {sub.standardName}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
 
           {/* Grade, Semester, Academic Year, Alokasi JP */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div>
-              <label className="block font-semibold text-slate-700 mb-1">
-                Tingkat Kelas
-              </label>
-              <select
-                value={grade}
-                onChange={(e) => setGrade(e.target.value as GradeLevel)}
-                className="w-full text-xs border border-slate-200 rounded-lg px-3 py-2 bg-white focus:border-indigo-500 focus:outline-none"
-              >
-                <option value="7">Kelas 7 (Fase D)</option>
-                <option value="8">Kelas 8 (Fase D)</option>
-                <option value="9">Kelas 9 (Fase D)</option>
-              </select>
-            </div>
+          <div className={`grid grid-cols-1 sm:grid-cols-2 ${isWalasDoc ? 'lg:grid-cols-2' : 'lg:grid-cols-4'} gap-4`}>
+            {!isWalasDoc && (
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  Kelas
+                </label>
+                <select
+                  value={grade}
+                  onChange={(e) => setGrade(e.target.value as GradeLevel)}
+                  className="w-full text-xs border border-slate-200 rounded-lg px-3 py-2 bg-white focus:border-indigo-500 focus:outline-none"
+                >
+                  {grade &&
+                    !SCHOOL_CLASS_VALUES.includes(grade as (typeof SCHOOL_CLASS_VALUES)[number]) && (
+                      <option value={grade}>Kelas {grade} (Arsip Lama)</option>
+                    )}
+                  {SCHOOL_CLASS_GROUPS.map((group) => (
+                    <optgroup key={group.level} label={group.groupLabel}>
+                      {group.classes.map((cls) => (
+                        <option key={cls.value} value={cls.value}>
+                          {cls.label}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
+              </div>
+            )}
 
             <div>
               <label className="block font-semibold text-slate-700 mb-1">
@@ -317,26 +388,30 @@ export const EditDocumentModal: React.FC<EditDocumentModalProps> = ({
               </select>
             </div>
 
-            <div>
-              <label className="block font-semibold text-slate-700 mb-1">
-                Alokasi JP
-              </label>
-              <input
-                type="number"
-                min={1}
-                max={120}
-                value={alokasiJp}
-                onChange={(e) => setAlokasiJp(Number(e.target.value))}
-                className="w-full text-xs font-mono font-semibold border border-slate-200 rounded-lg px-3 py-2 focus:border-indigo-500 focus:outline-none"
-              />
-            </div>
+            {!isWalasDoc && (
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  Alokasi JP
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  max={120}
+                  value={alokasiJp}
+                  onChange={(e) => setAlokasiJp(Number(e.target.value))}
+                  className="w-full text-xs font-mono font-semibold border border-slate-200 rounded-lg px-3 py-2 focus:border-indigo-500 focus:outline-none"
+                />
+              </div>
+            )}
           </div>
 
           {/* Teacher Selection */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block font-semibold text-slate-700 mb-1">
-                {isWaka ? 'Pilih Guru Pengampu' : 'Guru Pengampu'}
+                {isWalasDoc
+                  ? (isWaka ? 'Pilih Wali Kelas' : 'Wali Kelas')
+                  : (isWaka ? 'Pilih Guru Pengampu' : 'Guru Pengampu')}
               </label>
               {isWaka ? (
                 <select
@@ -345,14 +420,17 @@ export const EditDocumentModal: React.FC<EditDocumentModalProps> = ({
                   className="w-full text-xs border border-slate-200 rounded-lg px-3 py-2 bg-white focus:border-indigo-500 focus:outline-none"
                 >
                   <option value="">-- Tetapkan Guru Terdaftar --</option>
-                  {wakaTeacher && (
+                  {!isWalasDoc && wakaTeacher && (
                     <option value={wakaTeacher.id}>
                       Waka Kurikulum — {wakaTeacher.name}
                     </option>
                   )}
-                  {teachers.map(t => (
+                  {(isWalasDoc
+                    ? teachers.filter(t => t.isHomeroomTeacher && t.homeroomClass)
+                    : teachers
+                  ).map(t => (
                     <option key={t.id} value={t.id}>
-                      {t.name} ({t.subject})
+                      {isWalasDoc ? `${t.name} (Wali Kelas ${t.homeroomClass})` : `${t.name} (${t.subject})`}
                     </option>
                   ))}
                 </select>

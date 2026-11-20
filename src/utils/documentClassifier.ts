@@ -4,7 +4,7 @@
  * Document Category, Semester (Ganjil/Genap), Class Grade, Subject, and Curriculum Framework.
  */
 
-import { DocumentCategory, GradeLevel, SemesterType, CurriculumType, AutoExtractionResult } from '../types/curriculum';
+import { DocumentCategory, GradeLevel, SemesterType, CurriculumType, AutoExtractionResult, SCHOOL_CLASS_VALUES } from '../types/curriculum';
 
 export const SUBJECT_DICTIONARY: Record<string, { standardName: string; keywords: string[] }> = {
   pai: {
@@ -150,16 +150,23 @@ export function classifyCurriculumDocument(
     confidence += 15;
   }
 
-  // 3. Detect Grade Level
-  let detectedGrade: GradeLevel = '7';
-  if (
+  // 3. Detect Grade Level / Class (7.1-7.4, 8.1-8.4, 9.1-9.4)
+  let detectedGrade: GradeLevel = '7.1';
+  const specificClassMatch = normalizedText.match(/\b([789])[._-]([1-4])\b/);
+  if (specificClassMatch) {
+    const candidate = `${specificClassMatch[1]}.${specificClassMatch[2]}` as GradeLevel;
+    if (SCHOOL_CLASS_VALUES.includes(candidate as (typeof SCHOOL_CLASS_VALUES)[number])) {
+      detectedGrade = candidate;
+      confidence += 20;
+    }
+  } else if (
     normalizedText.includes('kelas 9') ||
     normalizedText.includes('kls 9') ||
     normalizedText.includes('kelas ix') ||
     normalizedText.includes('kls ix') ||
     normalizedText.includes('fase d - 9')
   ) {
-    detectedGrade = '9';
+    detectedGrade = '9.1';
     confidence += 15;
   } else if (
     normalizedText.includes('kelas 8') ||
@@ -168,7 +175,7 @@ export function classifyCurriculumDocument(
     normalizedText.includes('kls viii') ||
     normalizedText.includes('fase d - 8')
   ) {
-    detectedGrade = '8';
+    detectedGrade = '8.1';
     confidence += 15;
   } else if (
     normalizedText.includes('kelas 7') ||
@@ -177,7 +184,7 @@ export function classifyCurriculumDocument(
     normalizedText.includes('kls vii') ||
     normalizedText.includes('fase d - 7')
   ) {
-    detectedGrade = '7';
+    detectedGrade = '7.1';
     confidence += 15;
   } else if (normalizedText.includes('kelas 10') || normalizedText.includes('kelas x')) {
     detectedGrade = '10';

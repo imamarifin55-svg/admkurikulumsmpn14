@@ -111,7 +111,9 @@ export const PrintValidationSheet: React.FC<PrintValidationSheetProps> = ({
               LEMBAR VERIFIKASI DAN PENGESAHAN
             </h2>
             <div className="text-xs font-semibold text-slate-700 mt-1 uppercase">
-              DOKUMEN PERANGKAT AJAR KURIKULUM MERDEKA
+              {document.archiveScope === 'wali_kelas'
+                ? 'DOKUMEN ADMINISTRASI WALI KELAS'
+                : 'DOKUMEN PERANGKAT AJAR KURIKULUM MERDEKA'}
             </div>
             <div className="text-[11px] font-mono text-slate-500 mt-0.5">
               Nomor Registrasi: {document.approvalNumber || 'REG-KUR/SMP1/2025/ATP-001'}
@@ -119,7 +121,9 @@ export const PrintValidationSheet: React.FC<PrintValidationSheetProps> = ({
           </div>
 
           <p className="text-xs font-sans text-slate-800 leading-relaxed mb-4 text-justify">
-            Setelah melalui proses telaah, supervisi, dan verifikasi kelayakan substansi kurikulum yang dilaksanakan oleh Tim Pengembang Kurikulum Satuan Pendidikan, maka dokumen perangkat pembelajaran di bawah ini:
+            {document.archiveScope === 'wali_kelas'
+              ? 'Setelah melalui proses telaah, supervisi, dan verifikasi kelengkapan administrasi kelas oleh Tim Kurikulum Satuan Pendidikan, maka dokumen administrasi Wali Kelas di bawah ini:'
+              : 'Setelah melalui proses telaah, supervisi, dan verifikasi kelayakan substansi kurikulum yang dilaksanakan oleh Tim Pengembang Kurikulum Satuan Pendidikan, maka dokumen perangkat pembelajaran di bawah ini:'}
           </p>
 
           {/* TABEL IDENTITAS PERANGKAT */}
@@ -144,10 +148,12 @@ export const PrintValidationSheet: React.FC<PrintValidationSheetProps> = ({
                 </tr>
                 <tr className="bg-slate-50">
                   <td className="py-2 px-3 font-semibold text-slate-700 border-r border-slate-300">
-                    Mata Pelajaran &amp; Jenjang
+                    {document.archiveScope === 'wali_kelas' ? 'Kelas Binaan / Rombel' : 'Mata Pelajaran & Jenjang'}
                   </td>
                   <td className="py-2 px-3 text-slate-800">
-                    {document.subject} · Kelas {document.grade} (Fase D SMP)
+                    {document.archiveScope === 'wali_kelas'
+                      ? `Kelas ${document.homeroomClass || document.grade} (Fase D SMP)`
+                      : `${document.subject} · Kelas ${document.grade} (Fase D SMP)`}
                   </td>
                 </tr>
                 <tr>
@@ -160,7 +166,7 @@ export const PrintValidationSheet: React.FC<PrintValidationSheetProps> = ({
                 </tr>
                 <tr className="bg-slate-50">
                   <td className="py-2 px-3 font-semibold text-slate-700 border-r border-slate-300">
-                    Guru Penyusun / Pengampu
+                    {document.archiveScope === 'wali_kelas' ? 'Wali Kelas Penyusun' : 'Guru Penyusun / Pengampu'}
                   </td>
                   <td className="py-2 px-3 text-slate-900 font-semibold">
                     {document.teacherName} (NIP. {document.teacherNip})
@@ -168,10 +174,12 @@ export const PrintValidationSheet: React.FC<PrintValidationSheetProps> = ({
                 </tr>
                 <tr>
                   <td className="py-2 px-3 font-semibold text-slate-700 border-r border-slate-300">
-                    Alokasi Jam Pembelajaran
+                    {document.archiveScope === 'wali_kelas' ? 'Lingkup Administrasi' : 'Alokasi Jam Pembelajaran'}
                   </td>
                   <td className="py-2 px-3 font-mono text-slate-800">
-                    {document.alokasiJp ? `${document.alokasiJp} Jam Pelajaran (JP)` : 'Sesuai Kalender Pendidikan'}
+                    {document.archiveScope === 'wali_kelas'
+                      ? 'Administrasi Pembinaan & Kesiswaan Kelas'
+                      : (document.alokasiJp ? `${document.alokasiJp} Jam Pelajaran (JP)` : 'Sesuai Kalender Pendidikan')}
                   </td>
                 </tr>
               </tbody>
@@ -184,11 +192,13 @@ export const PrintValidationSheet: React.FC<PrintValidationSheetProps> = ({
               Catatan &amp; Rekomendasi Tim Supervisi Kurikulum:
             </div>
             <div className="text-slate-700 italic leading-relaxed">
-              &ldquo;{document.supervisorNotes || 'Perangkat ajar telah memenuhi kriteria kelayakan Alur Tujuan Pembelajaran, Asesmen Diagnostik/Formatif, serta diferensiasi pembelajaran Kurikulum Merdeka.'}&rdquo;
+              &ldquo;{document.supervisorNotes || (document.archiveScope === 'wali_kelas'
+                ? 'Dokumen administrasi wali kelas telah memenuhi kriteria kelengkapan pencatatan, pembinaan kelas, dan pelaporan hasil belajar siswa.'
+                : 'Perangkat ajar telah memenuhi kriteria kelayakan Alur Tujuan Pembelajaran, Asesmen Diagnostik/Formatif, serta diferensiasi pembelajaran Kurikulum Merdeka.')}&rdquo;
             </div>
             <div className="mt-2 text-[11px] font-bold text-emerald-800 flex items-center gap-1.5">
               <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-              STATUS: Dinyatakan SAH dan LAYAK digunakan sebagai pedoman pembelajaran TP {document.academicYear}.
+              STATUS: Dinyatakan SAH dan LAYAK digunakan sebagai pedoman {document.archiveScope === 'wali_kelas' ? 'administrasi wali kelas' : 'pembelajaran'} TP {document.academicYear}.
             </div>
           </div>
 

@@ -1,13 +1,23 @@
 import React from 'react';
 import { 
   Archive, ListFilter, LayoutGrid, ShieldCheck, FileSpreadsheet, 
-  Plus, Building2, X, FolderKanban, Users 
+  Plus, Building2, X, FolderKanban, Users, UserCheck 
 } from 'lucide-react';
 import { AppUser, SchoolProfile, SemesterType, Teacher } from '../types/curriculum';
 
+export type SidebarActiveView =
+  | 'list'
+  | 'matrix'
+  | 'supervision'
+  | 'reports'
+  | 'profile'
+  | 'categories'
+  | 'teachers'
+  | 'wali_kelas';
+
 interface SidebarProps {
-  activeView: 'list' | 'matrix' | 'supervision' | 'reports' | 'profile' | 'categories' | 'teachers';
-  onViewChange: (view: 'list' | 'matrix' | 'supervision' | 'reports' | 'profile' | 'categories' | 'teachers') => void;
+  activeView: SidebarActiveView;
+  onViewChange: (view: SidebarActiveView) => void;
   onOpenUpload: () => void;
   profile: SchoolProfile;
   academicYear: string;
@@ -21,6 +31,9 @@ interface SidebarProps {
   onCloseMobile: () => void;
   currentUser: AppUser;
   teachers: Teacher[];
+  isHomeroomGuru?: boolean;
+  homeroomClass?: string | null;
+  walasDocsCount?: number;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -38,10 +51,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isOpenMobile,
   onCloseMobile,
   currentUser,
-  teachers
+  teachers,
+  isHomeroomGuru = false,
+  homeroomClass,
+  walasDocsCount = 0
 }) => {
   const currentTeacher = teachers.find(t => t.id === currentUser.teacherId);
   const isGuru = currentUser.role === 'guru';
+  const showWalasMenu = !isGuru || isHomeroomGuru;
 
   const menuItems = [
     {
@@ -58,6 +75,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
       icon: ListFilter,
       badge: semesterDocsCount
     },
+    ...(showWalasMenu ? [
+      {
+        id: 'wali_kelas' as const,
+        label: 'Arsip Wali Kelas',
+        sublabel: isGuru ? `Kelas Binaan ${homeroomClass || ''}` : 'Monitoring & Validasi Kelas',
+        icon: UserCheck,
+        badge: walasDocsCount
+      }
+    ] : []),
     ...(isGuru ? [] : [
       {
         id: 'supervision' as const,
@@ -167,7 +193,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <div className={`text-[11px] font-semibold truncate ${
                 isGuru ? 'text-emerald-400' : 'text-indigo-300'
               }`}>
-                {isGuru ? `Guru ${currentTeacher?.subject || 'Mata Pelajaran'}` : 'Waka Kurikulum & Supervisi'}
+                {isGuru
+                  ? `Guru ${currentTeacher?.subject || 'Mapel'}${isHomeroomGuru && homeroomClass ? ` · Walas ${homeroomClass}` : ''}`
+                  : 'Waka Kurikulum & Supervisi'}
               </div>
               <div className="text-[10px] text-slate-400 font-mono truncate">
                 NIP. {isGuru ? (currentTeacher?.nip || '-') : profile.curriculumViceNip}
@@ -184,13 +212,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
               if (isOpenMobile) onCloseMobile();
             }}
             className={`w-full flex items-center justify-center gap-2 py-2.5 px-4 text-white text-xs font-bold rounded-xl shadow-sm transition-all active:scale-[0.99] focus-visible:outline-2 focus-visible:outline-indigo-400 cursor-pointer ${
-              isGuru
+              isGuru || activeView === 'wali_kelas'
                 ? 'bg-emerald-600 hover:bg-emerald-500'
                 : 'bg-indigo-600 hover:bg-indigo-500'
             }`}
           >
             <Plus className="w-4 h-4 stroke-[2.5]" />
-            <span>Unggah Dokumen Baru</span>
+            <span>{activeView === 'wali_kelas' ? 'Unggah Arsip Wali Kelas' : 'Unggah Dokumen Baru'}</span>
           </button>
         </div>
 

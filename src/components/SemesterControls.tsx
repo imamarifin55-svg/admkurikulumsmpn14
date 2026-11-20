@@ -1,14 +1,15 @@
 import React from 'react';
 import { AppUserRole, SemesterType } from '../types/curriculum';
 import { Calendar, LayoutGrid, ListFilter, ClipboardCheck, FileText } from 'lucide-react';
+import { SidebarActiveView } from './Sidebar';
 
 interface SemesterControlsProps {
   currentSemester: SemesterType;
   onSemesterChange: (semester: SemesterType) => void;
   academicYear: string;
   onAcademicYearChange: (year: string) => void;
-  activeView: 'list' | 'matrix' | 'supervision' | 'reports' | 'profile' | 'categories' | 'teachers';
-  onViewChange: (view: 'list' | 'matrix' | 'supervision' | 'reports' | 'profile' | 'categories' | 'teachers') => void;
+  activeView: SidebarActiveView;
+  onViewChange: (view: SidebarActiveView) => void;
   ganjilCount: number;
   genapCount: number;
   userRole?: AppUserRole;

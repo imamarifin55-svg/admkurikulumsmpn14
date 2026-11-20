@@ -10,25 +10,26 @@ import {
   DocumentFile, ActivityLog, ActivityAction 
 } from './types/curriculum';
 import { 
-  INITIAL_DOCUMENTS, INITIAL_SCHOOL_PROFILE, INITIAL_TEACHERS, INITIAL_CATEGORIES 
+  INITIAL_DOCUMENTS, INITIAL_SCHOOL_PROFILE, INITIAL_TEACHERS,
+  INITIAL_CATEGORIES, INITIAL_WALAS_CATEGORIES
 } from './data/initialCurriculumData';
 import { AlertTriangle, ArrowRight } from 'lucide-react';
 
 import { 
-  subscribeToDocuments, saveDocumentToFirestore, 
+  subscribeToDocuments, subscribeToHomeroomDocuments, saveDocumentToFirestore, 
   batchSaveDocumentsToFirestore, deleteDocumentFromFirestore,
   fetchAllDocumentsFromFirestore, backfillTeacherIdForLegacyDocs,
   subscribeToSchoolProfile, saveSchoolProfileToFirestore,
-  subscribeToTeachers, saveTeacherToFirestore, deleteTeacherFromFirestore,
-  subscribeToCategories, saveCategoryToFirestore, deleteCategoryFromFirestore,
-  seedFirestoreIfEmpty, saveUserProfileToFirestore,
-  saveDocumentFileToFirestore, deleteDocumentFileFromFirestore,
+  subscribeToTeachers, saveTeacherToFirestore, batchSaveTeachersToFirestore,
+  deleteTeacherFromFirestore, subscribeToCategories, saveCategoryToFirestore,
+  deleteCategoryFromFirestore, seedFirestoreIfEmpty, seedWalasCategoriesIfMissing,
+  saveUserProfileToFirestore, saveDocumentFileToFirestore, deleteDocumentFileFromFirestore,
   addActivityLogToFirestore, subscribeToActivityLogs
 } from './services/firestoreService';
 import { testFirestoreConnection } from './services/firebase';
 
 import { LandingLoginPage } from './components/LandingLoginPage';
-import { Sidebar } from './components/Sidebar';
+import { Sidebar, SidebarActiveView } from './components/Sidebar';
 import { Header } from './components/Header';
 import { SchoolBanner } from './components/SchoolBanner';
 import { SemesterControls } from './components/SemesterControls';
@@ -39,7 +40,9 @@ import { ReportsView } from './components/ReportsView';
 import { SchoolProfileView } from './components/SchoolProfileView';
 import { CategoryManagementView } from './components/CategoryManagementView';
 import { TeacherManagementView } from './components/TeacherManagementView';
+import { WaliKelasView, buildHomeroomEntries } from './components/WaliKelasView';
 import { AutoUploadModal, WAKA_SELF_TEACHER_ID } from './components/AutoUploadModal';
+import { WalasUploadModal } from './components/WalasUploadModal';
 import { DocumentDetailModal } from './components/DocumentDetailModal';
 import { EditDocumentModal } from './components/EditDocumentModal';
 import { PrintValidationSheet } from './components/PrintValidationSheet';
@@ -78,15 +81,21 @@ export default function App() {
     return INITIAL_SCHOOL_PROFILE;
   });
 
-  // Load categories from localStorage or initial seed
+  // Load categories from localStorage or initial seed (always ensure default Wali Kelas categories exist once)
   const [categories, setCategories] = useState<CategoryItem[]>(() => {
     try {
       const saved = localStorage.getItem(CATEGORIES_STORAGE_KEY);
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved) as CategoryItem[];
+        if (parsed.length > 0 && !parsed.some(c => c.scope === 'wali_kelas')) {
+          return [...parsed, ...INITIAL_WALAS_CATEGORIES];
+        }
+        return parsed;
+      }
     } catch (e) {
       console.warn('Failed to load curriculum categories:', e);
     }
-    return INITIAL_CATEGORIES;
+    return [...INITIAL_CATEGORIES, ...INITIAL_WALAS_CATEGORIES];
   });
 
   // Load teachers from localStorage or initial seed
@@ -130,11 +139,17 @@ export default function App() {
   // Active filters and views
   const [academicYear, setAcademicYear] = useState<string>(profile.currentAcademicYear || '2026/2027');
   const [currentSemester, setCurrentSemester] = useState<SemesterType>(profile.currentSemester || 'ganjil');
-  const [activeView, setActiveView] = useState<'matrix' | 'list' | 'supervision' | 'reports' | 'profile' | 'categories' | 'teachers'>('matrix');
+  const [activeView, setActiveView] = useState<SidebarActiveView>('matrix');
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+
+  // Additional real-time homeroom documents for Guru who also serves as Wali Kelas
+  const [homeroomDocs, setHomeroomDocs] = useState<CurriculumDocument[]>([]);
 
   // Modals state
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [isWalasUploadModalOpen, setIsWalasUploadModalOpen] = useState(false);
+  const [walasUploadClass, setWalasUploadClass] = useState<string | null>(null);
+  const [walasUploadCategoryId, setWalasUploadCategoryId] = useState<string | null>(null);
   const [selectedDoc, setSelectedDoc] = useState<CurriculumDocument | null>(null);
   const [editDoc, setEditDoc] = useState<CurriculumDocument | null>(null);
   const [printDoc, setPrintDoc] = useState<CurriculumDocument | null>(null);
@@ -222,19 +237,47 @@ export default function App() {
     };
   }, []);
 
+  // Compute active homeroom assignment for logged-in Guru (works even across multi-subject teacher entries)
+  const currentLoggedInTeacher = teachers.find(t => t.id === currentUser.teacherId);
+  const resolvedHomeroomRecord = currentUser.role === 'guru'
+    ? teachers.find((t) => {
+        if (!t.isHomeroomTeacher || !t.homeroomClass?.trim()) return false;
+        if (currentUser.teacherId && t.id === currentUser.teacherId) return true;
+        if (currentLoggedInTeacher) {
+          return (
+            t.name.toLowerCase() === currentLoggedInTeacher.name.toLowerCase() ||
+            (currentLoggedInTeacher.nip !== '-' && t.nip === currentLoggedInTeacher.nip)
+          );
+        }
+        return Boolean(
+          currentUser.displayName &&
+          t.name.toLowerCase() === currentUser.displayName.toLowerCase()
+        );
+      })
+    : undefined;
+  const activeHomeroomClass = resolvedHomeroomRecord?.homeroomClass?.trim().toUpperCase() || null;
+  const isHomeroomGuru = currentUser.role === 'guru' && Boolean(activeHomeroomClass);
+
   // 2B. Authenticated & quota-scoped subscriptions:
-  // - Categories only load after login
-  // - Guru only subscribes to own documents (teacherId filter); Waka only subscribes to active academicYear
+  // - Categories only load after login (auto-seeds missing Wali Kelas default categories once)
+  // - Guru subscribes to own documents + own homeroom class archives (if Wali Kelas); Waka subscribes to active academicYear
   // - Activity logs (25 latest) only load for Waka Kurikulum
   useEffect(() => {
     if (!isAuthenticated) {
+      setHomeroomDocs([]);
       return;
     }
 
     const unsubCategories = subscribeToCategories((remoteCategories) => {
       if (remoteCategories.length > 0 || isCloudInitializedRef.current) {
         isCloudInitializedRef.current = true;
-        setCategories(remoteCategories);
+        const hasWalas = remoteCategories.some(c => c.scope === 'wali_kelas');
+        if (remoteCategories.length > 0 && !hasWalas) {
+          seedWalasCategoriesIfMissing(INITIAL_WALAS_CATEGORIES).catch(() => {});
+          setCategories([...remoteCategories, ...INITIAL_WALAS_CATEGORIES]);
+        } else {
+          setCategories(remoteCategories);
+        }
       }
     });
 
@@ -264,6 +307,16 @@ export default function App() {
         : { academicYear }
     );
 
+    const unsubHomeroomDocs =
+      currentUser.role === 'guru' && activeHomeroomClass
+        ? subscribeToHomeroomDocuments(activeHomeroomClass, (remoteWalasDocs) => {
+            setHomeroomDocs(remoteWalasDocs);
+          })
+        : (() => {
+            setHomeroomDocs([]);
+            return () => {};
+          })();
+
     const unsubLogs =
       currentUser.role === 'waka_kurikulum'
         ? subscribeToActivityLogs((remoteLogs) => {
@@ -276,9 +329,10 @@ export default function App() {
     return () => {
       unsubCategories();
       unsubDocs();
+      unsubHomeroomDocs();
       unsubLogs();
     };
-  }, [isAuthenticated, currentUser.role, currentUser.teacherId, currentUser.displayName, academicYear]);
+  }, [isAuthenticated, currentUser.role, currentUser.teacherId, currentUser.displayName, academicYear, activeHomeroomClass]);
 
   // Sync documents to localStorage as backup
   useEffect(() => {
@@ -323,11 +377,12 @@ export default function App() {
         activeView === 'reports' ||
         activeView === 'profile' ||
         activeView === 'categories' ||
-        activeView === 'teachers')
+        activeView === 'teachers' ||
+        (activeView === 'wali_kelas' && !isHomeroomGuru))
     ) {
       setActiveView('matrix');
     }
-  }, [currentUser.role, activeView]);
+  }, [currentUser.role, activeView, isHomeroomGuru]);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -485,25 +540,33 @@ export default function App() {
     }
   };
 
-  // Add new documents from automatic upload modal
+  // Add new documents from upload modal (Curriculum or Wali Kelas)
   const handleSaveDocuments = async (
     newDocs: CurriculumDocument[],
     attachedFiles?: DocumentFile[]
   ) => {
+    const isWalasBatch = newDocs.some(d => d.archiveScope === 'wali_kelas');
     setDocuments(prev => [...newDocs, ...prev]);
+    if (isWalasBatch) {
+      setHomeroomDocs(prev => [...newDocs.filter(d => d.archiveScope === 'wali_kelas'), ...prev]);
+    }
     try {
       if (attachedFiles && attachedFiles.length > 0) {
         await Promise.all(attachedFiles.map(f => saveDocumentFileToFirestore(f)));
       }
       await batchSaveDocumentsToFirestore(newDocs);
       const summaryTitle =
-        newDocs.length === 1 ? newDocs[0].title : `${newDocs.length} Berkas Kurikulum`;
+        newDocs.length === 1
+          ? newDocs[0].title
+          : `${newDocs.length} ${isWalasBatch ? 'Berkas Wali Kelas' : 'Berkas Kurikulum'}`;
       logActivity(
         'UPLOAD',
         summaryTitle,
-        `Mengunggah ${newDocs.length} perangkat kurikulum (TP ${academicYear}, Smt ${currentSemester === 'ganjil' ? 'Ganjil' : 'Genap'}).`
+        `Mengunggah ${newDocs.length} ${isWalasBatch ? 'dokumen wali kelas' : 'perangkat kurikulum'} (TP ${academicYear}, Smt ${currentSemester === 'ganjil' ? 'Ganjil' : 'Genap'}).`
       );
-      showToast(`Berhasil mengarsipkan ${newDocs.length} berkas kurikulum ke Cloud Real-Time.`);
+      showToast(
+        `Berhasil mengarsipkan ${newDocs.length} ${isWalasBatch ? 'berkas Wali Kelas' : 'berkas kurikulum'} ke Cloud Real-Time.`
+      );
     } catch (err) {
       console.error(err);
       showToast('Gagal menyimpan ke Cloud Firestore. Periksa koneksi internet Anda.');
@@ -516,6 +579,9 @@ export default function App() {
     newAttachedFile?: DocumentFile
   ) => {
     setDocuments(prev => prev.map(d => (d.id === updatedDoc.id ? updatedDoc : d)));
+    if (updatedDoc.archiveScope === 'wali_kelas') {
+      setHomeroomDocs(prev => prev.map(d => (d.id === updatedDoc.id ? updatedDoc : d)));
+    }
     if (selectedDoc?.id === updatedDoc.id) {
       setSelectedDoc(updatedDoc);
     }
@@ -542,6 +608,9 @@ export default function App() {
     newAttachedFile?: DocumentFile
   ) => {
     setDocuments(prev => prev.map(d => d.id === updatedDoc.id ? updatedDoc : d));
+    if (updatedDoc.archiveScope === 'wali_kelas') {
+      setHomeroomDocs(prev => prev.map(d => d.id === updatedDoc.id ? updatedDoc : d));
+    }
     if (selectedDoc?.id === updatedDoc.id) {
       setSelectedDoc(updatedDoc);
     }
@@ -555,7 +624,7 @@ export default function App() {
         updatedDoc.title,
         newAttachedFile
           ? `Memperbarui berkas unggahan (${newAttachedFile.fileName}) dan metadata dokumen.`
-          : `Memperbarui metadata berkas (${updatedDoc.subject}, Kelas ${updatedDoc.grade}).`
+          : `Memperbarui metadata berkas (${updatedDoc.subject}, Kelas ${updatedDoc.homeroomClass || updatedDoc.grade}).`
       );
       showToast(
         newAttachedFile
@@ -624,23 +693,73 @@ export default function App() {
     }
   };
 
-  // Add new teacher
+  // Add new teacher (sync Wali Kelas assignment across sibling records of the same teacher if any)
   const handleAddTeacher = async (newTeacher: Teacher) => {
-    setTeachers(prev => [...prev, newTeacher]);
+    const existingSibling = teachers.find(
+      t =>
+        t.name.toLowerCase() === newTeacher.name.toLowerCase() ||
+        (newTeacher.nip !== '-' && t.nip === newTeacher.nip)
+    );
+    const resolvedTeacher: Teacher =
+      !newTeacher.isHomeroomTeacher && existingSibling?.isHomeroomTeacher
+        ? {
+            ...newTeacher,
+            isHomeroomTeacher: true,
+            homeroomClass: existingSibling.homeroomClass || ''
+          }
+        : newTeacher;
+
+    const syncedSiblings: Teacher[] = [];
+    if (resolvedTeacher.isHomeroomTeacher) {
+      teachers.forEach((t) => {
+        const samePerson =
+          t.name.toLowerCase() === resolvedTeacher.name.toLowerCase() ||
+          (resolvedTeacher.nip !== '-' && t.nip === resolvedTeacher.nip);
+        if (samePerson) {
+          syncedSiblings.push({
+            ...t,
+            isHomeroomTeacher: true,
+            homeroomClass: resolvedTeacher.homeroomClass || ''
+          });
+        }
+      });
+    }
+
+    const syncedMap = new Map(syncedSiblings.map(s => [s.id, s]));
+    setTeachers(prev => [...prev.map(t => syncedMap.get(t.id) || t), resolvedTeacher]);
     try {
-      await saveTeacherToFirestore(newTeacher);
-      logActivity('CONFIG', newTeacher.name, `Menambahkan guru pengampu baru (${newTeacher.subject}).`);
-      showToast(`Guru "${newTeacher.name}" berhasil ditambahkan ke Cloud Real-Time.`);
+      await batchSaveTeachersToFirestore([resolvedTeacher, ...syncedSiblings]);
+      logActivity('CONFIG', resolvedTeacher.name, `Menambahkan guru pengampu baru (${resolvedTeacher.subject}).`);
+      showToast(`Guru "${resolvedTeacher.name}" berhasil ditambahkan ke Cloud Real-Time.`);
     } catch (err) {
       console.error(err);
       showToast('Gagal menyimpan data guru ke Cloud Firestore.');
     }
   };
 
-  // Update teacher (and keep linked documents synced)
+  // Update teacher (and keep linked documents & sibling Wali Kelas status synced)
   const handleUpdateTeacher = async (updatedTeacher: Teacher) => {
     const previousTeacher = teachers.find(t => t.id === updatedTeacher.id);
-    setTeachers(prev => prev.map(t => t.id === updatedTeacher.id ? updatedTeacher : t));
+    const updatedSiblings: Teacher[] = [];
+
+    const nextTeachers = teachers.map((t) => {
+      if (t.id === updatedTeacher.id) return updatedTeacher;
+      const samePerson =
+        t.name.toLowerCase() === updatedTeacher.name.toLowerCase() ||
+        (previousTeacher && t.name.toLowerCase() === previousTeacher.name.toLowerCase()) ||
+        (updatedTeacher.nip !== '-' && t.nip === updatedTeacher.nip);
+      if (samePerson) {
+        const syncedSibling: Teacher = {
+          ...t,
+          isHomeroomTeacher: Boolean(updatedTeacher.isHomeroomTeacher),
+          homeroomClass: updatedTeacher.isHomeroomTeacher ? (updatedTeacher.homeroomClass || '') : ''
+        };
+        updatedSiblings.push(syncedSibling);
+        return syncedSibling;
+      }
+      return t;
+    });
+    setTeachers(nextTeachers);
 
     const modifiedDocs: CurriculumDocument[] = [];
     const nextDocs = documents.map(d => {
@@ -658,7 +777,9 @@ export default function App() {
           teacherNip: updatedTeacher.nip,
           teacherEmail: updatedTeacher.email,
           subject:
-            previousTeacher && d.subject === previousTeacher.subject
+            d.archiveScope === 'wali_kelas'
+              ? d.subject
+              : previousTeacher && d.subject === previousTeacher.subject
               ? updatedTeacher.subject
               : d.subject
         };
@@ -680,7 +801,7 @@ export default function App() {
     }
 
     try {
-      await saveTeacherToFirestore(updatedTeacher);
+      await batchSaveTeachersToFirestore([updatedTeacher, ...updatedSiblings]);
       if (modifiedDocs.length > 0) {
         await batchSaveDocumentsToFirestore(modifiedDocs);
       }
@@ -713,7 +834,8 @@ export default function App() {
     supervisorNotes: string
   ) => {
     const now = new Date().toISOString();
-    const targetDoc = documents.find(d => d.id === docId);
+    const targetDoc =
+      documents.find(d => d.id === docId) || homeroomDocs.find(d => d.id === docId);
     if (!targetDoc) return;
 
     const updatedDocInstance: CurriculumDocument = {
@@ -726,6 +848,9 @@ export default function App() {
     };
 
     setDocuments(prev => prev.map(d => (d.id === docId ? updatedDocInstance : d)));
+    if (updatedDocInstance.archiveScope === 'wali_kelas') {
+      setHomeroomDocs(prev => prev.map(d => (d.id === docId ? updatedDocInstance : d)));
+    }
 
     if (selectedDoc && selectedDoc.id === docId) {
       setSelectedDoc(updatedDocInstance);
@@ -753,11 +878,17 @@ export default function App() {
     }
   };
 
-  // Batch approve pending docs in current semester
+  // Batch approve pending curriculum docs in current semester
   const handleBatchApproveSemester = async () => {
     const now = new Date().toISOString();
     const modified: CurriculumDocument[] = documents
-      .filter(d => d.semester === currentSemester && d.academicYear === academicYear && d.status === 'diajukan')
+      .filter(
+        d =>
+          (d.archiveScope || 'kurikulum') !== 'wali_kelas' &&
+          d.semester === currentSemester &&
+          d.academicYear === academicYear &&
+          d.status === 'diajukan'
+      )
       .map(d => ({
         ...d,
         status: 'disahkan' as VerificationStatus,
@@ -768,7 +899,7 @@ export default function App() {
       }));
 
     if (modified.length === 0) {
-      showToast(`Tidak ada dokumen berstatus Diajukan pada semester ${currentSemester === 'ganjil' ? 'Ganjil' : 'Genap'}.`);
+      showToast(`Tidak ada dokumen kurikulum berstatus Diajukan pada semester ${currentSemester === 'ganjil' ? 'Ganjil' : 'Genap'}.`);
       return;
     }
 
@@ -789,10 +920,53 @@ export default function App() {
     }
   };
 
+  // Batch approve pending Wali Kelas docs in current semester
+  const handleBatchApproveWalas = async () => {
+    const now = new Date().toISOString();
+    const modified: CurriculumDocument[] = documents
+      .filter(
+        d =>
+          d.archiveScope === 'wali_kelas' &&
+          d.semester === currentSemester &&
+          d.academicYear === academicYear &&
+          d.status === 'diajukan'
+      )
+      .map(d => ({
+        ...d,
+        status: 'disahkan' as VerificationStatus,
+        supervisorNotes: 'Disahkan oleh Waka Kurikulum dan Kepala Sekolah sebagai arsip resmi Wali Kelas.',
+        verificationDate: now,
+        verifiedBy: `${profile.curriculumViceName} (Waka Kurikulum)`,
+        lastModified: now
+      }));
+
+    if (modified.length === 0) {
+      showToast(`Tidak ada dokumen Wali Kelas berstatus Menunggu Telaah pada semester ${currentSemester === 'ganjil' ? 'Ganjil' : 'Genap'}.`);
+      return;
+    }
+
+    const modifiedMap = new Map(modified.map(m => [m.id, m]));
+    setDocuments(prev => prev.map(d => modifiedMap.get(d.id) || d));
+
+    try {
+      await batchSaveDocumentsToFirestore(modified);
+      logActivity(
+        'APPROVE',
+        `${modified.length} Berkas Wali Kelas Semester ${currentSemester === 'ganjil' ? 'Ganjil' : 'Genap'}`,
+        `Pengesahan massal arsip Wali Kelas TP ${academicYear}.`
+      );
+      showToast(`Berhasil mengesahkan ${modified.length} dokumen Wali Kelas ke Cloud Real-Time.`);
+    } catch (err) {
+      console.error(err);
+      showToast('Gagal mengesahkan batch Wali Kelas ke Cloud Firestore.');
+    }
+  };
+
   // Delete document
   const handleDeleteDocument = async (docId: string) => {
-    const removed = documents.find(d => d.id === docId);
+    const removed = documents.find(d => d.id === docId) || homeroomDocs.find(d => d.id === docId);
     setDocuments(prev => prev.filter(d => d.id !== docId));
+    setHomeroomDocs(prev => prev.filter(d => d.id !== docId));
     if (selectedDoc?.id === docId) setSelectedDoc(null);
     if (editDoc?.id === docId) setEditDoc(null);
     if (printDoc?.id === docId) setPrintDoc(null);
@@ -831,7 +1005,17 @@ export default function App() {
     setIsUploadModalOpen(true);
   };
 
+  const handleOpenWalasUpload = (homeroomClass?: string | null, categoryId?: string | null) => {
+    setWalasUploadClass(homeroomClass || (isHomeroomGuru ? activeHomeroomClass : null));
+    setWalasUploadCategoryId(categoryId || null);
+    setIsWalasUploadModalOpen(true);
+  };
+
   const handleOpenGeneralUpload = () => {
+    if (activeView === 'wali_kelas') {
+      handleOpenWalasUpload(null, null);
+      return;
+    }
     if (currentUser.role === 'guru' && currentUser.teacherId) {
       setUploadTargetTeacherId(currentUser.teacherId);
     } else if (currentUser.role === 'waka_kurikulum') {
@@ -852,11 +1036,27 @@ export default function App() {
     email: currentUser.email || 'waka@sekolah.sch.id'
   };
 
+  // Merge documents + homeroomDocs when Guru so multi-subject Wali Kelas sees both own subject docs and all class Wali Kelas docs
+  const mergedDocuments = (() => {
+    if (currentUser.role !== 'guru') return documents;
+    const byId = new Map<string, CurriculumDocument>();
+    documents.forEach(d => byId.set(d.id, d));
+    homeroomDocs.forEach(d => byId.set(d.id, d));
+    return Array.from(byId.values()).sort((a, b) => (b.uploadDate || '').localeCompare(a.uploadDate || ''));
+  })();
+
   // Role-Based Filtering:
-  // When role === 'guru', only documents matching that exact teacher+subject profile (teacherId) are shown!
-  const currentLoggedInTeacher = teachers.find(t => t.id === currentUser.teacherId);
+  // - Curriculum docs for Guru: strictly isolated by teacherId + subject
+  // - Wali Kelas docs for Guru: strictly isolated to their activeHomeroomClass (only if isHomeroomGuru)
   const visibleDocuments = currentUser.role === 'guru'
-    ? documents.filter(d => {
+    ? mergedDocuments.filter(d => {
+        if (d.archiveScope === 'wali_kelas') {
+          if (!isHomeroomGuru || !activeHomeroomClass) return false;
+          return (
+            (d.homeroomClass || '').toUpperCase() === activeHomeroomClass ||
+            d.teacherId === currentUser.teacherId
+          );
+        }
         if (currentUser.teacherId) {
           if (d.teacherId) {
             return d.teacherId === currentUser.teacherId;
@@ -878,12 +1078,27 @@ export default function App() {
       })
     : documents;
 
+  // Separate Curriculum vs Wali Kelas Categories & Documents
+  const curriculumCategories = categories.filter(c => (c.scope || 'kurikulum') !== 'wali_kelas');
+  const walasCategories = categories.filter(c => c.scope === 'wali_kelas');
+  const curriculumVisibleDocuments = visibleDocuments.filter(d => (d.archiveScope || 'kurikulum') !== 'wali_kelas');
+  const walasVisibleDocuments = visibleDocuments.filter(d => d.archiveScope === 'wali_kelas');
+
+  const homeroomEntries = buildHomeroomEntries(teachers);
+
   // Counts for tabs & navigation
-  const semesterDocsCount = visibleDocuments.filter(d => d.semester === currentSemester && d.academicYear === academicYear).length;
-  const ganjilCount = visibleDocuments.filter(d => d.semester === 'ganjil' && d.academicYear === academicYear).length;
-  const genapCount = visibleDocuments.filter(d => d.semester === 'genap' && d.academicYear === academicYear).length;
-  const pendingCount = visibleDocuments.filter(d => d.status === 'diajukan').length;
-  const revisionDocsForGuru = visibleDocuments.filter(d => d.status === 'perlu_revisi');
+  const semesterDocsCount = curriculumVisibleDocuments.filter(d => d.semester === currentSemester && d.academicYear === academicYear).length;
+  const ganjilCount = curriculumVisibleDocuments.filter(d => d.semester === 'ganjil' && d.academicYear === academicYear).length;
+  const genapCount = curriculumVisibleDocuments.filter(d => d.semester === 'genap' && d.academicYear === academicYear).length;
+  const curriculumPendingCount = curriculumVisibleDocuments.filter(d => d.status === 'diajukan').length;
+  const walasPendingCount = walasVisibleDocuments.filter(d => d.status === 'diajukan').length;
+  const walasSemesterDocsCount = walasVisibleDocuments.filter(d => d.semester === currentSemester && d.academicYear === academicYear).length;
+  const revisionDocsForGuru = curriculumVisibleDocuments.filter(d => d.status === 'perlu_revisi');
+  const isMainCurriculumView =
+    activeView === 'matrix' ||
+    activeView === 'list' ||
+    activeView === 'supervision' ||
+    activeView === 'reports';
 
   // If user is not yet logged in, show the Landing & Username Login Page
   if (!isAuthenticated) {
@@ -926,11 +1141,14 @@ export default function App() {
         onSemesterChange={setCurrentSemester}
         totalDocumentsCount={visibleDocuments.length}
         semesterDocsCount={semesterDocsCount}
-        pendingCount={pendingCount}
+        pendingCount={curriculumPendingCount}
         isOpenMobile={isMobileSidebarOpen}
         onCloseMobile={() => setIsMobileSidebarOpen(false)}
         currentUser={currentUser}
         teachers={teachers}
+        isHomeroomGuru={isHomeroomGuru}
+        homeroomClass={activeHomeroomClass}
+        walasDocsCount={walasSemesterDocsCount}
       />
 
       {/* Main Content Area (Offset by Sidebar on Desktop) */}
@@ -942,19 +1160,20 @@ export default function App() {
           academicYear={academicYear}
           onOpenUpload={handleOpenGeneralUpload}
           onToggleMobileSidebar={() => setIsMobileSidebarOpen(prev => !prev)}
-          pendingCount={pendingCount}
+          pendingCount={curriculumPendingCount + walasPendingCount}
           currentUser={currentUser}
           onRoleChange={handleRoleChange}
           teachers={teachers}
           onLogout={handleLogout}
           wakaName={profile.curriculumViceName}
+          activeHomeroomClass={activeHomeroomClass}
         />
 
         {/* Content Viewport */}
         <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto">
 
-          {/* Guru Reminder Banner for Documents Needing Revision */}
-          {currentUser.role === 'guru' && revisionDocsForGuru.length > 0 && (
+          {/* Guru Reminder Banner for Curriculum Documents Needing Revision */}
+          {currentUser.role === 'guru' && isMainCurriculumView && revisionDocsForGuru.length > 0 && (
             <div className="mb-6 rounded-2xl border border-rose-200 bg-rose-50 p-4 sm:p-5 shadow-xs">
               <div className="flex items-start gap-3">
                 <div className="w-9 h-9 rounded-xl bg-rose-100 text-rose-700 flex items-center justify-center shrink-0">
@@ -983,7 +1202,7 @@ export default function App() {
                         </div>
                         <button
                           onClick={() => setSelectedDoc(doc)}
-                          className="shrink-0 inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-semibold transition-colors"
+                          className="shrink-0 inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-semibold transition-colors cursor-pointer"
                         >
                           <span>Perbaiki &amp; Ajukan Ulang</span>
                           <ArrowRight className="w-3.5 h-3.5" />
@@ -997,21 +1216,21 @@ export default function App() {
           )}
 
           {/* School Hero Profile Banner (on main curriculum views) */}
-          {activeView !== 'profile' && activeView !== 'categories' && activeView !== 'teachers' && (
+          {isMainCurriculumView && (
             <SchoolBanner
               profile={profile}
-              documents={visibleDocuments}
+              documents={curriculumVisibleDocuments}
               currentSemester={currentSemester}
               academicYear={academicYear}
               teachers={teachers}
-              categories={categories}
+              categories={curriculumCategories}
               onOpenUpload={handleOpenGeneralUpload}
               onViewMatrix={() => setActiveView('matrix')}
             />
           )}
 
           {/* Semester & Academic Year Segmented Controls (on main curriculum views) */}
-          {activeView !== 'profile' && activeView !== 'categories' && activeView !== 'teachers' && (
+          {isMainCurriculumView && (
             <SemesterControls
               currentSemester={currentSemester}
               onSemesterChange={setCurrentSemester}
@@ -1029,10 +1248,10 @@ export default function App() {
           {activeView === 'matrix' && (
             <CurriculumMatrix
               teachers={teachers}
-              documents={visibleDocuments}
+              documents={curriculumVisibleDocuments}
               currentSemester={currentSemester}
               academicYear={academicYear}
-              categories={categories}
+              categories={curriculumCategories}
               onSelectDocument={setSelectedDoc}
               onOpenUploadForTeacher={handleOpenUploadForTeacher}
               onBatchApproveSemester={handleBatchApproveSemester}
@@ -1045,10 +1264,10 @@ export default function App() {
 
           {activeView === 'list' && (
             <CurriculumList
-              documents={visibleDocuments}
+              documents={curriculumVisibleDocuments}
               currentSemester={currentSemester}
               academicYear={academicYear}
-              categories={categories}
+              categories={curriculumCategories}
               onSelectDocument={setSelectedDoc}
               onEditDocument={setEditDoc}
               onPrintValidationSheet={setPrintDoc}
@@ -1057,10 +1276,36 @@ export default function App() {
             />
           )}
 
+          {/* Dedicated Menu: Arsip Wali Kelas (Waka Kurikulum + Designated Homeroom Teachers Only) */}
+          {(currentUser.role === 'waka_kurikulum' || isHomeroomGuru) && activeView === 'wali_kelas' && (
+            <WaliKelasView
+              userRole={currentUser.role}
+              teachers={teachers}
+              documents={walasVisibleDocuments}
+              walasCategories={walasCategories}
+              currentSemester={currentSemester}
+              academicYear={academicYear}
+              onSemesterChange={setCurrentSemester}
+              onAcademicYearChange={setAcademicYear}
+              activeHomeroomClass={activeHomeroomClass}
+              onOpenWalasUpload={handleOpenWalasUpload}
+              onSelectDocument={setSelectedDoc}
+              onEditDocument={setEditDoc}
+              onDeleteDocument={handleDeleteDocument}
+              onPrintValidationSheet={setPrintDoc}
+              onUpdateDocumentStatus={handleUpdateDocumentStatus}
+              onBatchApproveWalas={handleBatchApproveWalas}
+              onAddCategory={handleAddCategory}
+              onUpdateCategory={handleUpdateCategory}
+              onDeleteCategory={handleDeleteCategory}
+              onNavigateToTeachers={() => setActiveView('teachers')}
+            />
+          )}
+
           {currentUser.role === 'waka_kurikulum' && activeView === 'supervision' && (
             <SupervisionView
-              documents={visibleDocuments}
-              categories={categories}
+              documents={curriculumVisibleDocuments}
+              categories={curriculumCategories}
               currentSemester={currentSemester}
               academicYear={academicYear}
               onUpdateDocumentStatus={handleUpdateDocumentStatus}
@@ -1071,9 +1316,9 @@ export default function App() {
 
           {currentUser.role === 'waka_kurikulum' && activeView === 'reports' && (
             <ReportsView
-              documents={visibleDocuments}
+              documents={curriculumVisibleDocuments}
               profile={profile}
-              categories={categories}
+              categories={curriculumCategories}
               activityLogs={activityLogs}
               academicYear={academicYear}
               onRestoreBackup={handleRestoreBackup}
@@ -1089,10 +1334,11 @@ export default function App() {
             />
           )}
 
-          {/* Kelola Kategori Perangkat Pembelajaran */}
+          {/* Kelola Kategori Perangkat Pembelajaran (Kurikulum) */}
           {currentUser.role === 'waka_kurikulum' && activeView === 'categories' && (
             <CategoryManagementView
-              categories={categories}
+              scope="kurikulum"
+              categories={curriculumCategories}
               onAddCategory={handleAddCategory}
               onUpdateCategory={handleUpdateCategory}
               onDeleteCategory={handleDeleteCategory}
@@ -1128,7 +1374,7 @@ export default function App() {
         </footer>
       </div>
 
-      {/* Auto Upload Modal */}
+      {/* Auto Upload Modal (Kurikulum) */}
       {isUploadModalOpen && (
         <AutoUploadModal
           isOpen={isUploadModalOpen}
@@ -1142,11 +1388,33 @@ export default function App() {
           profile={profile}
           currentSemester={currentSemester}
           currentAcademicYear={academicYear}
-          categories={categories}
+          categories={curriculumCategories}
           initialTeacherId={uploadTargetTeacherId}
           initialCategoryId={uploadTargetCategoryId}
           userRole={currentUser.role}
           currentUser={currentUser}
+        />
+      )}
+
+      {/* Wali Kelas Upload Modal */}
+      {isWalasUploadModalOpen && (
+        <WalasUploadModal
+          isOpen={isWalasUploadModalOpen}
+          onClose={() => {
+            setIsWalasUploadModalOpen(false);
+            setWalasUploadClass(null);
+            setWalasUploadCategoryId(null);
+          }}
+          onSaveDocuments={handleSaveDocuments}
+          homeroomEntries={homeroomEntries}
+          profile={profile}
+          currentSemester={currentSemester}
+          currentAcademicYear={academicYear}
+          walasCategories={walasCategories}
+          initialHomeroomClass={walasUploadClass}
+          initialCategoryId={walasUploadCategoryId}
+          userRole={currentUser.role}
+          lockedHomeroomClass={isHomeroomGuru ? activeHomeroomClass : null}
         />
       )}
 

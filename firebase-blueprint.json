@@ -11,8 +11,10 @@
         "fileSize": { "type": "number" },
         "fileType": { "type": "string", "maxLength": 20 },
         "category": { "type": "string", "maxLength": 50 },
+        "archiveScope": { "type": "string", "enum": ["kurikulum", "wali_kelas"] },
+        "homeroomClass": { "type": "string", "maxLength": 20 },
         "subject": { "type": "string", "maxLength": 100 },
-        "grade": { "type": "string", "enum": ["7", "8", "9"] },
+        "grade": { "type": "string", "enum": ["7.1", "7.2", "7.3", "7.4", "8.1", "8.2", "8.3", "8.4", "9.1", "9.2", "9.3", "9.4", "7", "8", "9"] },
         "semester": { "type": "string", "enum": ["ganjil", "genap"] },
         "academicYear": { "type": "string", "maxLength": 20 },
         "curriculumType": { "type": "string", "maxLength": 50 },
@@ -132,13 +134,15 @@
         "name": { "type": "string", "maxLength": 150 },
         "nip": { "type": "string", "maxLength": 50 },
         "subject": { "type": "string", "maxLength": 120 },
-        "email": { "type": "string", "maxLength": 150 }
+        "email": { "type": "string", "maxLength": 150 },
+        "isHomeroomTeacher": { "type": "boolean" },
+        "homeroomClass": { "type": "string", "maxLength": 20 }
       },
       "required": ["id", "name", "nip", "subject", "email"]
     },
     "CategoryItem": {
       "title": "CategoryItem",
-      "description": "Kategori instrumen perangkat pembelajaran sekolah",
+      "description": "Kategori instrumen perangkat pembelajaran & administrasi wali kelas sekolah",
       "type": "object",
       "properties": {
         "id": { "type": "string", "maxLength": 128 },
@@ -147,7 +151,8 @@
         "defaultJp": { "type": "number" },
         "description": { "type": "string", "maxLength": 500 },
         "isSupervisedInMatrix": { "type": "boolean" },
-        "isSystemDefault": { "type": "boolean" }
+        "isSystemDefault": { "type": "boolean" },
+        "scope": { "type": "string", "enum": ["kurikulum", "wali_kelas"] }
       },
       "required": ["id", "code", "name", "defaultJp", "isSupervisedInMatrix"]
     }

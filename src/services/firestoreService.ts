@@ -163,6 +163,37 @@ export function subscribeToDocuments(
   );
 }
 
+// Subscribe to real-time Wali Kelas documents by homeroomClass (so multi-subject teachers always see their class archives)
+export function subscribeToHomeroomDocuments(
+  homeroomClass: string,
+  onUpdate: (docs: CurriculumDocument[]) => void
+) {
+  const normalizedClass = homeroomClass.trim();
+  if (!normalizedClass) {
+    onUpdate([]);
+    return () => {};
+  }
+
+  const q = query(collection(db, 'documents'), where('homeroomClass', '==', normalizedClass));
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const docs: CurriculumDocument[] = [];
+      snapshot.forEach((docSnap) => {
+        const data = docSnap.data() as CurriculumDocument;
+        if (data.archiveScope === 'wali_kelas') {
+          docs.push(data);
+        }
+      });
+      docs.sort((a, b) => (b.uploadDate || '').localeCompare(a.uploadDate || ''));
+      onUpdate(docs);
+    },
+    (error) => {
+      handleFirestoreError(error, OperationType.GET, 'documents');
+    }
+  );
+}
+
 // On-demand fetch of all academic years (used only when Waka explicitly requests "Semua Tahun" in Reports)
 export async function fetchAllDocumentsFromFirestore(): Promise<CurriculumDocument[]> {
   try {
@@ -325,6 +356,20 @@ export async function saveTeacherToFirestore(teacher: Teacher): Promise<void> {
   }
 }
 
+// Atomic batch save teachers (used when syncing Wali Kelas assignment across multi-subject records)
+export async function batchSaveTeachersToFirestore(teachers: Teacher[]): Promise<void> {
+  if (teachers.length === 0) return;
+  try {
+    const batch = writeBatch(db);
+    teachers.forEach((t) => {
+      batch.set(doc(db, 'teachers', t.id), sanitizeForFirestore(t), { merge: true });
+    });
+    await batch.commit();
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, 'teachers/batch');
+  }
+}
+
 // Delete Teacher
 export async function deleteTeacherFromFirestore(teacherId: string): Promise<void> {
   const path = `teachers/${teacherId}`;
@@ -361,6 +406,29 @@ export async function saveCategoryToFirestore(category: CategoryItem): Promise<v
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, path);
   }
+}
+
+let walasSeedPromise: Promise<void> | null = null;
+
+// Seed default Wali Kelas categories once for existing Firestore databases that already have curriculum categories
+export async function seedWalasCategoriesIfMissing(walasCategories: CategoryItem[]): Promise<void> {
+  if (walasSeedPromise) return walasSeedPromise;
+  walasSeedPromise = (async () => {
+    try {
+      const walasQuery = query(collection(db, 'categories'), where('scope', '==', 'wali_kelas'), limit(1));
+      const snap = await getDocs(walasQuery);
+      if (snap.empty && walasCategories.length > 0) {
+        const batch = writeBatch(db);
+        walasCategories.forEach((cat) => {
+          batch.set(doc(db, 'categories', cat.id), sanitizeForFirestore(cat), { merge: true });
+        });
+        await batch.commit();
+      }
+    } catch (error) {
+      console.warn('Wali Kelas categories seed skipped:', error);
+    }
+  })();
+  return walasSeedPromise;
 }
 
 // Delete Category

@@ -3,7 +3,7 @@ import {
   Users, Plus, Pencil, Trash2, Search, ShieldCheck, Award,
   Save, X, CheckCircle2, Mail, Info, AlertTriangle
 } from 'lucide-react';
-import { Teacher, SchoolProfile, CurriculumDocument } from '../types/curriculum';
+import { Teacher, SchoolProfile, CurriculumDocument, SCHOOL_CLASS_GROUPS, SCHOOL_CLASS_VALUES } from '../types/curriculum';
 import { SUBJECT_DICTIONARY } from '../utils/documentClassifier';
 
 interface TeacherManagementViewProps {
@@ -54,6 +54,8 @@ export const TeacherManagementView: React.FC<TeacherManagementViewProps> = ({
   const [formNip, setFormNip] = useState('');
   const [formSubject, setFormSubject] = useState('Matematika');
   const [formEmail, setFormEmail] = useState('');
+  const [formIsHomeroom, setFormIsHomeroom] = useState(false);
+  const [formHomeroomClass, setFormHomeroomClass] = useState('');
 
   const subjectOptions = Object.values(SUBJECT_DICTIONARY).map(s => s.standardName);
 
@@ -79,6 +81,8 @@ export const TeacherManagementView: React.FC<TeacherManagementViewProps> = ({
     setFormNip('');
     setFormSubject(subjectOptions[0] || 'Matematika');
     setFormEmail('');
+    setFormIsHomeroom(false);
+    setFormHomeroomClass('');
     setIsTeacherModalOpen(true);
   };
 
@@ -88,12 +92,17 @@ export const TeacherManagementView: React.FC<TeacherManagementViewProps> = ({
     setFormNip(teacher.nip);
     setFormSubject(teacher.subject);
     setFormEmail(teacher.email);
+    setFormIsHomeroom(Boolean(teacher.isHomeroomTeacher));
+    setFormHomeroomClass(teacher.homeroomClass || '');
     setIsTeacherModalOpen(true);
   };
 
   const handleTeacherSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formName.trim() || !formSubject.trim()) return;
+    if (formIsHomeroom && !formHomeroomClass.trim()) return;
+
+    const normalizedClass = formIsHomeroom ? formHomeroomClass.trim().toUpperCase() : '';
 
     if (editingTeacher) {
       onUpdateTeacher({
@@ -101,7 +110,9 @@ export const TeacherManagementView: React.FC<TeacherManagementViewProps> = ({
         name: formName.trim(),
         nip: formNip.trim() || '-',
         subject: formSubject.trim(),
-        email: formEmail.trim().toLowerCase()
+        email: formEmail.trim().toLowerCase(),
+        isHomeroomTeacher: formIsHomeroom,
+        homeroomClass: normalizedClass
       });
     } else {
       const newTeacher: Teacher = {
@@ -109,7 +120,9 @@ export const TeacherManagementView: React.FC<TeacherManagementViewProps> = ({
         name: formName.trim(),
         nip: formNip.trim() || '-',
         subject: formSubject.trim(),
-        email: formEmail.trim().toLowerCase()
+        email: formEmail.trim().toLowerCase(),
+        isHomeroomTeacher: formIsHomeroom,
+        homeroomClass: normalizedClass
       };
       onAddTeacher(newTeacher);
     }
@@ -126,6 +139,7 @@ export const TeacherManagementView: React.FC<TeacherManagementViewProps> = ({
     const hasMultipleSubjects = samePersonTeachers.length > 1;
 
     return documents.filter((d) => {
+      if (d.archiveScope === 'wali_kelas') return false;
       if (d.teacherId) {
         if (d.teacherId !== teacher.id) return false;
         if (
@@ -157,7 +171,8 @@ export const TeacherManagementView: React.FC<TeacherManagementViewProps> = ({
       t.name.toLowerCase().includes(q) ||
       t.nip.toLowerCase().includes(q) ||
       t.subject.toLowerCase().includes(q) ||
-      t.email.toLowerCase().includes(q)
+      t.email.toLowerCase().includes(q) ||
+      (t.homeroomClass || '').toLowerCase().includes(q)
     );
   });
 
@@ -394,9 +409,10 @@ export const TeacherManagementView: React.FC<TeacherManagementViewProps> = ({
             <thead>
               <tr className="bg-slate-100/75 border-b border-slate-200 text-slate-700 font-semibold">
                 <th className="py-3 px-4 min-w-[220px]">Nama Guru &amp; Gelar</th>
-                <th className="py-3 px-4 min-w-[160px]">NIP / NUPTK</th>
-                <th className="py-3 px-4 min-w-[180px]">Mata Pelajaran</th>
-                <th className="py-3 px-4 min-w-[210px]">Email Akun (belajar.id)</th>
+                <th className="py-3 px-4 min-w-[150px]">NIP / NUPTK</th>
+                <th className="py-3 px-4 min-w-[170px]">Mata Pelajaran</th>
+                <th className="py-3 px-4 min-w-[130px]">Tugas Wali Kelas</th>
+                <th className="py-3 px-4 min-w-[200px]">Email Akun (belajar.id)</th>
                 <th className="py-3 px-3 min-w-[90px] text-center">Berkas</th>
                 <th className="py-3 px-4 min-w-[100px] text-right">Aksi</th>
               </tr>
@@ -404,7 +420,7 @@ export const TeacherManagementView: React.FC<TeacherManagementViewProps> = ({
             <tbody className="divide-y divide-slate-200">
               {filteredTeachers.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-10 text-center text-slate-500">
+                  <td colSpan={7} className="py-10 text-center text-slate-500">
                     Tidak ada data guru yang cocok dengan pencarian &ldquo;{searchQuery}&rdquo;.
                   </td>
                 </tr>
@@ -431,6 +447,16 @@ export const TeacherManagementView: React.FC<TeacherManagementViewProps> = ({
 
                       <td className="py-3 px-4 font-semibold text-slate-800">
                         {teacher.subject}
+                      </td>
+
+                      <td className="py-3 px-4">
+                        {teacher.isHomeroomTeacher && teacher.homeroomClass ? (
+                          <span className="font-semibold text-emerald-700">
+                            Wali Kelas {teacher.homeroomClass}
+                          </span>
+                        ) : (
+                          <span className="text-slate-400">—</span>
+                        )}
                       </td>
 
                       <td className="py-3 px-4 font-mono text-slate-600 text-[11px]">
@@ -573,6 +599,61 @@ export const TeacherManagementView: React.FC<TeacherManagementViewProps> = ({
                 <p className="text-[10px] text-slate-400 mt-1">
                   Digunakan untuk pencocokan login otomatis akun belajar.id / Google.
                 </p>
+              </div>
+
+              {/* Tugas Tambahan: Wali Kelas */}
+              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
+                <label className="flex items-start gap-2.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formIsHomeroom}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      setFormIsHomeroom(checked);
+                      if (!checked) setFormHomeroomClass('');
+                    }}
+                    className="mt-0.5 w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer"
+                  />
+                  <div>
+                    <div className="font-bold text-slate-900">
+                      Tetapkan sebagai Wali Kelas
+                    </div>
+                    <div className="text-[11px] text-slate-500 mt-0.5">
+                      Menu khusus Arsip Wali Kelas akan otomatis tampil pada akun guru ini. Jika guru mengampu lebih dari 1 mata pelajaran, status Wali Kelas akan disinkronkan ke semua entri guru tersebut.
+                    </div>
+                  </div>
+                </label>
+
+                {formIsHomeroom && (
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">
+                      Pilih Kelas Wali Kelas (12 Rombel)
+                    </label>
+                    <select
+                      required={formIsHomeroom}
+                      value={formHomeroomClass}
+                      onChange={(e) => setFormHomeroomClass(e.target.value)}
+                      className="w-full font-semibold text-slate-900 bg-white border border-slate-300 rounded-lg p-2.5 focus:border-emerald-600 focus:outline-none"
+                    >
+                      <option value="">-- Pilih Kelas Wali Kelas --</option>
+                      {formHomeroomClass &&
+                        !SCHOOL_CLASS_VALUES.includes(formHomeroomClass as (typeof SCHOOL_CLASS_VALUES)[number]) && (
+                          <option value={formHomeroomClass}>
+                            Kelas {formHomeroomClass} (Data Lama)
+                          </option>
+                        )}
+                      {SCHOOL_CLASS_GROUPS.map((group) => (
+                        <optgroup key={group.level} label={group.groupLabel}>
+                          {group.classes.map((cls) => (
+                            <option key={cls.value} value={cls.value}>
+                              {cls.label}
+                            </option>
+                          ))}
+                        </optgroup>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </div>
 
               <div className="pt-4 border-t border-slate-200 flex items-center justify-end gap-3">

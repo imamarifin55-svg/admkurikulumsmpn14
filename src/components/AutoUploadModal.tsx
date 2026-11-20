@@ -6,7 +6,7 @@ import {
 import { 
   CurriculumDocument, DocumentCategory, GradeLevel, SemesterType, 
   CurriculumType, Teacher, SchoolProfile, CategoryItem, DocumentFile,
-  AppUser, AppUserRole
+  AppUser, AppUserRole, SCHOOL_CLASS_GROUPS, SCHOOL_CLASSES, SCHOOL_CLASS_VALUES
 } from '../types/curriculum';
 
 export const WAKA_SELF_TEACHER_ID = 'waka-kurikulum';
@@ -99,7 +99,7 @@ export const AutoUploadModal: React.FC<AutoUploadModalProps> = ({
     profile.curriculumViceSubject?.trim() || 'Matematika'
   );
   const [batchAssignToWaka, setBatchAssignToWaka] = useState<boolean>(isWakaUser);
-  const [selectedGrade, setSelectedGrade] = useState<GradeLevel>('7');
+  const [selectedGrade, setSelectedGrade] = useState<GradeLevel>('7.1');
   const [selectedSemester, setSelectedSemester] = useState<SemesterType>(currentSemester);
   const [selectedAcademicYear, setSelectedAcademicYear] = useState<string>(
     currentAcademicYear || profile.currentAcademicYear || '2026/2027'
@@ -340,6 +340,7 @@ export const AutoUploadModal: React.FC<AutoUploadModalProps> = ({
             fileSize: slot.file.size || 1850000,
             fileType: (slot.file.name.split('.').pop()?.toLowerCase() || 'file').slice(0, 20),
             category: slot.categoryId,
+            archiveScope: 'kurikulum',
             subject: currentSubject,
             grade: selectedGrade,
             semester: selectedSemester,
@@ -400,6 +401,7 @@ export const AutoUploadModal: React.FC<AutoUploadModalProps> = ({
             fileSize: item.file.size || 1540000,
             fileType: (item.file.name.split('.').pop()?.toLowerCase() || 'file').slice(0, 20),
             category: item.category,
+            archiveScope: 'kurikulum',
             subject: item.subject,
             grade: item.grade,
             semester: item.semester,
@@ -587,19 +589,25 @@ export const AutoUploadModal: React.FC<AutoUploadModalProps> = ({
                     )}
                   </div>
 
-                  {/* Grade */}
+                  {/* Grade / Class */}
                   <div>
                     <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                      Tingkat Kelas
+                      Pilih Kelas (12 Rombel)
                     </label>
                     <select
                       value={selectedGrade}
                       onChange={(e) => setSelectedGrade(e.target.value as GradeLevel)}
                       className="w-full text-xs font-semibold bg-white border border-slate-300 rounded-lg p-2 text-slate-900 focus:outline-none focus:border-indigo-500"
                     >
-                      <option value="7">Kelas 7 (Fase D)</option>
-                      <option value="8">Kelas 8 (Fase D)</option>
-                      <option value="9">Kelas 9 (Fase D)</option>
+                      {SCHOOL_CLASS_GROUPS.map((group) => (
+                        <optgroup key={group.level} label={group.groupLabel}>
+                          {group.classes.map((cls) => (
+                            <option key={cls.value} value={cls.value}>
+                              {cls.label}
+                            </option>
+                          ))}
+                        </optgroup>
+                      ))}
                     </select>
                   </div>
 
@@ -987,9 +995,15 @@ export const AutoUploadModal: React.FC<AutoUploadModalProps> = ({
                               className="text-[11px] font-semibold bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-slate-800 focus:outline-none focus:border-indigo-500"
                               title="Pilih Kelas"
                             >
-                              <option value="7">Kls 7</option>
-                              <option value="8">Kls 8</option>
-                              <option value="9">Kls 9</option>
+                              {item.grade &&
+                                !SCHOOL_CLASS_VALUES.includes(item.grade as (typeof SCHOOL_CLASS_VALUES)[number]) && (
+                                  <option value={item.grade}>Kelas {item.grade}</option>
+                                )}
+                              {SCHOOL_CLASSES.map((cls) => (
+                                <option key={cls.value} value={cls.value}>
+                                  {cls.label}
+                                </option>
+                              ))}
                             </select>
 
                             <select

@@ -8,7 +8,8 @@ export const INITIAL_CATEGORIES: CategoryItem[] = [
     defaultJp: 36,
     description: 'Rangkaian tujuan pembelajaran yang tersusun secara sistematis dan logis dalam fase capaian.',
     isSupervisedInMatrix: true,
-    isSystemDefault: true
+    isSystemDefault: true,
+    scope: 'kurikulum'
   },
   {
     id: 'modul_ajar',
@@ -17,7 +18,8 @@ export const INITIAL_CATEGORIES: CategoryItem[] = [
     defaultJp: 18,
     description: 'Panduan pelaksanaan kegiatan pembelajaran berdiferensiasi dan asesmen formatif.',
     isSupervisedInMatrix: true,
-    isSystemDefault: true
+    isSystemDefault: true,
+    scope: 'kurikulum'
   },
   {
     id: 'promes',
@@ -26,7 +28,8 @@ export const INITIAL_CATEGORIES: CategoryItem[] = [
     defaultJp: 36,
     description: 'Distribusi alokasi waktu dan jadwal topik pembelajaran per pekan efektif semester.',
     isSupervisedInMatrix: true,
-    isSystemDefault: true
+    isSystemDefault: true,
+    scope: 'kurikulum'
   },
   {
     id: 'prota',
@@ -35,7 +38,8 @@ export const INITIAL_CATEGORIES: CategoryItem[] = [
     defaultJp: 72,
     description: 'Rencana penetapan alokasi waktu satu tahun ajaran untuk mencapai CP yang telah ditetapkan.',
     isSupervisedInMatrix: true,
-    isSystemDefault: true
+    isSystemDefault: true,
+    scope: 'kurikulum'
   },
   {
     id: 'capaian_pemb',
@@ -44,7 +48,8 @@ export const INITIAL_CATEGORIES: CategoryItem[] = [
     defaultJp: 36,
     description: 'Kompetensi pembelajaran yang harus dicapai peserta didik pada setiap fase perkembangan.',
     isSupervisedInMatrix: true,
-    isSystemDefault: true
+    isSystemDefault: true,
+    scope: 'kurikulum'
   },
   {
     id: 'kisi_soal',
@@ -53,7 +58,8 @@ export const INITIAL_CATEGORIES: CategoryItem[] = [
     defaultJp: 4,
     description: 'Instrumen penilaian sumatif tengah semester dan sumatif akhir semester beserta rubrik penskoran.',
     isSupervisedInMatrix: true,
-    isSystemDefault: true
+    isSystemDefault: true,
+    scope: 'kurikulum'
   },
   {
     id: 'kosp',
@@ -62,7 +68,8 @@ export const INITIAL_CATEGORIES: CategoryItem[] = [
     defaultJp: 0,
     description: 'Seluruh rencana proses belajar yang diselenggarakan di satuan pendidikan sebagai pedoman.',
     isSupervisedInMatrix: false,
-    isSystemDefault: true
+    isSystemDefault: true,
+    scope: 'kurikulum'
   },
   {
     id: 'modul_p5',
@@ -71,7 +78,71 @@ export const INITIAL_CATEGORIES: CategoryItem[] = [
     defaultJp: 24,
     description: 'Modul projek lintas disiplin ilmu kontekstual untuk menguatkan karakter profil pelajar pancasila.',
     isSupervisedInMatrix: false,
-    isSystemDefault: true
+    isSystemDefault: true,
+    scope: 'kurikulum'
+  }
+];
+
+export const INITIAL_WALAS_CATEGORIES: CategoryItem[] = [
+  {
+    id: 'wl_presensi',
+    code: 'PRESENSI',
+    name: 'Daftar Hadir & Rekap Presensi Siswa',
+    defaultJp: 0,
+    description: 'Rekap kehadiran harian, keterlambatan, izin, sakit, dan alpa siswa kelas binaan per bulan/semester.',
+    isSupervisedInMatrix: true,
+    isSystemDefault: true,
+    scope: 'wali_kelas'
+  },
+  {
+    id: 'wl_jurnal',
+    code: 'JURNAL',
+    name: 'Jurnal Kelas & Agenda Harian',
+    defaultJp: 0,
+    description: 'Catatan agenda harian kelas, pembiasaan pagi, peristiwa penting kelas, dan tindak lanjut wali kelas.',
+    isSupervisedInMatrix: true,
+    isSystemDefault: true,
+    scope: 'wali_kelas'
+  },
+  {
+    id: 'wl_leger',
+    code: 'LEGER',
+    name: 'Leger Nilai & Catatan Rapor',
+    defaultJp: 0,
+    description: 'Rekap nilai mata pelajaran kelas binaan, peringkat, catatan wali kelas, dan kenaikan kelas.',
+    isSupervisedInMatrix: true,
+    isSystemDefault: true,
+    scope: 'wali_kelas'
+  },
+  {
+    id: 'wl_bk',
+    code: 'BK-WALAS',
+    name: 'Catatan Bimbingan / Konseling & Home Visit',
+    defaultJp: 0,
+    description: 'Dokumentasi pembinaan karakter, penanganan kasus siswa, panggilan orang tua, dan kunjungan rumah.',
+    isSupervisedInMatrix: true,
+    isSystemDefault: true,
+    scope: 'wali_kelas'
+  },
+  {
+    id: 'wl_siswa',
+    code: 'DATA-SISWA',
+    name: 'Biodata Siswa, Orang Tua & Denah Kelas',
+    defaultJp: 0,
+    description: 'Buku induk/biodata lengkap siswa kelas binaan, kontak wali murid, struktur pengurus, dan denah duduk.',
+    isSupervisedInMatrix: true,
+    isSystemDefault: true,
+    scope: 'wali_kelas'
+  },
+  {
+    id: 'wl_rapat',
+    code: 'BERITA-ACARA',
+    name: 'Administrasi Rapat & Berita Acara Rapor',
+    defaultJp: 0,
+    description: 'Notulen rapat koordinasi wali kelas, daftar hadir orang tua, dan berita acara serah terima rapor.',
+    isSupervisedInMatrix: true,
+    isSystemDefault: true,
+    scope: 'wali_kelas'
   }
 ];
 

@@ -105,6 +105,7 @@ export const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({
 
   if (!isOpen || !document) return null;
 
+  const isWalasDoc = document.archiveScope === 'wali_kelas';
   const matchedCat = categories?.find(c => c.id === document.category);
   const catCode = matchedCat?.code || CATEGORY_LABELS[document.category]?.code || 'DOC';
   const catName = matchedCat?.name || CATEGORY_LABELS[document.category]?.name || document.category;
@@ -214,14 +215,22 @@ export const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({
           {/* Metadata Grid */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4 rounded-xl bg-slate-50 border border-slate-200">
             <div>
-              <div className="text-slate-500 font-medium mb-0.5">Mata Pelajaran</div>
-              <div className="font-semibold text-slate-900">{document.subject}</div>
+              <div className="text-slate-500 font-medium mb-0.5">
+                {isWalasDoc ? 'Kelas Binaan' : 'Mata Pelajaran'}
+              </div>
+              <div className="font-semibold text-slate-900">
+                {isWalasDoc ? `Kelas ${document.homeroomClass || document.grade}` : document.subject}
+              </div>
             </div>
 
             <div>
-              <div className="text-slate-500 font-medium mb-0.5">Semester &amp; Kelas</div>
+              <div className="text-slate-500 font-medium mb-0.5">
+                {isWalasDoc ? 'Semester' : 'Semester & Kelas'}
+              </div>
               <div className="font-semibold text-slate-900">
-                Semester {document.semester === 'ganjil' ? 'Ganjil' : 'Genap'} · Kls {document.grade}
+                {isWalasDoc
+                  ? `Semester ${document.semester === 'ganjil' ? 'Ganjil' : 'Genap'}`
+                  : `Semester ${document.semester === 'ganjil' ? 'Ganjil' : 'Genap'} · Kls ${document.grade}`}
               </div>
             </div>
 
@@ -231,14 +240,20 @@ export const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({
             </div>
 
             <div>
-              <div className="text-slate-500 font-medium mb-0.5">Alokasi Waktu</div>
+              <div className="text-slate-500 font-medium mb-0.5">
+                {isWalasDoc ? 'Lingkup Arsip' : 'Alokasi Waktu'}
+              </div>
               <div className="font-semibold text-slate-900 font-mono">
-                {document.alokasiJp ? `${document.alokasiJp} Jam Pelajaran` : 'Sesuai Kalender'}
+                {isWalasDoc
+                  ? 'Administrasi Wali Kelas'
+                  : (document.alokasiJp ? `${document.alokasiJp} Jam Pelajaran` : 'Sesuai Kalender')}
               </div>
             </div>
 
             <div className="sm:col-span-2">
-              <div className="text-slate-500 font-medium mb-0.5">Guru Pengampu / Penyusun</div>
+              <div className="text-slate-500 font-medium mb-0.5">
+                {isWalasDoc ? 'Wali Kelas Penyusun' : 'Guru Pengampu / Penyusun'}
+              </div>
               <div className="font-semibold text-slate-900">{document.teacherName}</div>
               <div className="text-[11px] text-slate-500 font-mono">NIP. {document.teacherNip}</div>
             </div>
@@ -282,29 +297,31 @@ export const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({
             )}
           </div>
 
-          {/* Competencies / Tujuan Pembelajaran List */}
-          <div>
-            <div className="flex items-center gap-1.5 font-bold text-slate-900 mb-2">
-              <BookOpen className="w-4 h-4 text-indigo-600" />
-              <span>Alur Tujuan Pembelajaran (ATP) &amp; Materi Esensial:</span>
-            </div>
-            {document.competencies && document.competencies.length > 0 ? (
-              <ul className="space-y-2 border border-slate-200 rounded-xl p-3 bg-white divide-y divide-slate-100">
-                {document.competencies.map((tp, idx) => (
-                  <li key={idx} className="pt-2 first:pt-0 text-slate-700 flex items-start gap-2">
-                    <span className="font-mono font-bold text-indigo-600 shrink-0">
-                      {(idx + 1).toString().padStart(2, '0')}.
-                    </span>
-                    <span className="leading-relaxed">{tp}</span>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <div className="text-slate-500 italic p-3 bg-slate-50 rounded-lg">
-                Tidak ada rincian kompetensi tertera.
+          {/* Competencies / Tujuan Pembelajaran List (Curriculum docs only) */}
+          {!isWalasDoc && (
+            <div>
+              <div className="flex items-center gap-1.5 font-bold text-slate-900 mb-2">
+                <BookOpen className="w-4 h-4 text-indigo-600" />
+                <span>Alur Tujuan Pembelajaran (ATP) &amp; Materi Esensial:</span>
               </div>
-            )}
-          </div>
+              {document.competencies && document.competencies.length > 0 ? (
+                <ul className="space-y-2 border border-slate-200 rounded-xl p-3 bg-white divide-y divide-slate-100">
+                  {document.competencies.map((tp, idx) => (
+                    <li key={idx} className="pt-2 first:pt-0 text-slate-700 flex items-start gap-2">
+                      <span className="font-mono font-bold text-indigo-600 shrink-0">
+                        {(idx + 1).toString().padStart(2, '0')}.
+                      </span>
+                      <span className="leading-relaxed">{tp}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <div className="text-slate-500 italic p-3 bg-slate-50 rounded-lg">
+                  Tidak ada rincian kompetensi tertera.
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Preview Snippet */}
           {document.contentPreview && (
