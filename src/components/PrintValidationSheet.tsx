@@ -2,6 +2,7 @@ import React from 'react';
 import { CurriculumDocument, SchoolProfile, CategoryItem } from '../types/curriculum';
 import { CATEGORY_LABELS } from '../utils/documentClassifier';
 import { Printer, ArrowLeft, CheckCircle2, ShieldCheck, QrCode } from 'lucide-react';
+import { SchoolLogoImg } from './SchoolLogoImg';
 
 interface PrintValidationSheetProps {
   document: CurriculumDocument | null;
@@ -91,9 +92,9 @@ export const PrintValidationSheet: React.FC<PrintValidationSheetProps> = ({
               </div>
 
               {/* Logo Sekolah */}
-              <div className="w-20 h-20 flex items-center justify-center shrink-0">
+              <div className="w-24 h-24 flex items-center justify-center shrink-0">
                 {profile.schoolLogoUrl ? (
-                  <img src={profile.schoolLogoUrl} alt="Logo Sekolah" className="max-w-full max-h-full object-contain" />
+                  <SchoolLogoImg src={profile.schoolLogoUrl} alt="Logo Sekolah" className="w-full h-full object-contain" />
                 ) : (
                   <div className="w-14 h-14 rounded-full border border-slate-300 flex items-center justify-center text-[9px] text-slate-400 font-sans text-center">
                     Logo Sekolah
@@ -113,6 +114,10 @@ export const PrintValidationSheet: React.FC<PrintValidationSheetProps> = ({
             <div className="text-xs font-semibold text-slate-700 mt-1 uppercase">
               {document.archiveScope === 'wali_kelas'
                 ? 'DOKUMEN ADMINISTRASI WALI KELAS'
+                : document.archiveScope === 'surat_izin'
+                ? 'SURAT IZIN KHUSUS GURU'
+                : document.archiveScope === 'lainnya'
+                ? 'DOKUMEN ARSIP PENDUKUNG LAINNYA'
                 : 'DOKUMEN PERANGKAT AJAR KURIKULUM MERDEKA'}
             </div>
             <div className="text-[11px] font-mono text-slate-500 mt-0.5">
@@ -123,6 +128,10 @@ export const PrintValidationSheet: React.FC<PrintValidationSheetProps> = ({
           <p className="text-xs font-sans text-slate-800 leading-relaxed mb-4 text-justify">
             {document.archiveScope === 'wali_kelas'
               ? 'Setelah melalui proses telaah, supervisi, dan verifikasi kelengkapan administrasi kelas oleh Tim Kurikulum Satuan Pendidikan, maka dokumen administrasi Wali Kelas di bawah ini:'
+              : document.archiveScope === 'surat_izin'
+              ? 'Berdasarkan pengajuan dan verifikasi administrasi kepegawaian guru oleh Tim Kurikulum Satuan Pendidikan, maka keterangan Surat Izin Guru di bawah ini:'
+              : document.archiveScope === 'lainnya'
+              ? 'Setelah melalui proses pemeriksaan dan verifikasi arsip pendukung satuan pendidikan, maka dokumen di bawah ini:'
               : 'Setelah melalui proses telaah, supervisi, dan verifikasi kelayakan substansi kurikulum yang dilaksanakan oleh Tim Pengembang Kurikulum Satuan Pendidikan, maka dokumen perangkat pembelajaran di bawah ini:'}
           </p>
 
@@ -148,11 +157,21 @@ export const PrintValidationSheet: React.FC<PrintValidationSheetProps> = ({
                 </tr>
                 <tr className="bg-slate-50">
                   <td className="py-2 px-3 font-semibold text-slate-700 border-r border-slate-300">
-                    {document.archiveScope === 'wali_kelas' ? 'Kelas Binaan / Rombel' : 'Mata Pelajaran & Jenjang'}
+                    {document.archiveScope === 'wali_kelas'
+                      ? 'Kelas Binaan / Rombel'
+                      : document.archiveScope === 'surat_izin'
+                      ? 'Tanggal Izin Guru'
+                      : document.archiveScope === 'lainnya'
+                      ? 'Lingkup Dokumen'
+                      : 'Mata Pelajaran & Jenjang'}
                   </td>
                   <td className="py-2 px-3 text-slate-800">
                     {document.archiveScope === 'wali_kelas'
                       ? `Kelas ${document.homeroomClass || document.grade} (Fase D SMP)`
+                      : document.archiveScope === 'surat_izin'
+                      ? `${document.leaveStartDate || '-'}${document.leaveEndDate && document.leaveEndDate !== document.leaveStartDate ? ` s.d. ${document.leaveEndDate}` : ''}`
+                      : document.archiveScope === 'lainnya'
+                      ? `${document.subject} · Arsip Pendukung Guru/Sekolah`
                       : `${document.subject} · Kelas ${document.grade} (Fase D SMP)`}
                   </td>
                 </tr>
@@ -166,7 +185,13 @@ export const PrintValidationSheet: React.FC<PrintValidationSheetProps> = ({
                 </tr>
                 <tr className="bg-slate-50">
                   <td className="py-2 px-3 font-semibold text-slate-700 border-r border-slate-300">
-                    {document.archiveScope === 'wali_kelas' ? 'Wali Kelas Penyusun' : 'Guru Penyusun / Pengampu'}
+                    {document.archiveScope === 'wali_kelas'
+                      ? 'Wali Kelas Penyusun'
+                      : document.archiveScope === 'surat_izin'
+                      ? 'Guru Pemohon'
+                      : document.archiveScope === 'lainnya'
+                      ? 'Pemilik / Penanggung Jawab'
+                      : 'Guru Penyusun / Pengampu'}
                   </td>
                   <td className="py-2 px-3 text-slate-900 font-semibold">
                     {document.teacherName} (NIP. {document.teacherNip})
@@ -174,11 +199,21 @@ export const PrintValidationSheet: React.FC<PrintValidationSheetProps> = ({
                 </tr>
                 <tr>
                   <td className="py-2 px-3 font-semibold text-slate-700 border-r border-slate-300">
-                    {document.archiveScope === 'wali_kelas' ? 'Lingkup Administrasi' : 'Alokasi Jam Pembelajaran'}
+                    {document.archiveScope === 'wali_kelas'
+                      ? 'Lingkup Administrasi'
+                      : document.archiveScope === 'surat_izin'
+                      ? 'Kelas Terdampak & Pengganti'
+                      : document.archiveScope === 'lainnya'
+                      ? 'Klasifikasi Arsip'
+                      : 'Alokasi Jam Pembelajaran'}
                   </td>
                   <td className="py-2 px-3 font-mono text-slate-800">
                     {document.archiveScope === 'wali_kelas'
                       ? 'Administrasi Pembinaan & Kesiswaan Kelas'
+                      : document.archiveScope === 'surat_izin'
+                      ? `${document.affectedClasses || '-'} · Pengganti: ${document.substituteTeacher || '-'}`
+                      : document.archiveScope === 'lainnya'
+                      ? 'Arsip Non-Perangkat Ajar & Non-Wali Kelas'
                       : (document.alokasiJp ? `${document.alokasiJp} Jam Pelajaran (JP)` : 'Sesuai Kalender Pendidikan')}
                   </td>
                 </tr>
@@ -194,11 +229,15 @@ export const PrintValidationSheet: React.FC<PrintValidationSheetProps> = ({
             <div className="text-slate-700 italic leading-relaxed">
               &ldquo;{document.supervisorNotes || (document.archiveScope === 'wali_kelas'
                 ? 'Dokumen administrasi wali kelas telah memenuhi kriteria kelengkapan pencatatan, pembinaan kelas, dan pelaporan hasil belajar siswa.'
+                : document.archiveScope === 'surat_izin'
+                ? 'Pengajuan surat izin guru telah dicatat dan diverifikasi oleh Tim Kurikulum Satuan Pendidikan.'
+                : document.archiveScope === 'lainnya'
+                ? 'Dokumen arsip pendukung telah diperiksa dan dinyatakan lengkap untuk pengarsipan sekolah.'
                 : 'Perangkat ajar telah memenuhi kriteria kelayakan Alur Tujuan Pembelajaran, Asesmen Diagnostik/Formatif, serta diferensiasi pembelajaran Kurikulum Merdeka.')}&rdquo;
             </div>
             <div className="mt-2 text-[11px] font-bold text-emerald-800 flex items-center gap-1.5">
               <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-              STATUS: Dinyatakan SAH dan LAYAK digunakan sebagai pedoman {document.archiveScope === 'wali_kelas' ? 'administrasi wali kelas' : 'pembelajaran'} TP {document.academicYear}.
+              STATUS: Dinyatakan SAH dan LAYAK sebagai arsip resmi {document.archiveScope === 'wali_kelas' ? 'administrasi wali kelas' : document.archiveScope === 'surat_izin' ? 'surat izin guru' : document.archiveScope === 'lainnya' ? 'pendukung satuan pendidikan' : 'pembelajaran'} TP {document.academicYear}.
             </div>
           </div>
 

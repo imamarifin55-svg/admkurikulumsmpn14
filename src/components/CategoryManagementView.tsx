@@ -21,6 +21,7 @@ export const CategoryManagementView: React.FC<CategoryManagementViewProps> = ({
   scope = 'kurikulum'
 }) => {
   const isWalas = scope === 'wali_kelas';
+  const isNonCurriculum = scope !== 'kurikulum';
   const [editingCategory, setEditingCategory] = useState<CategoryItem | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [confirmDeleteCat, setConfirmDeleteCat] = useState<CategoryItem | null>(null);
@@ -28,16 +29,16 @@ export const CategoryManagementView: React.FC<CategoryManagementViewProps> = ({
   // Form State for Adding / Editing
   const [code, setCode] = useState('');
   const [name, setName] = useState('');
-  const [defaultJp, setDefaultJp] = useState<number>(isWalas ? 0 : 36);
+  const [defaultJp, setDefaultJp] = useState<number>(isNonCurriculum ? 0 : 36);
   const [description, setDescription] = useState('');
-  const [isSupervisedInMatrix, setIsSupervisedInMatrix] = useState(true);
+  const [isSupervisedInMatrix, setIsSupervisedInMatrix] = useState(!isNonCurriculum || isWalas);
 
   const handleOpenAddModal = () => {
     setCode('');
     setName('');
-    setDefaultJp(isWalas ? 0 : 36);
+    setDefaultJp(isNonCurriculum ? 0 : 36);
     setDescription('');
-    setIsSupervisedInMatrix(true);
+    setIsSupervisedInMatrix(!isNonCurriculum || isWalas);
     setEditingCategory(null);
     setIsAddModalOpen(true);
   };
@@ -61,19 +62,19 @@ export const CategoryManagementView: React.FC<CategoryManagementViewProps> = ({
         ...editingCategory,
         code: code.trim().toUpperCase(),
         name: name.trim(),
-        defaultJp: isWalas ? 0 : Number(defaultJp),
+        defaultJp: isNonCurriculum ? 0 : Number(defaultJp),
         description: description.trim(),
         isSupervisedInMatrix,
         scope: editingCategory.scope || scope
       });
     } else {
-      const prefix = isWalas ? 'wl_cat' : 'cat';
+      const prefix = isWalas ? 'wl_cat' : scope === 'lainnya' ? 'lain_cat' : scope === 'surat_izin' ? 'izin_cat' : 'cat';
       const generatedId = `${prefix}_${Date.now()}_${code.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
       onAddCategory({
         id: generatedId,
         code: code.trim().toUpperCase(),
         name: name.trim(),
-        defaultJp: isWalas ? 0 : Number(defaultJp),
+        defaultJp: isNonCurriculum ? 0 : Number(defaultJp),
         description: description.trim(),
         isSupervisedInMatrix,
         isSystemDefault: false,
@@ -100,6 +101,8 @@ export const CategoryManagementView: React.FC<CategoryManagementViewProps> = ({
             <h2 className="text-base font-bold text-slate-900">
               {isWalas
                 ? 'Kelola Kategori Administrasi Wali Kelas'
+                : scope === 'lainnya'
+                ? 'Kelola Kategori Arsip Lainnya'
                 : 'Kelola Kategori Perangkat Pembelajaran & Silabus'}
             </h2>
             <span className="font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded px-2 py-0.5">
@@ -109,6 +112,8 @@ export const CategoryManagementView: React.FC<CategoryManagementViewProps> = ({
           <p className="text-slate-500 mt-1">
             {isWalas
               ? 'Konfigurasikan jenis dokumen administrasi khusus Wali Kelas (di luar kategori kurikulum). Kategori aktif akan tampil sebagai kolom pada Matriks Wali Kelas.'
+              : scope === 'lainnya'
+              ? 'Sesuaikan kategori arsip di luar Adm Guru, Surat Izin Guru, dan Arsip Wali Kelas (seperti SK Tugas, Sertifikat, PKG/SKP, Ekstrakurikuler, atau Notulen).'
               : 'Konfigurasikan jenis dokumen kurikulum sekolah. Kategori yang ditandai aktif di matriks akan otomatis muncul sebagai kolom pemantauan supervisi guru.'}
           </p>
         </div>
@@ -118,7 +123,13 @@ export const CategoryManagementView: React.FC<CategoryManagementViewProps> = ({
           className="inline-flex items-center gap-1.5 px-4 py-2 font-semibold text-white bg-indigo-700 hover:bg-indigo-800 rounded-lg shadow-xs transition-colors shrink-0 cursor-pointer"
         >
           <Plus className="w-4 h-4 stroke-[2.5]" />
-          <span>{isWalas ? 'Tambah Kategori Walas' : 'Tambah Kategori Baru'}</span>
+          <span>
+            {isWalas
+              ? 'Tambah Kategori Walas'
+              : scope === 'lainnya'
+              ? 'Tambah Kategori Lainnya'
+              : 'Tambah Kategori Baru'}
+          </span>
         </button>
       </div>
 
@@ -127,7 +138,13 @@ export const CategoryManagementView: React.FC<CategoryManagementViewProps> = ({
         <div className="p-4 border-b border-slate-200 bg-slate-50/50 flex items-center justify-between">
           <div className="font-bold text-slate-900 flex items-center gap-2">
             <FolderKanban className="w-4 h-4 text-indigo-600" />
-            <span>{isWalas ? 'Daftar Kategori Administrasi Wali Kelas' : 'Daftar Kategori Instrumen Perangkat Ajar'}</span>
+            <span>
+              {isWalas
+                ? 'Daftar Kategori Administrasi Wali Kelas'
+                : scope === 'lainnya'
+                ? 'Daftar Kategori Arsip Lainnya'
+                : 'Daftar Kategori Instrumen Perangkat Ajar'}
+            </span>
           </div>
           <span className="text-[11px] text-slate-500">
             Kolom Matriks: {categories.filter(c => c.isSupervisedInMatrix).length} terpilih

@@ -408,27 +408,38 @@ export async function saveCategoryToFirestore(category: CategoryItem): Promise<v
   }
 }
 
-let walasSeedPromise: Promise<void> | null = null;
+const seededScopePromises = new Map<string, Promise<void>>();
 
-// Seed default Wali Kelas categories once for existing Firestore databases that already have curriculum categories
-export async function seedWalasCategoriesIfMissing(walasCategories: CategoryItem[]): Promise<void> {
-  if (walasSeedPromise) return walasSeedPromise;
-  walasSeedPromise = (async () => {
+// Seed default scoped categories once for existing Firestore databases (wali_kelas, surat_izin, lainnya)
+export async function seedScopedCategoriesIfMissing(
+  scope: 'wali_kelas' | 'surat_izin' | 'lainnya',
+  defaultCategories: CategoryItem[]
+): Promise<void> {
+  const existingPromise = seededScopePromises.get(scope);
+  if (existingPromise) return existingPromise;
+
+  const promise = (async () => {
     try {
-      const walasQuery = query(collection(db, 'categories'), where('scope', '==', 'wali_kelas'), limit(1));
-      const snap = await getDocs(walasQuery);
-      if (snap.empty && walasCategories.length > 0) {
+      const scopedQuery = query(collection(db, 'categories'), where('scope', '==', scope), limit(1));
+      const snap = await getDocs(scopedQuery);
+      if (snap.empty && defaultCategories.length > 0) {
         const batch = writeBatch(db);
-        walasCategories.forEach((cat) => {
+        defaultCategories.forEach((cat) => {
           batch.set(doc(db, 'categories', cat.id), sanitizeForFirestore(cat), { merge: true });
         });
         await batch.commit();
       }
     } catch (error) {
-      console.warn('Wali Kelas categories seed skipped:', error);
+      console.warn(`Scoped categories (${scope}) seed skipped:`, error);
     }
   })();
-  return walasSeedPromise;
+
+  seededScopePromises.set(scope, promise);
+  return promise;
+}
+
+export async function seedWalasCategoriesIfMissing(walasCategories: CategoryItem[]): Promise<void> {
+  return seedScopedCategoriesIfMissing('wali_kelas', walasCategories);
 }
 
 // Delete Category

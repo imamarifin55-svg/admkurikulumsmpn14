@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { Teacher, SchoolProfile, AppUserRole, SchoolAnnouncement } from '../types/curriculum';
 import { INITIAL_SCHOOL_PROFILE } from '../data/initialCurriculumData';
+import { SchoolLogoImg } from './SchoolLogoImg';
 
 interface LandingLoginPageProps {
   profile: SchoolProfile;
@@ -150,17 +151,17 @@ export const LandingLoginPage: React.FC<LandingLoginPageProps> = ({
 
       {/* 3-Zone Clean Header */}
       <header className="sticky top-0 z-30 bg-[#16836c]/60 backdrop-blur-md border-b border-white/15">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 min-h-20 py-2.5 flex items-center justify-between gap-4 lg:gap-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 min-h-20 py-2 flex items-center justify-between gap-4 lg:gap-8">
           {/* Zone 1: Brand Wordmark + School Name & Address */}
-          <a href="#top" className="flex items-center gap-3.5 min-w-0">
+          <a href="#top" className="flex items-center gap-3.5 sm:gap-4 min-w-0">
             {profile.schoolLogoUrl ? (
-              <img
+              <SchoolLogoImg
                 src={profile.schoolLogoUrl}
                 alt="Logo Sekolah"
-                className="w-12 h-12 sm:w-14 sm:h-14 object-contain shrink-0 drop-shadow-sm"
+                className="w-16 h-16 sm:w-20 sm:h-20 object-contain shrink-0 drop-shadow-md"
               />
             ) : (
-              <School className="w-9 h-9 sm:w-10 sm:h-10 text-white shrink-0" />
+              <School className="w-12 h-12 sm:w-14 sm:h-14 text-white shrink-0" />
             )}
             <div className="min-w-0">
               <div className="font-bold text-white tracking-tight text-base sm:text-lg leading-tight">

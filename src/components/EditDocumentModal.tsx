@@ -46,6 +46,12 @@ export const EditDocumentModal: React.FC<EditDocumentModalProps> = ({
   const [supervisorNotes, setSupervisorNotes] = useState(document?.supervisorNotes || '');
   const [curriculumType, setCurriculumType] = useState<CurriculumType>(document?.curriculumType || 'Kurikulum Merdeka');
 
+  // Leave fields (khusus Surat Izin Guru)
+  const [leaveStartDate, setLeaveStartDate] = useState(document?.leaveStartDate || '');
+  const [leaveEndDate, setLeaveEndDate] = useState(document?.leaveEndDate || '');
+  const [substituteTeacher, setSubstituteTeacher] = useState(document?.substituteTeacher || '');
+  const [affectedClasses, setAffectedClasses] = useState(document?.affectedClasses || '');
+
   // Real file upload state
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isDraggingFile, setIsDraggingFile] = useState(false);
@@ -70,6 +76,10 @@ export const EditDocumentModal: React.FC<EditDocumentModalProps> = ({
       setStatus(document.status);
       setSupervisorNotes(document.supervisorNotes || '');
       setCurriculumType(document.curriculumType);
+      setLeaveStartDate(document.leaveStartDate || '');
+      setLeaveEndDate(document.leaveEndDate || '');
+      setSubstituteTeacher(document.substituteTeacher || '');
+      setAffectedClasses(document.affectedClasses || '');
       setSelectedFile(null);
       setUploadError(null);
       setIsSaving(false);
@@ -79,9 +89,13 @@ export const EditDocumentModal: React.FC<EditDocumentModalProps> = ({
 
   if (!isOpen || !document) return null;
 
-  const isWalasDoc = document.archiveScope === 'wali_kelas';
+  const docScope = document.archiveScope || 'kurikulum';
+  const isWalasDoc = docScope === 'wali_kelas';
+  const isSuratIzinDoc = docScope === 'surat_izin';
+  const isLainnyaDoc = docScope === 'lainnya';
+  const isCurriculumDoc = docScope === 'kurikulum';
   const scopedCategories = categories.filter(
-    c => (c.scope || 'kurikulum') === (isWalasDoc ? 'wali_kelas' : 'kurikulum')
+    c => (c.scope || 'kurikulum') === docScope
   );
 
   const handleTeacherSelect = (selectedId: string) => {
@@ -187,7 +201,11 @@ export const EditDocumentModal: React.FC<EditDocumentModalProps> = ({
         teacherName,
         teacherNip,
         teacherEmail: teacherEmail || document.teacherEmail,
-        alokasiJp: isWalasDoc ? 0 : Number(alokasiJp),
+        alokasiJp: isCurriculumDoc ? Number(alokasiJp) : 0,
+        leaveStartDate: isSuratIzinDoc ? (leaveStartDate || document.leaveStartDate) : document.leaveStartDate,
+        leaveEndDate: isSuratIzinDoc ? (leaveEndDate || leaveStartDate || document.leaveEndDate) : document.leaveEndDate,
+        substituteTeacher: isSuratIzinDoc ? (substituteTeacher.trim() || undefined) : document.substituteTeacher,
+        affectedClasses: isSuratIzinDoc ? (affectedClasses.trim() || undefined) : document.affectedClasses,
         status: isWaka ? status : document.status,
         supervisorNotes: isWaka ? supervisorNotes : document.supervisorNotes,
         curriculumType,
@@ -219,11 +237,21 @@ export const EditDocumentModal: React.FC<EditDocumentModalProps> = ({
             </div>
             <div>
               <h2 className="text-base font-bold text-slate-900">
-                {isWalasDoc ? 'Edit Dokumen Administrasi Wali Kelas' : 'Edit Metadata Dokumen Kurikulum'}
+                {isWalasDoc
+                  ? 'Edit Dokumen Administrasi Wali Kelas'
+                  : isSuratIzinDoc
+                  ? 'Edit Surat Izin Guru'
+                  : isLainnyaDoc
+                  ? 'Edit Dokumen Arsip Lainnya'
+                  : 'Edit Metadata Dokumen Kurikulum'}
               </h2>
               <p className="text-xs text-slate-500">
                 {isWalasDoc
                   ? 'Perbarui rincian kelas binaan, kategori wali kelas, berkas unggahan, atau status validasi.'
+                  : isSuratIzinDoc
+                  ? 'Perbarui tanggal izin, kelas terdampak, guru pengganti, lampiran surat, atau status persetujuan.'
+                  : isLainnyaDoc
+                  ? 'Perbarui kategori, pemilik dokumen, berkas unggahan, atau status validasi.'
                   : 'Perbarui rincian, alokasi jam pelajaran, guru pengampu, atau status validasi dokumen.'}
               </p>
             </div>
@@ -330,8 +358,8 @@ export const EditDocumentModal: React.FC<EditDocumentModalProps> = ({
           </div>
 
           {/* Grade, Semester, Academic Year, Alokasi JP */}
-          <div className={`grid grid-cols-1 sm:grid-cols-2 ${isWalasDoc ? 'lg:grid-cols-2' : 'lg:grid-cols-4'} gap-4`}>
-            {!isWalasDoc && (
+          <div className={`grid grid-cols-1 sm:grid-cols-2 ${isCurriculumDoc ? 'lg:grid-cols-4' : 'lg:grid-cols-2'} gap-4`}>
+            {isCurriculumDoc && (
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">
                   Kelas
@@ -388,7 +416,7 @@ export const EditDocumentModal: React.FC<EditDocumentModalProps> = ({
               </select>
             </div>
 
-            {!isWalasDoc && (
+            {isCurriculumDoc && (
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">
                   Alokasi JP
@@ -404,6 +432,58 @@ export const EditDocumentModal: React.FC<EditDocumentModalProps> = ({
               </div>
             )}
           </div>
+
+          {isSuratIzinDoc && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-3 rounded-xl bg-slate-50 border border-slate-200">
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  Tanggal Mulai Izin
+                </label>
+                <input
+                  type="date"
+                  value={leaveStartDate}
+                  onChange={(e) => setLeaveStartDate(e.target.value)}
+                  className="w-full text-xs border border-slate-200 rounded-lg px-3 py-2 bg-white focus:border-indigo-500 focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  Tanggal Selesai Izin
+                </label>
+                <input
+                  type="date"
+                  value={leaveEndDate}
+                  min={leaveStartDate}
+                  onChange={(e) => setLeaveEndDate(e.target.value)}
+                  className="w-full text-xs border border-slate-200 rounded-lg px-3 py-2 bg-white focus:border-indigo-500 focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  Kelas &amp; Jam Terdampak
+                </label>
+                <input
+                  type="text"
+                  value={affectedClasses}
+                  onChange={(e) => setAffectedClasses(e.target.value)}
+                  placeholder="Contoh: Kelas 7.1, 7.2"
+                  className="w-full text-xs border border-slate-200 rounded-lg px-3 py-2 bg-white focus:border-indigo-500 focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  Guru Pengganti / Piket
+                </label>
+                <input
+                  type="text"
+                  value={substituteTeacher}
+                  onChange={(e) => setSubstituteTeacher(e.target.value)}
+                  placeholder="Nama guru pengganti"
+                  className="w-full text-xs border border-slate-200 rounded-lg px-3 py-2 bg-white focus:border-indigo-500 focus:outline-none"
+                />
+              </div>
+            </div>
+          )}
 
           {/* Teacher Selection */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

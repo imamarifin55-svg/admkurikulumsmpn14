@@ -2,10 +2,12 @@ import React, { useState, useRef, useEffect } from 'react';
 import { 
   Building2, Upload, Trash2, CheckCircle2, Save, 
   Eye, ShieldCheck, Award, 
-  Compass, Megaphone, Plus 
+  Compass, Megaphone, Plus, Eraser 
 } from 'lucide-react';
 import { SchoolProfile, SchoolAnnouncement } from '../types/curriculum';
 import { INITIAL_SCHOOL_PROFILE } from '../data/initialCurriculumData';
+import { SchoolLogoImg } from './SchoolLogoImg';
+import { processLogoTransparency } from '../utils/logoProcessor';
 
 interface SchoolProfileViewProps {
   profile: SchoolProfile;
@@ -118,19 +120,27 @@ export const SchoolProfileView: React.FC<SchoolProfileViewProps> = ({
     const reader = new FileReader();
     reader.onload = (event) => {
       const rawDataUrl = event.target?.result as string;
-      const updateState = (finalUrl: string) => {
-        setFormData(prev => ({ ...prev, [field]: finalUrl }));
+      const updateState = async (finalUrl: string) => {
+        if (field === 'schoolLogoUrl') {
+          const cleaned = await processLogoTransparency(finalUrl, {
+            maxDim: 280,
+            trimPadding: true
+          });
+          setFormData(prev => ({ ...prev, [field]: cleaned }));
+        } else {
+          setFormData(prev => ({ ...prev, [field]: finalUrl }));
+        }
       };
 
-      // Keep small SVGs directly; resize raster images via canvas to max 256x256
+      // Keep small SVGs directly; resize raster images via canvas to max 280x280
       if (file.type === 'image/svg+xml' && rawDataUrl.length < 150000) {
-        updateState(rawDataUrl);
+        void updateState(rawDataUrl);
         return;
       }
 
       const img = new Image();
       img.onload = () => {
-        const maxDim = 256;
+        const maxDim = 280;
         const scale = Math.min(1, maxDim / Math.max(img.width || maxDim, img.height || maxDim));
         const targetW = Math.max(1, Math.round(img.width * scale));
         const targetH = Math.max(1, Math.round(img.height * scale));
@@ -139,16 +149,28 @@ export const SchoolProfileView: React.FC<SchoolProfileViewProps> = ({
         canvas.height = targetH;
         const ctx = canvas.getContext('2d');
         if (ctx) {
+          ctx.clearRect(0, 0, targetW, targetH);
           ctx.drawImage(img, 0, 0, targetW, targetH);
-          updateState(canvas.toDataURL('image/png'));
+          void updateState(canvas.toDataURL('image/png'));
         } else {
-          updateState(rawDataUrl);
+          void updateState(rawDataUrl);
         }
       };
-      img.onerror = () => updateState(rawDataUrl);
+      img.onerror = () => void updateState(rawDataUrl);
       img.src = rawDataUrl;
     };
     reader.readAsDataURL(file);
+  };
+
+  const handleCleanSchoolLogoBackground = async () => {
+    if (!formData.schoolLogoUrl) return;
+    const cleaned = await processLogoTransparency(formData.schoolLogoUrl, {
+      maxDim: 280,
+      forceCornerColor: true,
+      tolerance: 46,
+      trimPadding: true
+    });
+    setFormData(prev => ({ ...prev, schoolLogoUrl: cleaned }));
   };
 
   const handleRemoveLogo = (type: 'school' | 'pemda') => {
@@ -339,21 +361,23 @@ export const SchoolProfileView: React.FC<SchoolProfileViewProps> = ({
           </div>
 
           <div className="flex items-center gap-4">
-            {/* Preview Box */}
-            <div className="w-24 h-24 rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 flex items-center justify-center p-2 overflow-hidden shrink-0">
-              {formData.schoolLogoUrl ? (
-                <img
+            {/* Preview Logo Tanpa Background Kotak */}
+            {formData.schoolLogoUrl ? (
+              <div className="w-28 h-28 flex items-center justify-center shrink-0">
+                <SchoolLogoImg
                   src={formData.schoolLogoUrl}
                   alt="Logo Sekolah"
                   className="w-full h-full object-contain"
                 />
-              ) : (
+              </div>
+            ) : (
+              <div className="w-24 h-24 rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 flex items-center justify-center p-2 overflow-hidden shrink-0">
                 <div className="text-center text-slate-400 text-[10px]">
                   <Building2 className="w-6 h-6 mx-auto mb-1 text-slate-300" />
                   <span>Belum ada logo</span>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
 
             {/* Action buttons */}
             <div className="space-y-2 flex-1">
@@ -373,7 +397,7 @@ export const SchoolProfileView: React.FC<SchoolProfileViewProps> = ({
                 <span>Pilih Logo Sekolah</span>
               </button>
 
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <button
                   type="button"
                   onClick={() => handleUsePresetLogo('school')}
@@ -382,19 +406,30 @@ export const SchoolProfileView: React.FC<SchoolProfileViewProps> = ({
                   Gunakan Preset
                 </button>
                 {formData.schoolLogoUrl && (
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveLogo('school')}
-                    className="py-1 px-2 text-rose-600 hover:bg-rose-50 rounded text-[11px] transition-colors"
-                  >
-                    Hapus
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      onClick={handleCleanSchoolLogoBackground}
+                      title="Hapus warna background luar menjadi transparan"
+                      className="py-1 px-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 font-medium rounded text-[11px] transition-colors inline-flex items-center gap-1"
+                    >
+                      <Eraser className="w-3 h-3" />
+                      <span>Hapus Background</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveLogo('school')}
+                      className="py-1 px-2 text-rose-600 hover:bg-rose-50 rounded text-[11px] transition-colors"
+                    >
+                      Hapus
+                    </button>
+                  </>
                 )}
               </div>
             </div>
           </div>
           <div className="text-[10px] text-slate-400">
-            Format yang didukung: PNG, JPG, SVG, WebP (Maks. 2MB, rasio 1:1 transparan disarankan).
+            Background putih luar otomatis dibuat transparan saat diunggah. Format didukung: PNG, JPG, SVG, WebP (Maks. 2MB).
           </div>
         </div>
       </div>
@@ -442,9 +477,9 @@ export const SchoolProfileView: React.FC<SchoolProfileViewProps> = ({
             </div>
 
             {/* Logo Sekolah */}
-            <div className="w-16 h-16 flex items-center justify-center shrink-0">
+            <div className="w-20 h-20 flex items-center justify-center shrink-0">
               {formData.schoolLogoUrl ? (
-                <img src={formData.schoolLogoUrl} alt="Logo Sekolah" className="max-w-full max-h-full object-contain" />
+                <SchoolLogoImg src={formData.schoolLogoUrl} alt="Logo Sekolah" className="w-full h-full object-contain" />
               ) : (
                 <div className="w-12 h-12 rounded border border-slate-300 flex items-center justify-center text-[8px] text-slate-400 text-center font-sans">
                   Logo Sekolah

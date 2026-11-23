@@ -11,7 +11,8 @@ import {
 } from './types/curriculum';
 import { 
   INITIAL_DOCUMENTS, INITIAL_SCHOOL_PROFILE, INITIAL_TEACHERS,
-  INITIAL_CATEGORIES, INITIAL_WALAS_CATEGORIES
+  INITIAL_CATEGORIES, INITIAL_WALAS_CATEGORIES,
+  INITIAL_SURAT_IZIN_CATEGORIES, INITIAL_LAINNYA_CATEGORIES
 } from './data/initialCurriculumData';
 import { AlertTriangle, ArrowRight } from 'lucide-react';
 
@@ -22,7 +23,7 @@ import {
   subscribeToSchoolProfile, saveSchoolProfileToFirestore,
   subscribeToTeachers, saveTeacherToFirestore, batchSaveTeachersToFirestore,
   deleteTeacherFromFirestore, subscribeToCategories, saveCategoryToFirestore,
-  deleteCategoryFromFirestore, seedFirestoreIfEmpty, seedWalasCategoriesIfMissing,
+  deleteCategoryFromFirestore, seedFirestoreIfEmpty, seedScopedCategoriesIfMissing,
   saveUserProfileToFirestore, saveDocumentFileToFirestore, deleteDocumentFileFromFirestore,
   addActivityLogToFirestore, subscribeToActivityLogs,
   subscribeToStudents, saveStudentToFirestore, batchSaveStudentsToFirestore, deleteStudentFromFirestore
@@ -42,6 +43,8 @@ import { SchoolProfileView } from './components/SchoolProfileView';
 import { CategoryManagementView } from './components/CategoryManagementView';
 import { TeacherManagementView } from './components/TeacherManagementView';
 import { WaliKelasView, buildHomeroomEntries } from './components/WaliKelasView';
+import { SuratIzinView } from './components/SuratIzinView';
+import { LainnyaView } from './components/LainnyaView';
 import { AutoUploadModal, WAKA_SELF_TEACHER_ID } from './components/AutoUploadModal';
 import { WalasUploadModal } from './components/WalasUploadModal';
 import { DocumentDetailModal } from './components/DocumentDetailModal';
@@ -83,21 +86,34 @@ export default function App() {
     return INITIAL_SCHOOL_PROFILE;
   });
 
-  // Load categories from localStorage or initial seed (always ensure default Wali Kelas categories exist once)
+  // Load categories from localStorage or initial seed (ensure scoped categories always exist)
   const [categories, setCategories] = useState<CategoryItem[]>(() => {
     try {
       const saved = localStorage.getItem(CATEGORIES_STORAGE_KEY);
       if (saved) {
-        const parsed = JSON.parse(saved) as CategoryItem[];
-        if (parsed.length > 0 && !parsed.some(c => c.scope === 'wali_kelas')) {
-          return [...parsed, ...INITIAL_WALAS_CATEGORIES];
+        let parsed = JSON.parse(saved) as CategoryItem[];
+        if (parsed.length > 0) {
+          if (!parsed.some(c => c.scope === 'wali_kelas')) {
+            parsed = [...parsed, ...INITIAL_WALAS_CATEGORIES];
+          }
+          if (!parsed.some(c => c.scope === 'surat_izin')) {
+            parsed = [...parsed, ...INITIAL_SURAT_IZIN_CATEGORIES];
+          }
+          if (!parsed.some(c => c.scope === 'lainnya')) {
+            parsed = [...parsed, ...INITIAL_LAINNYA_CATEGORIES];
+          }
         }
         return parsed;
       }
     } catch (e) {
       console.warn('Failed to load curriculum categories:', e);
     }
-    return [...INITIAL_CATEGORIES, ...INITIAL_WALAS_CATEGORIES];
+    return [
+      ...INITIAL_CATEGORIES,
+      ...INITIAL_WALAS_CATEGORIES,
+      ...INITIAL_SURAT_IZIN_CATEGORIES,
+      ...INITIAL_LAINNYA_CATEGORIES
+    ];
   });
 
   // Load teachers from localStorage or initial seed
@@ -163,6 +179,8 @@ export default function App() {
   const [isWalasUploadModalOpen, setIsWalasUploadModalOpen] = useState(false);
   const [walasUploadClass, setWalasUploadClass] = useState<string | null>(null);
   const [walasUploadCategoryId, setWalasUploadCategoryId] = useState<string | null>(null);
+  const [suratIzinUploadTrigger, setSuratIzinUploadTrigger] = useState(0);
+  const [lainnyaUploadTrigger, setLainnyaUploadTrigger] = useState(0);
   const [selectedDoc, setSelectedDoc] = useState<CurriculumDocument | null>(null);
   const [editDoc, setEditDoc] = useState<CurriculumDocument | null>(null);
   const [printDoc, setPrintDoc] = useState<CurriculumDocument | null>(null);
@@ -284,13 +302,22 @@ export default function App() {
     const unsubCategories = subscribeToCategories((remoteCategories) => {
       if (remoteCategories.length > 0 || isCloudInitializedRef.current) {
         isCloudInitializedRef.current = true;
-        const hasWalas = remoteCategories.some(c => c.scope === 'wali_kelas');
-        if (remoteCategories.length > 0 && !hasWalas) {
-          seedWalasCategoriesIfMissing(INITIAL_WALAS_CATEGORIES).catch(() => {});
-          setCategories([...remoteCategories, ...INITIAL_WALAS_CATEGORIES]);
-        } else {
-          setCategories(remoteCategories);
+        let merged = [...remoteCategories];
+        if (remoteCategories.length > 0) {
+          if (!remoteCategories.some(c => c.scope === 'wali_kelas')) {
+            seedScopedCategoriesIfMissing('wali_kelas', INITIAL_WALAS_CATEGORIES).catch(() => {});
+            merged = [...merged, ...INITIAL_WALAS_CATEGORIES];
+          }
+          if (!remoteCategories.some(c => c.scope === 'surat_izin')) {
+            seedScopedCategoriesIfMissing('surat_izin', INITIAL_SURAT_IZIN_CATEGORIES).catch(() => {});
+            merged = [...merged, ...INITIAL_SURAT_IZIN_CATEGORIES];
+          }
+          if (!remoteCategories.some(c => c.scope === 'lainnya')) {
+            seedScopedCategoriesIfMissing('lainnya', INITIAL_LAINNYA_CATEGORIES).catch(() => {});
+            merged = [...merged, ...INITIAL_LAINNYA_CATEGORIES];
+          }
         }
+        setCategories(merged);
       }
     });
 
@@ -575,16 +602,25 @@ export default function App() {
     }
   };
 
-  // Add new documents from upload modal (Curriculum or Wali Kelas)
+  // Add new documents from upload modal (Kurikulum, Wali Kelas, Surat Izin, or Lainnya)
   const handleSaveDocuments = async (
     newDocs: CurriculumDocument[],
     attachedFiles?: DocumentFile[]
   ) => {
+    const firstScope = newDocs[0]?.archiveScope || 'kurikulum';
     const isWalasBatch = newDocs.some(d => d.archiveScope === 'wali_kelas');
     setDocuments(prev => [...newDocs, ...prev]);
     if (isWalasBatch) {
       setHomeroomDocs(prev => [...newDocs.filter(d => d.archiveScope === 'wali_kelas'), ...prev]);
     }
+    const scopeLabel =
+      firstScope === 'wali_kelas'
+        ? 'berkas Wali Kelas'
+        : firstScope === 'surat_izin'
+        ? 'Surat Izin Guru'
+        : firstScope === 'lainnya'
+        ? 'berkas Arsip Lainnya'
+        : 'berkas kurikulum';
     try {
       if (attachedFiles && attachedFiles.length > 0) {
         await Promise.all(attachedFiles.map(f => saveDocumentFileToFirestore(f)));
@@ -593,14 +629,14 @@ export default function App() {
       const summaryTitle =
         newDocs.length === 1
           ? newDocs[0].title
-          : `${newDocs.length} ${isWalasBatch ? 'Berkas Wali Kelas' : 'Berkas Kurikulum'}`;
+          : `${newDocs.length} ${scopeLabel}`;
       logActivity(
         'UPLOAD',
         summaryTitle,
-        `Mengunggah ${newDocs.length} ${isWalasBatch ? 'dokumen wali kelas' : 'perangkat kurikulum'} (TP ${academicYear}, Smt ${currentSemester === 'ganjil' ? 'Ganjil' : 'Genap'}).`
+        `Mengunggah ${newDocs.length} ${scopeLabel} (TP ${academicYear}, Smt ${currentSemester === 'ganjil' ? 'Ganjil' : 'Genap'}).`
       );
       showToast(
-        `Berhasil mengarsipkan ${newDocs.length} ${isWalasBatch ? 'berkas Wali Kelas' : 'berkas kurikulum'} ke Cloud Real-Time.`
+        `Berhasil mengarsipkan ${newDocs.length} ${scopeLabel} ke Cloud Real-Time.`
       );
     } catch (err) {
       console.error(err);
@@ -919,7 +955,7 @@ export default function App() {
     const modified: CurriculumDocument[] = documents
       .filter(
         d =>
-          (d.archiveScope || 'kurikulum') !== 'wali_kelas' &&
+          (d.archiveScope || 'kurikulum') === 'kurikulum' &&
           d.semester === currentSemester &&
           d.academicYear === academicYear &&
           d.status === 'diajukan'
@@ -1125,6 +1161,14 @@ export default function App() {
       handleOpenWalasUpload(null, null);
       return;
     }
+    if (activeView === 'surat_izin') {
+      setSuratIzinUploadTrigger(prev => prev + 1);
+      return;
+    }
+    if (activeView === 'lainnya') {
+      setLainnyaUploadTrigger(prev => prev + 1);
+      return;
+    }
     if (currentUser.role === 'guru' && currentUser.teacherId) {
       setUploadTargetTeacherId(currentUser.teacherId);
     } else if (currentUser.role === 'waka_kurikulum') {
@@ -1157,6 +1201,7 @@ export default function App() {
   // Role-Based Filtering:
   // - Curriculum docs for Guru: strictly isolated by teacherId + subject
   // - Wali Kelas docs for Guru: strictly isolated to their activeHomeroomClass (only if isHomeroomGuru)
+  // - Surat Izin & Lainnya docs for Guru: isolated to their own teacherId / person record
   const visibleDocuments = currentUser.role === 'guru'
     ? mergedDocuments.filter(d => {
         if (d.archiveScope === 'wali_kelas') {
@@ -1164,6 +1209,19 @@ export default function App() {
           return (
             (d.homeroomClass || '').toUpperCase() === activeHomeroomClass ||
             d.teacherId === currentUser.teacherId
+          );
+        }
+        if (d.archiveScope === 'surat_izin' || d.archiveScope === 'lainnya') {
+          if (currentUser.teacherId && d.teacherId === currentUser.teacherId) return true;
+          if (currentLoggedInTeacher) {
+            return (
+              d.teacherName.toLowerCase() === currentLoggedInTeacher.name.toLowerCase() ||
+              (currentLoggedInTeacher.nip !== '-' && d.teacherNip === currentLoggedInTeacher.nip)
+            );
+          }
+          return Boolean(
+            currentUser.displayName &&
+              d.teacherName.toLowerCase() === currentUser.displayName.toLowerCase()
           );
         }
         if (currentUser.teacherId) {
@@ -1187,20 +1245,28 @@ export default function App() {
       })
     : documents;
 
-  // Separate Curriculum vs Wali Kelas Categories & Documents
-  const curriculumCategories = categories.filter(c => (c.scope || 'kurikulum') !== 'wali_kelas');
+  // Separate Categories & Documents by archiveScope
+  const curriculumCategories = categories.filter(c => (c.scope || 'kurikulum') === 'kurikulum');
   const walasCategories = categories.filter(c => c.scope === 'wali_kelas');
-  const curriculumVisibleDocuments = visibleDocuments.filter(d => (d.archiveScope || 'kurikulum') !== 'wali_kelas');
+  const suratIzinCategories = categories.filter(c => c.scope === 'surat_izin');
+  const lainnyaCategories = categories.filter(c => c.scope === 'lainnya');
+
+  const curriculumVisibleDocuments = visibleDocuments.filter(d => (d.archiveScope || 'kurikulum') === 'kurikulum');
   const walasVisibleDocuments = visibleDocuments.filter(d => d.archiveScope === 'wali_kelas');
+  const suratIzinVisibleDocuments = visibleDocuments.filter(d => d.archiveScope === 'surat_izin');
+  const lainnyaVisibleDocuments = visibleDocuments.filter(d => d.archiveScope === 'lainnya');
 
   const homeroomEntries = buildHomeroomEntries(teachers);
 
   // Counts for tabs & navigation
   const semesterDocsCount = curriculumVisibleDocuments.filter(d => d.semester === currentSemester && d.academicYear === academicYear).length;
+  const suratIzinSemesterDocsCount = suratIzinVisibleDocuments.filter(d => d.semester === currentSemester && d.academicYear === academicYear).length;
+  const lainnyaSemesterDocsCount = lainnyaVisibleDocuments.filter(d => d.semester === currentSemester && d.academicYear === academicYear).length;
   const ganjilCount = curriculumVisibleDocuments.filter(d => d.semester === 'ganjil' && d.academicYear === academicYear).length;
   const genapCount = curriculumVisibleDocuments.filter(d => d.semester === 'genap' && d.academicYear === academicYear).length;
   const curriculumPendingCount = curriculumVisibleDocuments.filter(d => d.status === 'diajukan').length;
   const walasPendingCount = walasVisibleDocuments.filter(d => d.status === 'diajukan').length;
+  const suratIzinPendingCount = suratIzinVisibleDocuments.filter(d => d.status === 'diajukan').length;
   const walasSemesterDocsCount = walasVisibleDocuments.filter(d => d.semester === currentSemester && d.academicYear === academicYear).length;
   const revisionDocsForGuru = curriculumVisibleDocuments.filter(d => d.status === 'perlu_revisi');
   const isMainCurriculumView =
@@ -1250,6 +1316,8 @@ export default function App() {
         onSemesterChange={setCurrentSemester}
         totalDocumentsCount={visibleDocuments.length}
         semesterDocsCount={semesterDocsCount}
+        suratIzinCount={suratIzinSemesterDocsCount}
+        lainnyaCount={lainnyaSemesterDocsCount}
         pendingCount={curriculumPendingCount}
         isOpenMobile={isMobileSidebarOpen}
         onCloseMobile={() => setIsMobileSidebarOpen(false)}
@@ -1269,7 +1337,7 @@ export default function App() {
           academicYear={academicYear}
           onOpenUpload={handleOpenGeneralUpload}
           onToggleMobileSidebar={() => setIsMobileSidebarOpen(prev => !prev)}
-          pendingCount={curriculumPendingCount + walasPendingCount}
+          pendingCount={curriculumPendingCount + walasPendingCount + suratIzinPendingCount}
           currentUser={currentUser}
           onRoleChange={handleRoleChange}
           teachers={teachers}
@@ -1382,6 +1450,55 @@ export default function App() {
               onPrintValidationSheet={setPrintDoc}
               onDeleteDocument={handleDeleteDocument}
               onOpenUpload={handleOpenGeneralUpload}
+            />
+          )}
+
+          {/* Sub Menu Arsip Guru: Surat Izin (Khusus untuk Guru) */}
+          {activeView === 'surat_izin' && (
+            <SuratIzinView
+              userRole={currentUser.role}
+              currentUser={currentUser}
+              teachers={teachers}
+              documents={suratIzinVisibleDocuments}
+              categories={suratIzinCategories}
+              profile={profile}
+              currentSemester={currentSemester}
+              academicYear={academicYear}
+              onSemesterChange={setCurrentSemester}
+              onAcademicYearChange={setAcademicYear}
+              onSaveDocuments={handleSaveDocuments}
+              onSelectDocument={setSelectedDoc}
+              onEditDocument={setEditDoc}
+              onDeleteDocument={handleDeleteDocument}
+              onPrintValidationSheet={setPrintDoc}
+              onUpdateDocumentStatus={handleUpdateDocumentStatus}
+              externalUploadTrigger={suratIzinUploadTrigger}
+            />
+          )}
+
+          {/* Sub Menu Arsip Guru: Lainnya (Di luar Adm Guru, Surat Izin, dan Arsip Wali Kelas) */}
+          {activeView === 'lainnya' && (
+            <LainnyaView
+              userRole={currentUser.role}
+              currentUser={currentUser}
+              teachers={teachers}
+              documents={lainnyaVisibleDocuments}
+              categories={lainnyaCategories}
+              profile={profile}
+              currentSemester={currentSemester}
+              academicYear={academicYear}
+              onSemesterChange={setCurrentSemester}
+              onAcademicYearChange={setAcademicYear}
+              onSaveDocuments={handleSaveDocuments}
+              onSelectDocument={setSelectedDoc}
+              onEditDocument={setEditDoc}
+              onDeleteDocument={handleDeleteDocument}
+              onPrintValidationSheet={setPrintDoc}
+              onUpdateDocumentStatus={handleUpdateDocumentStatus}
+              onAddCategory={handleAddCategory}
+              onUpdateCategory={handleUpdateCategory}
+              onDeleteCategory={handleDeleteCategory}
+              externalUploadTrigger={lainnyaUploadTrigger}
             />
           )}
 

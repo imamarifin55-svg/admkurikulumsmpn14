@@ -39,7 +39,11 @@ export const Header: React.FC<HeaderProps> = ({
       case 'matrix':
         return currentUser.role === 'guru' ? 'Matriks Berkas Saya' : 'Matriks Kelengkapan Supervisi Guru';
       case 'list':
-        return currentUser.role === 'guru' ? 'Daftar Berkas Perangkat Ajar Saya' : 'Daftar Dokumen & Silabus';
+        return currentUser.role === 'guru' ? 'Arsip Guru · Adm Guru Saya' : 'Arsip Guru · Adm Guru';
+      case 'surat_izin':
+        return 'Arsip Guru · Surat Izin Guru';
+      case 'lainnya':
+        return 'Arsip Guru · Arsip Lainnya';
       case 'wali_kelas':
         return currentUser.role === 'guru'
           ? `Arsip Wali Kelas ${activeHomeroomClass || ''}`
@@ -114,7 +118,13 @@ export const Header: React.FC<HeaderProps> = ({
           >
             <Plus className="w-4 h-4 stroke-[2.5]" />
             <span className="hidden sm:inline">
-              {activeView === 'wali_kelas' ? 'Unggah Arsip Walas' : 'Unggah Dokumen'}
+              {activeView === 'wali_kelas'
+                ? 'Unggah Arsip Walas'
+                : activeView === 'surat_izin'
+                ? currentUser.role === 'guru' ? 'Ajukan Surat Izin' : 'Catat Surat Izin'
+                : activeView === 'lainnya'
+                ? 'Unggah Arsip Lainnya'
+                : 'Unggah Dokumen'}
             </span>
             <span className="sm:hidden">Unggah</span>
           </button>

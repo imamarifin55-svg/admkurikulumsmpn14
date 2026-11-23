@@ -105,7 +105,10 @@ export const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({
 
   if (!isOpen || !document) return null;
 
-  const isWalasDoc = document.archiveScope === 'wali_kelas';
+  const docScope = document.archiveScope || 'kurikulum';
+  const isWalasDoc = docScope === 'wali_kelas';
+  const isSuratIzinDoc = docScope === 'surat_izin';
+  const isLainnyaDoc = docScope === 'lainnya';
   const matchedCat = categories?.find(c => c.id === document.category);
   const catCode = matchedCat?.code || CATEGORY_LABELS[document.category]?.code || 'DOC';
   const catName = matchedCat?.name || CATEGORY_LABELS[document.category]?.name || document.category;
@@ -216,20 +219,38 @@ export const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4 rounded-xl bg-slate-50 border border-slate-200">
             <div>
               <div className="text-slate-500 font-medium mb-0.5">
-                {isWalasDoc ? 'Kelas Binaan' : 'Mata Pelajaran'}
+                {isWalasDoc
+                  ? 'Kelas Binaan'
+                  : isSuratIzinDoc
+                  ? 'Tanggal Izin Guru'
+                  : isLainnyaDoc
+                  ? 'Jenis Arsip'
+                  : 'Mata Pelajaran'}
               </div>
               <div className="font-semibold text-slate-900">
-                {isWalasDoc ? `Kelas ${document.homeroomClass || document.grade}` : document.subject}
+                {isWalasDoc
+                  ? `Kelas ${document.homeroomClass || document.grade}`
+                  : isSuratIzinDoc
+                  ? `${document.leaveStartDate || '-'}${document.leaveEndDate && document.leaveEndDate !== document.leaveStartDate ? ` s.d. ${document.leaveEndDate}` : ''}`
+                  : document.subject}
               </div>
             </div>
 
             <div>
               <div className="text-slate-500 font-medium mb-0.5">
-                {isWalasDoc ? 'Semester' : 'Semester & Kelas'}
+                {isWalasDoc
+                  ? 'Semester'
+                  : isSuratIzinDoc
+                  ? 'Kelas Terdampak'
+                  : isLainnyaDoc
+                  ? 'Semester'
+                  : 'Semester & Kelas'}
               </div>
               <div className="font-semibold text-slate-900">
-                {isWalasDoc
+                {isWalasDoc || isLainnyaDoc
                   ? `Semester ${document.semester === 'ganjil' ? 'Ganjil' : 'Genap'}`
+                  : isSuratIzinDoc
+                  ? document.affectedClasses || '-'
                   : `Semester ${document.semester === 'ganjil' ? 'Ganjil' : 'Genap'} · Kls ${document.grade}`}
               </div>
             </div>
@@ -241,11 +262,21 @@ export const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({
 
             <div>
               <div className="text-slate-500 font-medium mb-0.5">
-                {isWalasDoc ? 'Lingkup Arsip' : 'Alokasi Waktu'}
+                {isWalasDoc
+                  ? 'Lingkup Arsip'
+                  : isSuratIzinDoc
+                  ? 'Guru Pengganti'
+                  : isLainnyaDoc
+                  ? 'Lingkup Arsip'
+                  : 'Alokasi Waktu'}
               </div>
               <div className="font-semibold text-slate-900 font-mono">
                 {isWalasDoc
                   ? 'Administrasi Wali Kelas'
+                  : isSuratIzinDoc
+                  ? document.substituteTeacher || '-'
+                  : isLainnyaDoc
+                  ? 'Arsip Lainnya (Non-Walas)'
                   : (document.alokasiJp ? `${document.alokasiJp} Jam Pelajaran` : 'Sesuai Kalender')}
               </div>
             </div>

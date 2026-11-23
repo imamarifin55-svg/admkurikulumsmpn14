@@ -11,8 +11,12 @@
         "fileSize": { "type": "number" },
         "fileType": { "type": "string", "maxLength": 20 },
         "category": { "type": "string", "maxLength": 50 },
-        "archiveScope": { "type": "string", "enum": ["kurikulum", "wali_kelas"] },
+        "archiveScope": { "type": "string", "enum": ["kurikulum", "wali_kelas", "surat_izin", "lainnya"] },
         "homeroomClass": { "type": "string", "maxLength": 20 },
+        "leaveStartDate": { "type": "string", "maxLength": 30 },
+        "leaveEndDate": { "type": "string", "maxLength": 30 },
+        "substituteTeacher": { "type": "string", "maxLength": 150 },
+        "affectedClasses": { "type": "string", "maxLength": 150 },
         "subject": { "type": "string", "maxLength": 100 },
         "grade": { "type": "string", "enum": ["7.1", "7.2", "7.3", "7.4", "8.1", "8.2", "8.3", "8.4", "9.1", "9.2", "9.3", "9.4", "7", "8", "9"] },
         "semester": { "type": "string", "enum": ["ganjil", "genap"] },
@@ -152,7 +156,7 @@
         "description": { "type": "string", "maxLength": 500 },
         "isSupervisedInMatrix": { "type": "boolean" },
         "isSystemDefault": { "type": "boolean" },
-        "scope": { "type": "string", "enum": ["kurikulum", "wali_kelas"] }
+        "scope": { "type": "string", "enum": ["kurikulum", "wali_kelas", "surat_izin", "lainnya"] }
       },
       "required": ["id", "code", "name", "defaultJp", "isSupervisedInMatrix"]
     },

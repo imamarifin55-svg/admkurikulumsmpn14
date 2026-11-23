@@ -92,7 +92,7 @@ export const SemesterControls: React.FC<SemesterControlsProps> = ({
           }`}
         >
           <ListFilter className="w-3.5 h-3.5" />
-          <span>Daftar Dokumen</span>
+          <span>Adm Guru</span>
         </button>
 
         <button

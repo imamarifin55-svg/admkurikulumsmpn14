@@ -139,7 +139,7 @@ export const TeacherManagementView: React.FC<TeacherManagementViewProps> = ({
     const hasMultipleSubjects = samePersonTeachers.length > 1;
 
     return documents.filter((d) => {
-      if (d.archiveScope === 'wali_kelas') return false;
+      if ((d.archiveScope || 'kurikulum') !== 'kurikulum') return false;
       if (d.teacherId) {
         if (d.teacherId !== teacher.id) return false;
         if (

@@ -146,6 +146,122 @@ export const INITIAL_WALAS_CATEGORIES: CategoryItem[] = [
   }
 ];
 
+export const INITIAL_SURAT_IZIN_CATEGORIES: CategoryItem[] = [
+  {
+    id: 'izin_sakit',
+    code: 'SAKIT',
+    name: 'Surat Izin Sakit Guru',
+    defaultJp: 0,
+    description: 'Pengajuan dan arsip surat keterangan sakit atau rawat inap/jalan khusus untuk guru.',
+    isSupervisedInMatrix: false,
+    isSystemDefault: true,
+    scope: 'surat_izin'
+  },
+  {
+    id: 'izin_cuti',
+    code: 'CUTI',
+    name: 'Surat Izin Cuti Guru',
+    defaultJp: 0,
+    description: 'Pengajuan cuti tahunan, cuti melahirkan, atau cuti alasan penting khusus untuk guru.',
+    isSupervisedInMatrix: false,
+    isSystemDefault: true,
+    scope: 'surat_izin'
+  },
+  {
+    id: 'izin_dinas',
+    code: 'DINAS',
+    name: 'Surat Tugas / Dinas Luar Guru',
+    defaultJp: 0,
+    description: 'Surat tugas dinas luar sekolah, rapat dinas, atau pendampingan kegiatan resmi.',
+    isSupervisedInMatrix: false,
+    isSystemDefault: true,
+    scope: 'surat_izin'
+  },
+  {
+    id: 'izin_pelatihan',
+    code: 'DIKLAT',
+    name: 'Izin Pelatihan / MGMP / Workshop',
+    defaultJp: 0,
+    description: 'Izin mengikuti diklat, workshop, seminar, atau pertemuan MGMP di jam kerja.',
+    isSupervisedInMatrix: false,
+    isSystemDefault: true,
+    scope: 'surat_izin'
+  },
+  {
+    id: 'izin_pribadi',
+    code: 'IZIN',
+    name: 'Surat Izin Keperluan Pribadi / Keluarga',
+    defaultJp: 0,
+    description: 'Permohonan izin tidak mengajar karena keperluan keluarga atau kepentingan mendesak guru.',
+    isSupervisedInMatrix: false,
+    isSystemDefault: true,
+    scope: 'surat_izin'
+  }
+];
+
+export const INITIAL_LAINNYA_CATEGORIES: CategoryItem[] = [
+  {
+    id: 'lain_sk_tugas',
+    code: 'SK-TUGAS',
+    name: 'SK Pembagian Tugas & Kepanitiaan',
+    defaultJp: 0,
+    description: 'SK mengajar, SK panitia ujian/PPDB/ANBK, dan surat tugas tambahan guru di luar perangkat ajar.',
+    isSupervisedInMatrix: false,
+    isSystemDefault: true,
+    scope: 'lainnya'
+  },
+  {
+    id: 'lain_sertifikat',
+    code: 'SERTIFIKAT',
+    name: 'Sertifikat Diklat, Workshop & PMM',
+    defaultJp: 0,
+    description: 'Arsip sertifikat pengembangan kompetensi diri, webinar, diklat, dan pelatihan guru.',
+    isSupervisedInMatrix: false,
+    isSystemDefault: true,
+    scope: 'lainnya'
+  },
+  {
+    id: 'lain_pkg_skp',
+    code: 'PKG-SKP',
+    name: 'Dokumen PKG, SKP & e-Kinerja',
+    defaultJp: 0,
+    description: 'Sasaran Kinerja Pegawai, Penilaian Kinerja Guru, dan dokumen evaluasi tahunan guru.',
+    isSupervisedInMatrix: false,
+    isSystemDefault: true,
+    scope: 'lainnya'
+  },
+  {
+    id: 'lain_ekskul',
+    code: 'EKSKUL',
+    name: 'Program & Laporan Ekstrakurikuler',
+    defaultJp: 0,
+    description: 'Program pembinaan ekstrakurikuler, pembina OSIS, dan dokumentasi lomba/prestasi.',
+    isSupervisedInMatrix: false,
+    isSystemDefault: true,
+    scope: 'lainnya'
+  },
+  {
+    id: 'lain_notulen',
+    code: 'NOTULEN',
+    name: 'Notulen Rapat & Berita Acara Sekolah',
+    defaultJp: 0,
+    description: 'Notulen rapat dewan guru, daftar hadir kegiatan sekolah, dan berita acara non-wali kelas.',
+    isSupervisedInMatrix: false,
+    isSystemDefault: true,
+    scope: 'lainnya'
+  },
+  {
+    id: 'lain_umum',
+    code: 'LAINNYA',
+    name: 'Arsip Pendukung Lainnya',
+    defaultJp: 0,
+    description: 'Dokumen administrasi umum guru maupun sekolah di luar Adm Guru, Surat Izin, dan Wali Kelas.',
+    isSupervisedInMatrix: false,
+    isSystemDefault: true,
+    scope: 'lainnya'
+  }
+];
+
 export const INITIAL_SCHOOL_PROFILE: SchoolProfile = {
   name: 'SMP Negeri 1 Mentari Bangsa',
   npsn: '20108942',

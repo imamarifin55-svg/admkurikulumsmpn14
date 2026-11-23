@@ -1,12 +1,16 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Archive, ListFilter, LayoutGrid, ShieldCheck, FileSpreadsheet, 
-  Plus, Building2, X, FolderKanban, Users, UserCheck 
+  Plus, Building2, X, FolderKanban, Users, UserCheck, ChevronDown,
+  BookOpenCheck, MailCheck, FolderArchive
 } from 'lucide-react';
 import { AppUser, SchoolProfile, SemesterType, Teacher } from '../types/curriculum';
+import { SchoolLogoImg } from './SchoolLogoImg';
 
 export type SidebarActiveView =
   | 'list'
+  | 'surat_izin'
+  | 'lainnya'
   | 'matrix'
   | 'supervision'
   | 'reports'
@@ -26,6 +30,8 @@ interface SidebarProps {
   onSemesterChange: (semester: SemesterType) => void;
   totalDocumentsCount: number;
   semesterDocsCount: number;
+  suratIzinCount?: number;
+  lainnyaCount?: number;
   pendingCount: number;
   isOpenMobile: boolean;
   onCloseMobile: () => void;
@@ -47,6 +53,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onSemesterChange,
   totalDocumentsCount,
   semesterDocsCount,
+  suratIzinCount = 0,
+  lainnyaCount = 0,
   pendingCount,
   isOpenMobile,
   onCloseMobile,
@@ -59,22 +67,43 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const currentTeacher = teachers.find(t => t.id === currentUser.teacherId);
   const isGuru = currentUser.role === 'guru';
   const showWalasMenu = !isGuru || isHomeroomGuru;
+  const isArsipGuruChildActive =
+    activeView === 'list' || activeView === 'surat_izin' || activeView === 'lainnya';
+  const [isArsipGuruOpen, setIsArsipGuruOpen] = useState<boolean>(true);
 
-  const menuItems = [
-    {
-      id: 'matrix' as const,
-      label: isGuru ? 'Matriks Berkas Saya' : 'Matriks Guru',
-      sublabel: isGuru ? 'Monitoring Kelengkapan Diri' : 'Monitoring Berkas Pokok',
-      icon: LayoutGrid,
-      badge: null
-    },
+  useEffect(() => {
+    if (isArsipGuruChildActive) {
+      setIsArsipGuruOpen(true);
+    }
+  }, [isArsipGuruChildActive]);
+
+  const arsipGuruSubItems = [
     {
       id: 'list' as const,
-      label: isGuru ? 'Dokumen & Perangkat Saya' : 'Daftar Arsip Dokumen',
-      sublabel: isGuru ? 'Silabus, ATP & Modul Ajar' : 'Seluruh Berkas Guru',
-      icon: ListFilter,
+      label: 'Adm Guru',
+      sublabel: 'Perangkat Ajar & Silabus',
+      icon: BookOpenCheck,
       badge: semesterDocsCount
     },
+    {
+      id: 'surat_izin' as const,
+      label: 'Surat Izin',
+      sublabel: 'Hanya untuk Guru',
+      icon: MailCheck,
+      badge: suratIzinCount
+    },
+    {
+      id: 'lainnya' as const,
+      label: 'Lainnya',
+      sublabel: 'SK, Diklat & Non-Walas',
+      icon: FolderArchive,
+      badge: lainnyaCount
+    }
+  ];
+
+  const arsipGuruTotalBadge = semesterDocsCount + suratIzinCount + lainnyaCount;
+
+  const afterArsipMenuItems = [
     ...(showWalasMenu ? [
       {
         id: 'wali_kelas' as const,
@@ -141,24 +170,24 @@ export const Sidebar: React.FC<SidebarProps> = ({
         }`}
       >
         {/* Brand & School Header */}
-        <div className="p-5 border-b border-slate-800/90 bg-slate-950/35 flex items-center justify-between">
-          <div className="flex items-center gap-3 min-w-0">
+        <div className="px-4 py-4 border-b border-slate-800/90 bg-slate-950/35 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-3.5 min-w-0">
             {profile.schoolLogoUrl ? (
-              <img
+              <SchoolLogoImg
                 src={profile.schoolLogoUrl}
                 alt="Logo Sekolah"
-                className="w-12 h-12 object-contain shrink-0"
+                className="w-16 h-16 object-contain shrink-0 drop-shadow-sm"
               />
             ) : (
-              <div className="w-11 h-11 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold shadow-sm ring-1 ring-indigo-400/30 shrink-0">
-                <Archive className="w-6 h-6" />
+              <div className="w-14 h-14 text-indigo-300 flex items-center justify-center shrink-0">
+                <Archive className="w-9 h-9" />
               </div>
             )}
             <div className="min-w-0">
               <div className="text-base font-bold text-white tracking-wide leading-none truncate">
                 ArsipKurikulum
               </div>
-              <div className="text-[11px] text-slate-400 font-medium mt-1 truncate">
+              <div className="text-[11px] text-slate-300 font-medium mt-1.5 line-clamp-2 leading-snug">
                 {profile.name}
               </div>
             </div>
@@ -218,7 +247,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
             }`}
           >
             <Plus className="w-4 h-4 stroke-[2.5]" />
-            <span>{activeView === 'wali_kelas' ? 'Unggah Arsip Wali Kelas' : 'Unggah Dokumen Baru'}</span>
+            <span>
+              {activeView === 'wali_kelas'
+                ? 'Unggah Arsip Wali Kelas'
+                : activeView === 'surat_izin'
+                ? isGuru ? 'Ajukan Surat Izin Guru' : 'Catat Surat Izin Guru'
+                : activeView === 'lainnya'
+                ? 'Unggah Arsip Lainnya'
+                : 'Unggah Dokumen Baru'}
+            </span>
           </button>
         </div>
 
@@ -228,7 +265,162 @@ export const Sidebar: React.FC<SidebarProps> = ({
             Menu Administrasi
           </div>
 
-          {menuItems.map((item) => {
+          {/* 1. Matriks Guru */}
+          {(() => {
+            const isActive = activeView === 'matrix';
+            return (
+              <button
+                onClick={() => {
+                  onViewChange('matrix');
+                  if (isOpenMobile) onCloseMobile();
+                }}
+                className={`group w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl text-left transition-all cursor-pointer ${
+                  isActive
+                    ? isGuru
+                      ? 'bg-emerald-600/20 text-white font-semibold border border-emerald-500/35 shadow-xs'
+                      : 'bg-indigo-600/25 text-white font-semibold border border-indigo-400/35 shadow-xs'
+                    : 'text-slate-300 hover:bg-slate-800/80 hover:text-white border border-transparent'
+                }`}
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div
+                    className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
+                      isActive
+                        ? isGuru
+                          ? 'bg-emerald-600 text-white shadow-xs'
+                          : 'bg-indigo-600 text-white shadow-xs'
+                        : 'bg-slate-800 text-slate-400 group-hover:bg-slate-700 group-hover:text-slate-200'
+                    }`}
+                  >
+                    <LayoutGrid className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-xs font-semibold leading-snug tracking-wide truncate">
+                      {isGuru ? 'Matriks Berkas Saya' : 'Matriks Guru'}
+                    </div>
+                    <div className={`text-[10px] leading-none truncate mt-0.5 ${
+                      isActive
+                        ? isGuru ? 'text-emerald-200/90' : 'text-indigo-200/90'
+                        : 'text-slate-400'
+                    }`}>
+                      {isGuru ? 'Monitoring Kelengkapan Diri' : 'Monitoring Berkas Pokok'}
+                    </div>
+                  </div>
+                </div>
+              </button>
+            );
+          })()}
+
+          {/* 2. Arsip Guru (Expandable Dropdown Sub Menu) */}
+          <div className="space-y-1">
+            <button
+              type="button"
+              onClick={() => setIsArsipGuruOpen(prev => !prev)}
+              aria-expanded={isArsipGuruOpen}
+              className={`group w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl text-left transition-all cursor-pointer ${
+                isArsipGuruChildActive
+                  ? isGuru
+                    ? 'bg-emerald-600/15 text-white font-semibold border border-emerald-500/30'
+                    : 'bg-indigo-600/20 text-white font-semibold border border-indigo-400/30'
+                  : 'text-slate-300 hover:bg-slate-800/80 hover:text-white border border-transparent'
+              }`}
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <div
+                  className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
+                    isArsipGuruChildActive
+                      ? isGuru
+                        ? 'bg-emerald-600 text-white shadow-xs'
+                        : 'bg-indigo-600 text-white shadow-xs'
+                      : 'bg-slate-800 text-slate-400 group-hover:bg-slate-700 group-hover:text-slate-200'
+                  }`}
+                >
+                  <ListFilter className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-xs font-semibold leading-snug tracking-wide truncate">
+                    Arsip Guru
+                  </div>
+                  <div className={`text-[10px] leading-none truncate mt-0.5 ${
+                    isArsipGuruChildActive
+                      ? isGuru ? 'text-emerald-200/90' : 'text-indigo-200/90'
+                      : 'text-slate-400'
+                  }`}>
+                    Adm, Surat Izin &amp; Lainnya
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-1.5 shrink-0">
+                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md border tabular-nums bg-slate-800 text-slate-300 border-slate-700">
+                  {arsipGuruTotalBadge}
+                </span>
+                <ChevronDown
+                  className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${
+                    isArsipGuruOpen ? 'rotate-180' : ''
+                  }`}
+                />
+              </div>
+            </button>
+
+            {isArsipGuruOpen && (
+              <div className="ml-4 pl-2.5 border-l border-slate-700/80 space-y-1 py-0.5">
+                {arsipGuruSubItems.map((sub) => {
+                  const isSubActive = activeView === sub.id;
+                  const SubIcon = sub.icon;
+                  return (
+                    <button
+                      key={sub.id}
+                      type="button"
+                      onClick={() => {
+                        onViewChange(sub.id);
+                        if (isOpenMobile) onCloseMobile();
+                      }}
+                      className={`group w-full flex items-center justify-between gap-2 px-2.5 py-2 rounded-lg text-left transition-all cursor-pointer ${
+                        isSubActive
+                          ? isGuru
+                            ? 'bg-emerald-600/25 text-white font-semibold border border-emerald-500/40'
+                            : 'bg-indigo-600/30 text-white font-semibold border border-indigo-400/40'
+                          : 'text-slate-300 hover:bg-slate-800/80 hover:text-white border border-transparent'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <SubIcon
+                          className={`w-4 h-4 shrink-0 ${
+                            isSubActive
+                              ? isGuru ? 'text-emerald-300' : 'text-indigo-300'
+                              : 'text-slate-400 group-hover:text-slate-200'
+                          }`}
+                        />
+                        <div className="min-w-0">
+                          <div className="text-xs font-semibold leading-tight truncate">
+                            {sub.label}
+                          </div>
+                          <div className="text-[10px] text-slate-400 leading-tight truncate mt-0.5">
+                            {sub.sublabel}
+                          </div>
+                        </div>
+                      </div>
+                      <span
+                        className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border tabular-nums shrink-0 ${
+                          isSubActive
+                            ? isGuru
+                              ? 'bg-emerald-500/30 text-emerald-100 border-emerald-400/40'
+                              : 'bg-indigo-500/30 text-indigo-100 border-indigo-400/40'
+                            : 'bg-slate-800/90 text-slate-300 border-slate-700'
+                        }`}
+                      >
+                        {sub.badge}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* 3. Remaining Menu Items */}
+          {afterArsipMenuItems.map((item) => {
             const isActive = activeView === item.id;
             const Icon = item.icon;
 
@@ -276,7 +468,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 {item.badge !== null && (
                   <span
                     className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-md border tabular-nums shrink-0 ${
-                      item.badgeColor || (isActive
+                      ('badgeColor' in item && item.badgeColor) || (isActive
                         ? isGuru
                           ? 'bg-emerald-500/30 text-emerald-100 border-emerald-400/40'
                           : 'bg-indigo-500/30 text-indigo-100 border-indigo-400/40'

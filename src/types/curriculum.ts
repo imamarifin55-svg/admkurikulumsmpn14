@@ -56,7 +56,7 @@ export const SCHOOL_CLASS_VALUES: SchoolClassCode[] = SCHOOL_CLASSES.map(c => c.
 
 export type CurriculumType = 'Kurikulum Merdeka' | 'Kurikulum 2013';
 
-export type CategoryScope = 'kurikulum' | 'wali_kelas';
+export type CategoryScope = 'kurikulum' | 'wali_kelas' | 'surat_izin' | 'lainnya';
 
 // Category identifier can be standard or custom user-defined
 export type DocumentCategory = 
@@ -74,6 +74,17 @@ export type DocumentCategory =
   | 'wl_bk'            // Catatan Bimbingan / Konseling & Home Visit
   | 'wl_siswa'         // Biodata Siswa, Orang Tua & Denah Kelas
   | 'wl_rapat'         // Administrasi Rapat & Berita Acara Pengambilan Rapor
+  | 'izin_sakit'       // Surat Izin Sakit (Khusus Guru)
+  | 'izin_cuti'        // Surat Izin Cuti (Khusus Guru)
+  | 'izin_dinas'       // Surat Tugas / Dinas Luar (Khusus Guru)
+  | 'izin_pelatihan'   // Izin Pelatihan / MGMP / Workshop (Khusus Guru)
+  | 'izin_pribadi'     // Surat Izin Keperluan Pribadi (Khusus Guru)
+  | 'lain_sk_tugas'    // SK Pembagian Tugas & Kepanitiaan
+  | 'lain_sertifikat'  // Sertifikat Diklat, Workshop & PMM
+  | 'lain_pkg_skp'     // Dokumen PKG, SKP & Penilaian Kinerja
+  | 'lain_ekskul'      // Program & Laporan Ekstrakurikuler
+  | 'lain_notulen'     // Notulen Rapat & Berita Acara Sekolah
+  | 'lain_umum'        // Arsip Pendukung Lainnya
   | string;            // Custom categories added by school admin
 
 export interface CategoryItem {
@@ -101,8 +112,12 @@ export interface CurriculumDocument {
   fileSize: number; // in bytes
   fileType: string; // pdf, docx, xlsx
   category: DocumentCategory;
-  archiveScope?: CategoryScope; // 'kurikulum' (default) | 'wali_kelas'
+  archiveScope?: CategoryScope; // 'kurikulum' (default) | 'wali_kelas' | 'surat_izin' | 'lainnya'
   homeroomClass?: string; // e.g. "7.1", "8.2", "9.4" for Wali Kelas archives
+  leaveStartDate?: string; // YYYY-MM-DD (Khusus Surat Izin Guru)
+  leaveEndDate?: string; // YYYY-MM-DD (Khusus Surat Izin Guru)
+  substituteTeacher?: string; // Guru pengganti / piket (Khusus Surat Izin Guru)
+  affectedClasses?: string; // Kelas / jam terdampak (Khusus Surat Izin Guru)
   subject: string;
   grade: GradeLevel;
   semester: SemesterType;
