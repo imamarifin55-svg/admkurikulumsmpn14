@@ -155,6 +155,30 @@
         "scope": { "type": "string", "enum": ["kurikulum", "wali_kelas"] }
       },
       "required": ["id", "code", "name", "defaultJp", "isSupervisedInMatrix"]
+    },
+    "Student": {
+      "title": "Student",
+      "description": "Data peserta didik kelas binaan Wali Kelas",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "nis": { "type": "string", "maxLength": 40 },
+        "nisn": { "type": "string", "maxLength": 40 },
+        "name": { "type": "string", "maxLength": 150 },
+        "gender": { "type": "string", "enum": ["L", "P"] },
+        "homeroomClass": { "type": "string", "maxLength": 20 },
+        "birthPlace": { "type": "string", "maxLength": 100 },
+        "birthDate": { "type": "string", "maxLength": 30 },
+        "parentName": { "type": "string", "maxLength": 150 },
+        "parentPhone": { "type": "string", "maxLength": 40 },
+        "address": { "type": "string", "maxLength": 300 },
+        "status": { "type": "string", "enum": ["aktif", "pindahan", "keluar", "lulus"] },
+        "notes": { "type": "string", "maxLength": 500 },
+        "academicYear": { "type": "string", "maxLength": 20 },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "name", "gender", "homeroomClass", "status"]
     }
   },
   "firestore": {
@@ -189,6 +213,10 @@
     "/categories/{categoryId}": {
       "schema": "CategoryItem",
       "description": "Daftar kategori perangkat pembelajaran"
+    },
+    "/students/{studentId}": {
+      "schema": "Student",
+      "description": "Daftar peserta didik per kelas binaan Wali Kelas"
     }
   }
 }

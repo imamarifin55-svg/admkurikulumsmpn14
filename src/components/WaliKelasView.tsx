@@ -5,10 +5,11 @@ import {
   Clock, Plus, CheckCheck, Users, FileText
 } from 'lucide-react';
 import {
-  AppUserRole, CategoryItem, CurriculumDocument, SemesterType, Teacher, VerificationStatus
+  AppUserRole, CategoryItem, CurriculumDocument, SemesterType, Teacher, VerificationStatus, StudentRecord
 } from '../types/curriculum';
 import { CategoryManagementView } from './CategoryManagementView';
 import { HomeroomEntry } from './WalasUploadModal';
+import { WalasStudentsView } from './WalasStudentsView';
 
 interface WaliKelasViewProps {
   userRole: AppUserRole;
@@ -31,6 +32,11 @@ interface WaliKelasViewProps {
   onUpdateCategory: (cat: CategoryItem) => void;
   onDeleteCategory: (catId: string) => void;
   onNavigateToTeachers?: () => void;
+  students: StudentRecord[];
+  onAddStudent: (student: StudentRecord) => Promise<void> | void;
+  onUpdateStudent: (student: StudentRecord) => Promise<void> | void;
+  onImportStudents: (students: StudentRecord[]) => Promise<void> | void;
+  onDeleteStudent: (studentId: string) => Promise<void> | void;
 }
 
 const STATUS_META: Record<VerificationStatus, { label: string; textClass: string; bgClass: string }> = {
@@ -96,10 +102,15 @@ export const WaliKelasView: React.FC<WaliKelasViewProps> = ({
   onAddCategory,
   onUpdateCategory,
   onDeleteCategory,
-  onNavigateToTeachers
+  onNavigateToTeachers,
+  students,
+  onAddStudent,
+  onUpdateStudent,
+  onImportStudents,
+  onDeleteStudent
 }) => {
   const isWaka = userRole === 'waka_kurikulum';
-  const [subTab, setSubTab] = useState<'matrix' | 'list' | 'supervision' | 'categories'>('matrix');
+  const [subTab, setSubTab] = useState<'matrix' | 'list' | 'students' | 'supervision' | 'categories'>('matrix');
 
   // Filter & search states for List & Supervision tabs
   const [searchQuery, setSearchQuery] = useState('');
@@ -129,6 +140,12 @@ export const WaliKelasView: React.FC<WaliKelasViewProps> = ({
     () => documents.filter(d => d.semester === currentSemester && d.academicYear === academicYear),
     [documents, currentSemester, academicYear]
   );
+
+  const scopedStudentsCount = useMemo(() => {
+    if (isWaka) return students.length;
+    const normalized = (activeHomeroomClass || '').trim().toUpperCase();
+    return students.filter(s => (s.homeroomClass || '').trim().toUpperCase() === normalized).length;
+  }, [students, isWaka, activeHomeroomClass]);
 
   const pendingCount = periodDocs.filter(d => d.status === 'diajukan').length;
   const verifiedCount = periodDocs.filter(d => d.status === 'diverifikasi').length;
@@ -340,6 +357,19 @@ export const WaliKelasView: React.FC<WaliKelasViewProps> = ({
           >
             <ListFilter className="w-3.5 h-3.5" />
             <span>Daftar Arsip ({periodDocs.length})</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setSubTab('students')}
+            className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap ${
+              subTab === 'students'
+                ? 'bg-white text-slate-900 shadow-xs'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <Users className="w-3.5 h-3.5" />
+            <span>Peserta Didik ({scopedStudentsCount})</span>
           </button>
 
           {isWaka && (
@@ -707,6 +737,21 @@ export const WaliKelasView: React.FC<WaliKelasViewProps> = ({
             </table>
           </div>
         </div>
+      )}
+
+      {/* TAB 2B: PESERTA DIDIK WALI KELAS */}
+      {subTab === 'students' && (
+        <WalasStudentsView
+          userRole={userRole}
+          students={students}
+          academicYear={academicYear}
+          activeHomeroomClass={activeHomeroomClass}
+          teachers={teachers}
+          onAddStudent={onAddStudent}
+          onUpdateStudent={onUpdateStudent}
+          onImportStudents={onImportStudents}
+          onDeleteStudent={onDeleteStudent}
+        />
       )}
 
       {/* TAB 3: SUPERVISI, TELAAH & PENGESAHAN WALI KELAS (WAKA ONLY) */}

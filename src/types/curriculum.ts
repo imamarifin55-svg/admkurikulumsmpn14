@@ -246,3 +246,27 @@ export interface AutoExtractionResult {
   sampleSnippet?: string;
   rawText?: string;
 }
+
+export type StudentGender = 'L' | 'P';
+
+export type StudentStatus = 'aktif' | 'pindahan' | 'keluar' | 'lulus';
+
+export interface StudentRecord {
+  id: string;
+  nis: string;
+  nisn: string;
+  name: string;
+  gender: StudentGender;
+  homeroomClass: string; // e.g. "7.1", "8.2", "9.4"
+  birthPlace?: string;
+  birthDate?: string;
+  parentName?: string;
+  parentPhone?: string;
+  address?: string;
+  status: StudentStatus;
+  notes?: string;
+  academicYear: string;
+  createdAt: string;
+  updatedAt: string;
+}
+

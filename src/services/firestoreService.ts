@@ -5,7 +5,7 @@ import {
 import { db, auth } from './firebase';
 import { 
   AppUser, CurriculumDocument, SchoolProfile, CategoryItem, 
-  Teacher, DocumentFile, DocumentFileChunk, ActivityLog 
+  Teacher, DocumentFile, DocumentFileChunk, ActivityLog, StudentRecord 
 } from '../types/curriculum';
 
 export enum OperationType {
@@ -639,4 +639,72 @@ export function subscribeToActivityLogs(onUpdate: (logs: ActivityLog[]) => void)
   );
 }
 
+// Subscribe to homeroom students (scoped by homeroomClass for Guru, or all classes for Waka Kurikulum)
+export function subscribeToStudents(
+  onUpdate: (students: StudentRecord[]) => void,
+  homeroomClass?: string | null
+) {
+  const collectionRef = collection(db, 'students');
+  const normalizedClass = homeroomClass?.trim().toUpperCase();
+  const q = normalizedClass
+    ? query(collectionRef, where('homeroomClass', '==', normalizedClass))
+    : collectionRef;
+
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const list: StudentRecord[] = [];
+      snapshot.forEach((docSnap) => {
+        list.push(docSnap.data() as StudentRecord);
+      });
+      list.sort((a, b) => {
+        const clsCmp = (a.homeroomClass || '').localeCompare(b.homeroomClass || '', undefined, { numeric: true });
+        if (clsCmp !== 0) return clsCmp;
+        return (a.name || '').localeCompare(b.name || '', 'id');
+      });
+      onUpdate(list);
+    },
+    (error) => {
+      handleFirestoreError(error, OperationType.GET, 'students');
+    }
+  );
+}
+
+// Save or update a single student record
+export async function saveStudentToFirestore(student: StudentRecord): Promise<void> {
+  const path = `students/${student.id}`;
+  try {
+    await setDoc(doc(db, 'students', student.id), sanitizeForFirestore(student), { merge: true });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, path);
+  }
+}
+
+// Batch save students (chunked by 400 to respect Firestore write limits)
+export async function batchSaveStudentsToFirestore(students: StudentRecord[]): Promise<void> {
+  if (students.length === 0) return;
+  try {
+    const BATCH_SIZE = 400;
+    for (let i = 0; i < students.length; i += BATCH_SIZE) {
+      const batch = writeBatch(db);
+      const slice = students.slice(i, i + BATCH_SIZE);
+      for (const s of slice) {
+        batch.set(doc(db, 'students', s.id), sanitizeForFirestore(s), { merge: true });
+      }
+      await batch.commit();
+    }
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, 'students/batch');
+  }
+}
+
+// Delete a student record
+export async function deleteStudentFromFirestore(studentId: string): Promise<void> {
+  const path = `students/${studentId}`;
+  try {
+    await deleteDoc(doc(db, 'students', studentId));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, path);
+  }
+}
 

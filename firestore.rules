@@ -119,5 +119,21 @@ service cloud.firestore {
         && request.resource.data.name.size() <= 150;
       allow delete: if isValidId(categoryId);
     }
+
+    // Homeroom Student Roster (Peserta Didik per Kelas Binaan)
+    match /students/{studentId} {
+      allow read: if true;
+      allow create, update: if isValidId(studentId)
+        && request.resource.data.id == studentId
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 150
+        && request.resource.data.homeroomClass is string
+        && request.resource.data.homeroomClass.size() > 0
+        && request.resource.data.homeroomClass.size() <= 20
+        && request.resource.data.gender in ['L', 'P']
+        && request.resource.data.status in ['aktif', 'pindahan', 'keluar', 'lulus'];
+      allow delete: if isValidId(studentId);
+    }
   }
 }

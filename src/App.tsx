@@ -7,7 +7,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   CurriculumDocument, SchoolProfile, Teacher, SemesterType, 
   VerificationStatus, DocumentCategory, CategoryItem, AppUser, AppUserRole,
-  DocumentFile, ActivityLog, ActivityAction 
+  DocumentFile, ActivityLog, ActivityAction, StudentRecord 
 } from './types/curriculum';
 import { 
   INITIAL_DOCUMENTS, INITIAL_SCHOOL_PROFILE, INITIAL_TEACHERS,
@@ -24,7 +24,8 @@ import {
   deleteTeacherFromFirestore, subscribeToCategories, saveCategoryToFirestore,
   deleteCategoryFromFirestore, seedFirestoreIfEmpty, seedWalasCategoriesIfMissing,
   saveUserProfileToFirestore, saveDocumentFileToFirestore, deleteDocumentFileFromFirestore,
-  addActivityLogToFirestore, subscribeToActivityLogs
+  addActivityLogToFirestore, subscribeToActivityLogs,
+  subscribeToStudents, saveStudentToFirestore, batchSaveStudentsToFirestore, deleteStudentFromFirestore
 } from './services/firestoreService';
 import { testFirestoreConnection } from './services/firebase';
 
@@ -51,6 +52,7 @@ const STORAGE_KEY = 'arsip_kurikulum_documents_v1';
 const PROFILE_STORAGE_KEY = 'arsip_kurikulum_profile_v1';
 const CATEGORIES_STORAGE_KEY = 'arsip_kurikulum_categories_v1';
 const TEACHERS_STORAGE_KEY = 'arsip_kurikulum_teachers_v1';
+const STUDENTS_STORAGE_KEY = 'arsip_kurikulum_students_v1';
 
 export default function App() {
   // Load documents from localStorage or initial seed
@@ -144,6 +146,17 @@ export default function App() {
 
   // Additional real-time homeroom documents for Guru who also serves as Wali Kelas
   const [homeroomDocs, setHomeroomDocs] = useState<CurriculumDocument[]>([]);
+
+  // Homeroom Student Roster state (with local backup)
+  const [students, setStudents] = useState<StudentRecord[]>(() => {
+    try {
+      const saved = localStorage.getItem(STUDENTS_STORAGE_KEY);
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.warn('Failed to load stored students:', e);
+    }
+    return [];
+  });
 
   // Modals state
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
@@ -326,11 +339,24 @@ export default function App() {
             setActivityLogs([]);
           };
 
+    const unsubStudents =
+      currentUser.role === 'waka_kurikulum' || (currentUser.role === 'guru' && activeHomeroomClass)
+        ? subscribeToStudents(
+            (remoteStudents) => {
+              setStudents(remoteStudents);
+            },
+            currentUser.role === 'guru' ? activeHomeroomClass : null
+          )
+        : () => {
+            setStudents([]);
+          };
+
     return () => {
       unsubCategories();
       unsubDocs();
       unsubHomeroomDocs();
       unsubLogs();
+      unsubStudents();
     };
   }, [isAuthenticated, currentUser.role, currentUser.teacherId, currentUser.displayName, academicYear, activeHomeroomClass]);
 
@@ -369,6 +395,15 @@ export default function App() {
       console.warn('Failed to persist teachers:', e);
     }
   }, [teachers]);
+
+  // Sync students to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem(STUDENTS_STORAGE_KEY, JSON.stringify(students));
+    } catch (e) {
+      console.warn('Failed to persist students:', e);
+    }
+  }, [students]);
 
   useEffect(() => {
     if (
@@ -994,6 +1029,80 @@ export default function App() {
     }
   };
 
+  // Student CRUD for Wali Kelas sub-menu
+  const handleAddStudent = async (newStudent: StudentRecord) => {
+    setStudents(prev => [...prev, newStudent]);
+    try {
+      await saveStudentToFirestore(newStudent);
+      logActivity(
+        'CONFIG',
+        newStudent.name,
+        `Menambahkan peserta didik ke Kelas ${newStudent.homeroomClass}.`
+      );
+      showToast(`Peserta didik "${newStudent.name}" tersimpan ke Cloud Real-Time.`);
+    } catch (err) {
+      console.error(err);
+      showToast('Gagal menyimpan data peserta didik ke Cloud Firestore.');
+    }
+  };
+
+  const handleUpdateStudent = async (updatedStudent: StudentRecord) => {
+    setStudents(prev => prev.map(s => (s.id === updatedStudent.id ? updatedStudent : s)));
+    try {
+      await saveStudentToFirestore(updatedStudent);
+      logActivity(
+        'CONFIG',
+        updatedStudent.name,
+        `Memperbarui data peserta didik (Kelas ${updatedStudent.homeroomClass}).`
+      );
+      showToast(`Data peserta didik "${updatedStudent.name}" diperbarui.`);
+    } catch (err) {
+      console.error(err);
+      showToast('Gagal memperbarui data peserta didik ke Cloud Firestore.');
+    }
+  };
+
+  const handleImportStudents = async (importedStudents: StudentRecord[]) => {
+    setStudents(prev => {
+      const byId = new Map(prev.map(s => [s.id, s]));
+      importedStudents.forEach(s => byId.set(s.id, s));
+      return Array.from(byId.values()).sort((a, b) => {
+        const clsCmp = (a.homeroomClass || '').localeCompare(b.homeroomClass || '', undefined, { numeric: true });
+        if (clsCmp !== 0) return clsCmp;
+        return (a.name || '').localeCompare(b.name || '', 'id');
+      });
+    });
+    try {
+      await batchSaveStudentsToFirestore(importedStudents);
+      logActivity(
+        'CONFIG',
+        `${importedStudents.length} Peserta Didik`,
+        `Mengimpor / memperbarui ${importedStudents.length} data peserta didik via Excel/CSV.`
+      );
+      showToast(`${importedStudents.length} data peserta didik tersinkron ke Cloud Real-Time.`);
+    } catch (err) {
+      console.error(err);
+      showToast('Gagal mengimpor data peserta didik ke Cloud Firestore.');
+    }
+  };
+
+  const handleDeleteStudent = async (studentId: string) => {
+    const removed = students.find(s => s.id === studentId);
+    setStudents(prev => prev.filter(s => s.id !== studentId));
+    try {
+      await deleteStudentFromFirestore(studentId);
+      logActivity(
+        'DELETE',
+        removed?.name || studentId,
+        `Menghapus data peserta didik dari Kelas ${removed?.homeroomClass || '-'}.`
+      );
+      showToast('Data peserta didik telah dihapus dari Cloud Real-Time.');
+    } catch (err) {
+      console.error(err);
+      showToast('Gagal menghapus data peserta didik dari Cloud Firestore.');
+    }
+  };
+
   // Target teacher and category for quick upload modal
   const [uploadTargetTeacherId, setUploadTargetTeacherId] = useState<string | null>(null);
   const [uploadTargetCategoryId, setUploadTargetCategoryId] = useState<string | null>(null);
@@ -1299,6 +1408,11 @@ export default function App() {
               onUpdateCategory={handleUpdateCategory}
               onDeleteCategory={handleDeleteCategory}
               onNavigateToTeachers={() => setActiveView('teachers')}
+              students={students}
+              onAddStudent={handleAddStudent}
+              onUpdateStudent={handleUpdateStudent}
+              onImportStudents={handleImportStudents}
+              onDeleteStudent={handleDeleteStudent}
             />
           )}
 
