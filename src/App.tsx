@@ -29,6 +29,7 @@ import {
   subscribeToStudents, saveStudentToFirestore, batchSaveStudentsToFirestore, deleteStudentFromFirestore
 } from './services/firestoreService';
 import { testFirestoreConnection } from './services/firebase';
+import { doesDocumentMatchTeacher } from './utils/teacherMatcher';
 
 import { LandingLoginPage } from './components/LandingLoginPage';
 import { Sidebar, SidebarActiveView } from './components/Sidebar';
@@ -1225,18 +1226,10 @@ export default function App() {
           );
         }
         if (currentUser.teacherId) {
-          if (d.teacherId) {
-            return d.teacherId === currentUser.teacherId;
-          }
           if (currentLoggedInTeacher) {
-            const samePerson =
-              d.teacherName.toLowerCase() === currentLoggedInTeacher.name.toLowerCase() ||
-              (currentLoggedInTeacher.nip !== '-' && d.teacherNip === currentLoggedInTeacher.nip);
-            const sameSubject =
-              !d.subject || d.subject.toLowerCase() === currentLoggedInTeacher.subject.toLowerCase();
-            return samePerson && sameSubject;
+            return doesDocumentMatchTeacher(d, currentLoggedInTeacher, teachers);
           }
-          return false;
+          return d.teacherId === currentUser.teacherId;
         }
         return Boolean(
           currentUser.displayName &&

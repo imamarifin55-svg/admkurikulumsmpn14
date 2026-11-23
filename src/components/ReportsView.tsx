@@ -4,9 +4,10 @@ import {
   CategoryItem, ActivityLog, ActivityAction, Teacher
 } from '../types/curriculum';
 import { CATEGORY_LABELS } from '../utils/documentClassifier';
+import { doesDocumentMatchTeacher } from '../utils/teacherMatcher';
 import { 
   Upload, FileSpreadsheet, CheckCircle2, Database, BarChart3, 
-  History, ShieldCheck, AlertTriangle, Loader2, Printer
+  History, ShieldCheck, AlertTriangle, Loader2, Printer, Users
 } from 'lucide-react';
 import { PrintReportModal } from './PrintReportModal';
 
@@ -105,6 +106,19 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
       count: matching.length,
       ganjil: matching.filter(d => d.semester === 'ganjil').length,
       genap: matching.filter(d => d.semester === 'genap').length
+    };
+  });
+
+  const teacherStats = teachers.map(teacher => {
+    const tDocs = scopedDocs.filter(d => doesDocumentMatchTeacher(d, teacher, teachers));
+    return {
+      teacher,
+      ganjil: tDocs.filter(d => d.semester === 'ganjil').length,
+      genap: tDocs.filter(d => d.semester === 'genap').length,
+      approved: tDocs.filter(d => d.status === 'disahkan').length,
+      verified: tDocs.filter(d => d.status === 'diverifikasi').length,
+      pending: tDocs.filter(d => d.status === 'diajukan' || d.status === 'perlu_revisi').length,
+      total: tDocs.length
     };
   });
 
@@ -335,36 +349,36 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
 
       {/* Overview Stat Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-xs">
-          <div className="text-slate-500 font-medium mb-1">Total Arsip Terdata</div>
-          <div className="text-2xl font-bold text-slate-900 font-mono tabular-nums">{totalDocs}</div>
-          <div className="text-[11px] text-slate-400 mt-1">
+        <div className="bg-gradient-to-br from-[#062448] via-[#0a4573] to-[#0e6a94] rounded-xl border border-sky-300/25 p-4 shadow-sm text-white">
+          <div className="text-sky-100/90 font-medium mb-1">Total Arsip Terdata</div>
+          <div className="text-2xl font-bold text-white font-mono tabular-nums">{totalDocs}</div>
+          <div className="text-[11px] text-sky-200/80 mt-1">
             {ganjilDocs.length} Ganjil · {genapDocs.length} Genap
           </div>
         </div>
 
-        <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-xs">
-          <div className="text-slate-500 font-medium mb-1">Disahkan Kepala Sekolah</div>
-          <div className="text-2xl font-bold text-emerald-600 font-mono tabular-nums">{approvedDocs.length}</div>
-          <div className="text-[11px] text-slate-400 mt-1">
+        <div className="bg-gradient-to-br from-[#093660] via-[#0b5485] to-[#0f769a] rounded-xl border border-sky-300/25 p-4 shadow-sm text-white">
+          <div className="text-sky-100/90 font-medium mb-1">Disahkan Kepala Sekolah</div>
+          <div className="text-2xl font-bold text-emerald-300 font-mono tabular-nums">{approvedDocs.length}</div>
+          <div className="text-[11px] text-sky-200/80 mt-1">
             {totalDocs > 0 ? `${Math.round((approvedDocs.length / totalDocs) * 100)}% dari total dokumen` : '0%'}
           </div>
         </div>
 
-        <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-xs">
-          <div className="text-slate-500 font-medium mb-1">Terverifikasi Waka</div>
-          <div className="text-2xl font-bold text-blue-600 font-mono tabular-nums">{verifiedDocs.length}</div>
-          <div className="text-[11px] text-slate-400 mt-1">
+        <div className="bg-gradient-to-br from-[#0a4170] via-[#0d6291] to-[#1281a3] rounded-xl border border-sky-300/25 p-4 shadow-sm text-white">
+          <div className="text-sky-100/90 font-medium mb-1">Terverifikasi Waka</div>
+          <div className="text-2xl font-bold text-cyan-200 font-mono tabular-nums">{verifiedDocs.length}</div>
+          <div className="text-[11px] text-sky-200/80 mt-1">
             Siap diterbitkan SK Pengesahan
           </div>
         </div>
 
-        <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-xs">
-          <div className="text-slate-500 font-medium mb-1">Menunggu Telaah &amp; Revisi</div>
-          <div className="text-2xl font-bold text-amber-600 font-mono tabular-nums">
+        <div className="bg-gradient-to-br from-[#08385e] via-[#0c567d] to-[#0e7490] rounded-xl border border-cyan-300/25 p-4 shadow-sm text-white">
+          <div className="text-sky-100/90 font-medium mb-1">Menunggu Telaah &amp; Revisi</div>
+          <div className="text-2xl font-bold text-amber-300 font-mono tabular-nums">
             {pendingDocs.length + revisionDocs.length}
           </div>
-          <div className="text-[11px] text-slate-400 mt-1">
+          <div className="text-[11px] text-sky-200/80 mt-1">
             {pendingDocs.length} antrian · {revisionDocs.length} revisi
           </div>
         </div>
@@ -419,6 +433,59 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
           </table>
         </div>
       </div>
+
+      {/* Teacher & Subject Breakdown Table */}
+      {teachers.length > 0 && (
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="p-4 border-b border-slate-200 bg-slate-50/50 flex items-center justify-between">
+            <h3 className="font-bold text-slate-900 flex items-center gap-2">
+              <Users className="w-4 h-4 text-indigo-600" />
+              Rekapitulasi Jumlah Laporan per Guru &amp; Mata Pelajaran
+            </h3>
+            <span className="text-slate-500 font-mono">
+              {teachers.length} Entri Guru/Mapel
+            </span>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-slate-100/75 border-b border-slate-200 text-slate-700 font-semibold">
+                  <th className="py-2.5 px-4">Guru Pengampu</th>
+                  <th className="py-2.5 px-3">Mata Pelajaran</th>
+                  <th className="py-2.5 px-3 text-center">Ganjil</th>
+                  <th className="py-2.5 px-3 text-center">Genap</th>
+                  <th className="py-2.5 px-3 text-center">Disahkan</th>
+                  <th className="py-2.5 px-3 text-center">Verifikasi</th>
+                  <th className="py-2.5 px-3 text-center">Total Unggahan</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200">
+                {teacherStats.map(({ teacher, ganjil, genap, approved, verified, total }) => (
+                  <tr key={teacher.id} className="hover:bg-slate-50/80 transition-colors">
+                    <td className="py-2.5 px-4">
+                      <div className="font-semibold text-slate-800">{teacher.name}</div>
+                      <div className="text-[10px] font-mono text-slate-400">NIP. {teacher.nip || '-'}</div>
+                    </td>
+                    <td className="py-2.5 px-3 font-medium text-indigo-700">{teacher.subject}</td>
+                    <td className="py-2.5 px-3 text-center font-mono tabular-nums">{ganjil}</td>
+                    <td className="py-2.5 px-3 text-center font-mono tabular-nums">{genap}</td>
+                    <td className="py-2.5 px-3 text-center font-mono tabular-nums text-emerald-700 font-semibold">
+                      {approved}
+                    </td>
+                    <td className="py-2.5 px-3 text-center font-mono tabular-nums text-blue-700">
+                      {verified}
+                    </td>
+                    <td className="py-2.5 px-3 text-center font-mono font-bold tabular-nums text-slate-900">
+                      {total}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Real-Time Audit Log Panel */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">

@@ -278,28 +278,28 @@ export const WaliKelasView: React.FC<WaliKelasViewProps> = ({
         </div>
 
         {/* Summary Metrics Strip */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-5 pt-5 border-t border-slate-200">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-5 rounded-xl bg-gradient-to-r from-[#062448] via-[#0b4b7a] to-[#0e7490] border border-sky-300/25 p-4 text-white shadow-xs">
           <div>
-            <div className="text-[11px] text-slate-500 font-medium">Kelengkapan Matriks</div>
-            <div className="text-lg font-bold text-slate-900 font-mono tabular-nums mt-0.5">
-              {completionPercent}% <span className="text-xs font-normal text-slate-500">({filledCells}/{totalCells})</span>
+            <div className="text-[11px] text-sky-100/85 font-medium">Kelengkapan Matriks</div>
+            <div className="text-lg font-bold text-white font-mono tabular-nums mt-0.5">
+              {completionPercent}% <span className="text-xs font-normal text-sky-200/85">({filledCells}/{totalCells})</span>
             </div>
           </div>
           <div>
-            <div className="text-[11px] text-slate-500 font-medium">Menunggu Telaah</div>
-            <div className="text-lg font-bold text-amber-700 font-mono tabular-nums mt-0.5">
+            <div className="text-[11px] text-sky-100/85 font-medium">Menunggu Telaah</div>
+            <div className="text-lg font-bold text-amber-300 font-mono tabular-nums mt-0.5">
               {pendingCount} berkas
             </div>
           </div>
           <div>
-            <div className="text-[11px] text-slate-500 font-medium">Terverifikasi Waka</div>
-            <div className="text-lg font-bold text-indigo-700 font-mono tabular-nums mt-0.5">
+            <div className="text-[11px] text-sky-100/85 font-medium">Terverifikasi Waka</div>
+            <div className="text-lg font-bold text-cyan-200 font-mono tabular-nums mt-0.5">
               {verifiedCount} berkas
             </div>
           </div>
           <div>
-            <div className="text-[11px] text-slate-500 font-medium">Disahkan Kepsek</div>
-            <div className="text-lg font-bold text-emerald-700 font-mono tabular-nums mt-0.5">
+            <div className="text-[11px] text-sky-100/85 font-medium">Disahkan Kepsek</div>
+            <div className="text-lg font-bold text-emerald-300 font-mono tabular-nums mt-0.5">
               {approvedCount} berkas
             </div>
           </div>

@@ -369,38 +369,38 @@ export const SuratIzinView: React.FC<SuratIzinViewProps> = ({
 
       {/* 4-Column Summary Strip */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white rounded-xl border border-slate-200 p-4">
-          <div className="text-xs font-medium text-slate-500">Total Surat Izin</div>
-          <div className="text-2xl font-bold font-mono tabular-nums text-slate-900 mt-1">
+        <div className="bg-gradient-to-br from-[#062448] via-[#0a4573] to-[#0e6a94] rounded-xl border border-sky-300/25 p-4 shadow-sm text-white">
+          <div className="text-xs font-medium text-sky-100/90">Total Surat Izin</div>
+          <div className="text-2xl font-bold font-mono tabular-nums text-white mt-1">
             {stats.total}
           </div>
-          <div className="text-[11px] text-slate-400 mt-0.5">
+          <div className="text-[11px] text-sky-200/80 mt-0.5">
             Sem. {currentSemester === 'ganjil' ? 'Ganjil' : 'Genap'} · {academicYear}
           </div>
         </div>
 
-        <div className="bg-white rounded-xl border border-slate-200 p-4">
-          <div className="text-xs font-medium text-amber-700">Menunggu Telaah</div>
-          <div className="text-2xl font-bold font-mono tabular-nums text-amber-700 mt-1">
+        <div className="bg-gradient-to-br from-[#093660] via-[#0b5485] to-[#0f769a] rounded-xl border border-sky-300/25 p-4 shadow-sm text-white">
+          <div className="text-xs font-medium text-sky-100/90">Menunggu Telaah</div>
+          <div className="text-2xl font-bold font-mono tabular-nums text-amber-300 mt-1">
             {stats.pending}
           </div>
-          <div className="text-[11px] text-slate-400 mt-0.5">Perlu tinjauan Waka</div>
+          <div className="text-[11px] text-sky-200/80 mt-0.5">Perlu tinjauan Waka</div>
         </div>
 
-        <div className="bg-white rounded-xl border border-slate-200 p-4">
-          <div className="text-xs font-medium text-emerald-700">Disetujui / Disahkan</div>
-          <div className="text-2xl font-bold font-mono tabular-nums text-emerald-700 mt-1">
+        <div className="bg-gradient-to-br from-[#0a4170] via-[#0d6291] to-[#1281a3] rounded-xl border border-sky-300/25 p-4 shadow-sm text-white">
+          <div className="text-xs font-medium text-sky-100/90">Disetujui / Disahkan</div>
+          <div className="text-2xl font-bold font-mono tabular-nums text-emerald-300 mt-1">
             {stats.approved}
           </div>
-          <div className="text-[11px] text-slate-400 mt-0.5">Terverifikasi resmi</div>
+          <div className="text-[11px] text-sky-200/80 mt-0.5">Terverifikasi resmi</div>
         </div>
 
-        <div className="bg-white rounded-xl border border-slate-200 p-4">
-          <div className="text-xs font-medium text-rose-700">Perlu Revisi</div>
-          <div className="text-2xl font-bold font-mono tabular-nums text-rose-700 mt-1">
+        <div className="bg-gradient-to-br from-[#08385e] via-[#0c567d] to-[#0e7490] rounded-xl border border-cyan-300/25 p-4 shadow-sm text-white">
+          <div className="text-xs font-medium text-sky-100/90">Perlu Revisi</div>
+          <div className="text-2xl font-bold font-mono tabular-nums text-rose-200 mt-1">
             {stats.revision}
           </div>
-          <div className="text-[11px] text-slate-400 mt-0.5">Menunggu perbaikan berkas</div>
+          <div className="text-[11px] text-sky-200/80 mt-0.5">Menunggu perbaikan berkas</div>
         </div>
       </div>
 

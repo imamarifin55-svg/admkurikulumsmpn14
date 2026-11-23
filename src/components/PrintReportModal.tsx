@@ -9,6 +9,7 @@ import {
   Teacher
 } from '../types/curriculum';
 import { CATEGORY_LABELS } from '../utils/documentClassifier';
+import { doesDocumentMatchTeacher } from '../utils/teacherMatcher';
 import { ArrowLeft, Printer, QrCode, ShieldCheck } from 'lucide-react';
 import { SchoolLogoImg } from './SchoolLogoImg';
 
@@ -113,9 +114,7 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
 
   const teacherStats = useMemo(() => {
     return teachers.map(teacher => {
-      const tDocs = filteredDocs.filter(
-        d => d.teacherId === teacher.id || (teacher.nip && d.teacherNip === teacher.nip)
-      );
+      const tDocs = filteredDocs.filter(d => doesDocumentMatchTeacher(d, teacher, teachers));
       const approved = tDocs.filter(d => d.status === 'disahkan').length;
       const verified = tDocs.filter(d => d.status === 'diverifikasi').length;
       const pending = tDocs.filter(d => d.status === 'diajukan' || d.status === 'perlu_revisi').length;

@@ -1021,26 +1021,51 @@ export const AutoUploadModal: React.FC<AutoUploadModalProps> = ({
                               <option value="genap">Genap</option>
                             </select>
 
-                            <select
-                              value={item.subject}
-                              onChange={(e) => {
-                                const nextSubject = e.target.value;
-                                setStagedFiles(prev =>
-                                  prev.map(f => (f.id === item.id ? { ...f, subject: nextSubject } : f))
-                                );
-                              }}
-                              className="text-[11px] font-semibold bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-slate-800 focus:outline-none focus:border-indigo-500 max-w-[180px]"
-                              title="Pilih Mata Pelajaran"
-                            >
-                              {item.subject && !Object.values(SUBJECT_DICTIONARY).some(s => s.standardName === item.subject) && (
-                                <option value={item.subject}>{item.subject}</option>
-                              )}
-                              {Object.values(SUBJECT_DICTIONARY).map(sub => (
-                                <option key={sub.standardName} value={sub.standardName}>
-                                  {sub.standardName}
-                                </option>
-                              ))}
-                            </select>
+                            {isWakaUser ? (
+                              <select
+                                value={item.subject}
+                                onChange={(e) => {
+                                  const nextSubject = e.target.value;
+                                  setStagedFiles(prev =>
+                                    prev.map(f => {
+                                      if (f.id !== item.id) return f;
+                                      const currentRow = teachers.find(t => t.id === f.teacherId);
+                                      const matchingSibling = currentRow
+                                        ? teachers.find(
+                                            t =>
+                                              (t.name.trim().toLowerCase() === currentRow.name.trim().toLowerCase() ||
+                                                (currentRow.nip !== '-' && t.nip === currentRow.nip)) &&
+                                              t.subject.trim().toLowerCase() === nextSubject.trim().toLowerCase()
+                                          )
+                                        : undefined;
+                                      return {
+                                        ...f,
+                                        subject: nextSubject,
+                                        teacherId: matchingSibling ? matchingSibling.id : f.teacherId
+                                      };
+                                    })
+                                  );
+                                }}
+                                className="text-[11px] font-semibold bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-slate-800 focus:outline-none focus:border-indigo-500 max-w-[180px]"
+                                title="Pilih Mata Pelajaran"
+                              >
+                                {item.subject && !Object.values(SUBJECT_DICTIONARY).some(s => s.standardName === item.subject) && (
+                                  <option value={item.subject}>{item.subject}</option>
+                                )}
+                                {Object.values(SUBJECT_DICTIONARY).map(sub => (
+                                  <option key={sub.standardName} value={sub.standardName}>
+                                    {sub.standardName}
+                                  </option>
+                                ))}
+                              </select>
+                            ) : (
+                              <span
+                                className="text-[11px] font-semibold bg-slate-100 border border-slate-200 rounded-lg px-2 py-1 text-slate-700 max-w-[180px] truncate"
+                                title="Mata pelajaran akun aktif"
+                              >
+                                {item.subject}
+                              </span>
+                            )}
 
                             {isWakaUser && (
                               <select

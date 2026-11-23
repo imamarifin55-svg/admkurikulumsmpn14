@@ -798,32 +798,32 @@ export const WalasStudentsView: React.FC<WalasStudentsViewProps> = ({
         </div>
 
         {/* Summary Numbers */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-4 border-t border-slate-200">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-4 rounded-xl bg-gradient-to-r from-[#062448] via-[#0b4b7a] to-[#0e7490] border border-sky-300/25 p-4 text-white shadow-xs">
           <div>
-            <div className="text-[11px] text-slate-500 font-medium">Total Ditampilkan</div>
-            <div className="text-lg font-bold text-slate-900 font-mono tabular-nums mt-0.5">
-              {filteredStudents.length} <span className="text-xs font-normal text-slate-500">siswa</span>
+            <div className="text-[11px] text-sky-100/85 font-medium">Total Ditampilkan</div>
+            <div className="text-lg font-bold text-white font-mono tabular-nums mt-0.5">
+              {filteredStudents.length} <span className="text-xs font-normal text-sky-200/85">siswa</span>
             </div>
           </div>
           <div>
-            <div className="text-[11px] text-slate-500 font-medium">Laki-laki / Perempuan</div>
-            <div className="text-lg font-bold text-slate-900 font-mono tabular-nums mt-0.5">
-              <span className="text-blue-700">{maleCount} L</span>
-              <span className="text-slate-300 mx-1.5">/</span>
-              <span className="text-rose-700">{femaleCount} P</span>
+            <div className="text-[11px] text-sky-100/85 font-medium">Laki-laki / Perempuan</div>
+            <div className="text-lg font-bold text-white font-mono tabular-nums mt-0.5">
+              <span className="text-sky-200">{maleCount} L</span>
+              <span className="text-sky-300/50 mx-1.5">/</span>
+              <span className="text-cyan-200">{femaleCount} P</span>
             </div>
           </div>
           <div>
-            <div className="text-[11px] text-slate-500 font-medium">Status Aktif</div>
-            <div className="text-lg font-bold text-emerald-700 font-mono tabular-nums mt-0.5">
-              {activeCount} <span className="text-xs font-normal text-slate-500">siswa</span>
+            <div className="text-[11px] text-sky-100/85 font-medium">Status Aktif</div>
+            <div className="text-lg font-bold text-emerald-300 font-mono tabular-nums mt-0.5">
+              {activeCount} <span className="text-xs font-normal text-sky-200/85">siswa</span>
             </div>
           </div>
           <div>
-            <div className="text-[11px] text-slate-500 font-medium">
+            <div className="text-[11px] text-sky-100/85 font-medium">
               {isWaka ? 'Kelas Terdata' : 'Kelas Binaan'}
             </div>
-            <div className="text-lg font-bold text-slate-900 font-mono tabular-nums mt-0.5">
+            <div className="text-lg font-bold text-white font-mono tabular-nums mt-0.5">
               {isWaka ? `${distinctClassCount} / 12` : `Kelas ${activeHomeroomClass || '-'}`}
             </div>
           </div>

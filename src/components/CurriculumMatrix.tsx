@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { CurriculumDocument, DocumentCategory, Teacher, SemesterType, CategoryItem } from '../types/curriculum';
+import { doesDocumentMatchTeacher } from '../utils/teacherMatcher';
 import { 
   CheckCircle2, Clock, AlertTriangle, ShieldCheck, Plus, 
   Pencil, Eye, Trash2, FileText 
@@ -69,39 +70,9 @@ export const CurriculumMatrix: React.FC<CurriculumMatrixProps> = ({
       );
     }
 
-    const samePersonTeachers = teachers.filter(
-      t =>
-        t.name.toLowerCase() === teacher.name.toLowerCase() ||
-        (teacher.nip && teacher.nip !== '-' && t.nip === teacher.nip)
+    return semesterDocs.find(
+      (d) => d.category === category && doesDocumentMatchTeacher(d, teacher, teachers)
     );
-    const hasMultipleSubjects = samePersonTeachers.length > 1;
-
-    return semesterDocs.find((d) => {
-      if (d.category !== category) return false;
-
-      if (d.teacherId) {
-        if (d.teacherId !== teacher.id) return false;
-        if (
-          hasMultipleSubjects &&
-          d.subject &&
-          teacher.subject &&
-          d.subject.toLowerCase() !== teacher.subject.toLowerCase()
-        ) {
-          return false;
-        }
-        return true;
-      }
-
-      // Legacy fallback only when doc has no teacherId
-      const matchesPerson =
-        d.teacherName === teacher.name ||
-        (teacher.nip && teacher.nip !== '-' && d.teacherNip === teacher.nip);
-      if (!matchesPerson) return false;
-      if (hasMultipleSubjects && d.subject && teacher.subject) {
-        return d.subject.toLowerCase() === teacher.subject.toLowerCase();
-      }
-      return true;
-    });
   };
 
   // Calculate pending reviews

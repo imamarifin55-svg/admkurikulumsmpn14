@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { Teacher, SchoolProfile, CurriculumDocument, SCHOOL_CLASS_GROUPS, SCHOOL_CLASS_VALUES } from '../types/curriculum';
 import { SUBJECT_DICTIONARY } from '../utils/documentClassifier';
+import { doesDocumentMatchTeacher } from '../utils/teacherMatcher';
 
 interface TeacherManagementViewProps {
   teachers: Teacher[];
@@ -131,37 +132,9 @@ export const TeacherManagementView: React.FC<TeacherManagementViewProps> = ({
   };
 
   const getTeacherDocsCount = (teacher: Teacher) => {
-    const samePersonTeachers = teachers.filter(
-      t =>
-        t.name.toLowerCase() === teacher.name.toLowerCase() ||
-        (teacher.nip !== '-' && t.nip === teacher.nip)
-    );
-    const hasMultipleSubjects = samePersonTeachers.length > 1;
-
-    return documents.filter((d) => {
-      if ((d.archiveScope || 'kurikulum') !== 'kurikulum') return false;
-      if (d.teacherId) {
-        if (d.teacherId !== teacher.id) return false;
-        if (
-          hasMultipleSubjects &&
-          d.subject &&
-          teacher.subject &&
-          d.subject.toLowerCase() !== teacher.subject.toLowerCase()
-        ) {
-          return false;
-        }
-        return true;
-      }
-
-      const matchesPerson =
-        d.teacherName === teacher.name ||
-        (teacher.nip !== '-' && d.teacherNip === teacher.nip);
-      if (!matchesPerson) return false;
-      if (hasMultipleSubjects && d.subject && teacher.subject) {
-        return d.subject.toLowerCase() === teacher.subject.toLowerCase();
-      }
-      return true;
-    }).length;
+    return documents.filter(
+      (d) => (d.archiveScope || 'kurikulum') === 'kurikulum' && doesDocumentMatchTeacher(d, teacher, teachers)
+    ).length;
   };
 
   const filteredTeachers = teachers.filter((t) => {
