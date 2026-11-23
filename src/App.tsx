@@ -1550,6 +1550,7 @@ export default function App() {
               documents={curriculumVisibleDocuments}
               profile={profile}
               categories={curriculumCategories}
+              teachers={teachers}
               activityLogs={activityLogs}
               academicYear={academicYear}
               onRestoreBackup={handleRestoreBackup}

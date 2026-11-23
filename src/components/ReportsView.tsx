@@ -1,18 +1,20 @@
 import React, { useRef, useState } from 'react';
 import { 
   CurriculumDocument, SchoolProfile,
-  CategoryItem, ActivityLog, ActivityAction 
+  CategoryItem, ActivityLog, ActivityAction, Teacher
 } from '../types/curriculum';
 import { CATEGORY_LABELS } from '../utils/documentClassifier';
 import { 
   Upload, FileSpreadsheet, CheckCircle2, Database, BarChart3, 
-  History, ShieldCheck, AlertTriangle, Loader2 
+  History, ShieldCheck, AlertTriangle, Loader2, Printer
 } from 'lucide-react';
+import { PrintReportModal } from './PrintReportModal';
 
 interface ReportsViewProps {
   documents: CurriculumDocument[];
   profile: SchoolProfile;
   categories: CategoryItem[];
+  teachers?: Teacher[];
   activityLogs: ActivityLog[];
   academicYear: string;
   onRestoreBackup: (docs: CurriculumDocument[]) => void;
@@ -36,6 +38,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
   documents,
   profile,
   categories,
+  teachers = [],
   activityLogs,
   academicYear,
   onRestoreBackup,
@@ -47,6 +50,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
   const [isLoadingAllYears, setIsLoadingAllYears] = useState<boolean>(false);
   const [pendingRestoreDocs, setPendingRestoreDocs] = useState<CurriculumDocument[] | null>(null);
   const [restoreFeedback, setRestoreFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState<boolean>(false);
 
   const handleSelectAllYears = async () => {
     setScopeMode('all');
@@ -54,7 +58,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
       try {
         setIsLoadingAllYears(true);
         const fetched = await onFetchAllYearsDocuments();
-        setAllYearsDocs(fetched);
+        setAllYearsDocs(fetched.filter(d => (d.archiveScope || 'kurikulum') === 'kurikulum'));
       } catch {
         setRestoreFeedback({ type: 'error', text: 'Gagal memuat arsip semua tahun pelajaran dari Cloud.' });
       } finally {
@@ -248,6 +252,15 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                 <span>Semua Tahun</span>
               </button>
             </div>
+
+            <button
+              type="button"
+              onClick={() => setIsPrintModalOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg shadow-xs transition-colors cursor-pointer"
+            >
+              <Printer className="w-4 h-4 text-emerald-400" />
+              <span>Cetak Laporan</span>
+            </button>
 
             <button
               onClick={handleExportCSV}
@@ -476,6 +489,17 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
           </div>
         )}
       </div>
+
+      <PrintReportModal
+        isOpen={isPrintModalOpen}
+        onClose={() => setIsPrintModalOpen(false)}
+        documents={scopedDocs}
+        profile={profile}
+        categories={categories}
+        teachers={teachers}
+        activityLogs={activityLogs}
+        scopeLabel={scopeMode === 'active_year' ? `TP ${academicYear}` : 'Semua Tahun Pelajaran'}
+      />
     </div>
   );
 };
