@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   Archive, ListFilter, LayoutGrid, ShieldCheck, FileSpreadsheet, 
   Plus, Building2, X, FolderKanban, Users, UserCheck, ChevronDown,
-  BookOpenCheck, MailCheck, FolderArchive
+  BookOpenCheck, MailCheck, FolderArchive, BookUser, GraduationCap
 } from 'lucide-react';
 import { AppUser, SchoolProfile, SemesterType, Teacher } from '../types/curriculum';
 import { SchoolLogoImg } from './SchoolLogoImg';
@@ -17,7 +17,10 @@ export type SidebarActiveView =
   | 'profile'
   | 'categories'
   | 'teachers'
-  | 'wali_kelas';
+  | 'wali_kelas'
+  | 'walas_students'
+  | 'buku_induk'
+  | 'walas_categories';
 
 interface SidebarProps {
   activeView: SidebarActiveView;
@@ -40,6 +43,8 @@ interface SidebarProps {
   isHomeroomGuru?: boolean;
   homeroomClass?: string | null;
   walasDocsCount?: number;
+  walasStudentsCount?: number;
+  walasCategoriesCount?: number;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -62,20 +67,35 @@ export const Sidebar: React.FC<SidebarProps> = ({
   teachers,
   isHomeroomGuru = false,
   homeroomClass,
-  walasDocsCount = 0
+  walasDocsCount = 0,
+  walasStudentsCount = 0,
+  walasCategoriesCount = 0
 }) => {
   const currentTeacher = teachers.find(t => t.id === currentUser.teacherId);
   const isGuru = currentUser.role === 'guru';
   const showWalasMenu = !isGuru || isHomeroomGuru;
   const isArsipGuruChildActive =
     activeView === 'list' || activeView === 'surat_izin' || activeView === 'lainnya';
+  const isArsipWalasChildActive =
+    activeView === 'wali_kelas' ||
+    activeView === 'walas_students' ||
+    activeView === 'buku_induk' ||
+    activeView === 'walas_categories';
+
   const [isArsipGuruOpen, setIsArsipGuruOpen] = useState<boolean>(true);
+  const [isArsipWalasOpen, setIsArsipWalasOpen] = useState<boolean>(true);
 
   useEffect(() => {
     if (isArsipGuruChildActive) {
       setIsArsipGuruOpen(true);
     }
   }, [isArsipGuruChildActive]);
+
+  useEffect(() => {
+    if (isArsipWalasChildActive) {
+      setIsArsipWalasOpen(true);
+    }
+  }, [isArsipWalasChildActive]);
 
   const arsipGuruSubItems = [
     {
@@ -101,57 +121,81 @@ export const Sidebar: React.FC<SidebarProps> = ({
     }
   ];
 
+  const arsipWalasSubItems = [
+    {
+      id: 'wali_kelas' as const,
+      label: 'Adm Wali Kelas',
+      sublabel: isGuru ? `Matriks & Arsip ${homeroomClass || ''}` : 'Matriks & Validasi Kelas',
+      icon: UserCheck,
+      badge: walasDocsCount
+    },
+    {
+      id: 'walas_students' as const,
+      label: 'Peserta Didik',
+      sublabel: isGuru ? `Siswa Kelas ${homeroomClass || ''}` : 'Daftar & Impor Siswa',
+      icon: GraduationCap,
+      badge: walasStudentsCount
+    },
+    {
+      id: 'buku_induk' as const,
+      label: 'Buku Induk',
+      sublabel: 'Register Induk & Cetak A4',
+      icon: BookUser,
+      badge: walasStudentsCount
+    },
+    ...(!isGuru ? [
+      {
+        id: 'walas_categories' as const,
+        label: 'Kategori Walas',
+        sublabel: 'Atur Dokumen Wali Kelas',
+        icon: FolderKanban,
+        badge: walasCategoriesCount
+      }
+    ] : [])
+  ];
+
   const arsipGuruTotalBadge = semesterDocsCount + suratIzinCount + lainnyaCount;
 
-  const afterArsipMenuItems = [
-    ...(showWalasMenu ? [
-      {
-        id: 'wali_kelas' as const,
-        label: 'Arsip Wali Kelas',
-        sublabel: isGuru ? `Kelas Binaan ${homeroomClass || ''}` : 'Monitoring & Validasi Kelas',
-        icon: UserCheck,
-        badge: walasDocsCount
-      }
-    ] : []),
-    ...(isGuru ? [] : [
-      {
-        id: 'supervision' as const,
-        label: 'Supervisi & Telaah',
-        sublabel: 'Verifikasi & Pengesahan SK',
-        icon: ShieldCheck,
-        badge: pendingCount > 0 ? `${pendingCount} Baru` : null,
-        badgeColor: 'bg-amber-500/20 text-amber-300 border-amber-400/30'
-      },
-      {
-        id: 'reports' as const,
-        label: 'Rekapitulasi & Laporan',
-        sublabel: 'Ekspor CSV & Cadangan Data',
-        icon: FileSpreadsheet,
-        badge: null
-      },
-      {
-        id: 'teachers' as const,
-        label: 'Data Guru & Waka',
-        sublabel: 'Kelola Nama Guru & Pejabat',
-        icon: Users,
-        badge: teachers.length
-      },
-      {
-        id: 'categories' as const,
-        label: 'Kelola Kategori',
-        sublabel: 'Perangkat Pembelajaran',
-        icon: FolderKanban,
-        badge: null
-      },
-      {
-        id: 'profile' as const,
-        label: 'Profil Sekolah & Logo',
-        sublabel: 'Identitas Kop & Pejabat',
-        icon: Building2,
-        badge: null
-      }
-    ])
-  ];
+  const afterArsipMenuItems = isGuru
+    ? []
+    : [
+        {
+          id: 'supervision' as const,
+          label: 'Supervisi & Telaah',
+          sublabel: 'Verifikasi & Pengesahan SK',
+          icon: ShieldCheck,
+          badge: pendingCount > 0 ? `${pendingCount} Baru` : null,
+          badgeColor: 'bg-amber-500/20 text-amber-300 border-amber-400/30'
+        },
+        {
+          id: 'reports' as const,
+          label: 'Rekapitulasi & Laporan',
+          sublabel: 'Ekspor CSV & Cadangan Data',
+          icon: FileSpreadsheet,
+          badge: null
+        },
+        {
+          id: 'teachers' as const,
+          label: 'Data Guru & Waka',
+          sublabel: 'Kelola Nama Guru & Pejabat',
+          icon: Users,
+          badge: teachers.length
+        },
+        {
+          id: 'categories' as const,
+          label: 'Kelola Kategori',
+          sublabel: 'Perangkat Pembelajaran',
+          icon: FolderKanban,
+          badge: null
+        },
+        {
+          id: 'profile' as const,
+          label: 'Profil Sekolah & Logo',
+          sublabel: 'Identitas Kop & Pejabat',
+          icon: Building2,
+          badge: null
+        }
+      ];
 
   return (
     <>
@@ -241,15 +285,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
               if (isOpenMobile) onCloseMobile();
             }}
             className={`w-full flex items-center justify-center gap-2 py-2.5 px-4 text-slate-950 text-xs font-bold rounded-xl shadow-sm transition-all active:scale-[0.99] focus-visible:outline-2 focus-visible:outline-sky-300 cursor-pointer ${
-              isGuru || activeView === 'wali_kelas'
+              isGuru || isArsipWalasChildActive
                 ? 'bg-gradient-to-r from-teal-300 to-cyan-300 hover:from-teal-200 hover:to-cyan-200'
                 : 'bg-gradient-to-r from-sky-300 to-cyan-300 hover:from-sky-200 hover:to-cyan-200'
             }`}
           >
             <Plus className="w-4 h-4 stroke-[2.5]" />
             <span>
-              {activeView === 'wali_kelas'
+              {activeView === 'wali_kelas' || activeView === 'walas_categories'
                 ? 'Unggah Arsip Wali Kelas'
+                : activeView === 'walas_students'
+                ? 'Tambah Peserta Didik'
+                : activeView === 'buku_induk'
+                ? 'Tambah Data Induk'
                 : activeView === 'surat_izin'
                 ? isGuru ? 'Ajukan Surat Izin Guru' : 'Catat Surat Izin Guru'
                 : activeView === 'lainnya'
@@ -419,7 +467,117 @@ export const Sidebar: React.FC<SidebarProps> = ({
             )}
           </div>
 
-          {/* 3. Remaining Menu Items */}
+          {/* 3. Arsip Wali Kelas (Expandable Dropdown Sub Menu) */}
+          {showWalasMenu && (
+            <div className="space-y-1">
+              <button
+                type="button"
+                onClick={() => setIsArsipWalasOpen(prev => !prev)}
+                aria-expanded={isArsipWalasOpen}
+                className={`group w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl text-left transition-all cursor-pointer ${
+                  isArsipWalasChildActive
+                    ? isGuru
+                      ? 'bg-gradient-to-r from-teal-400/20 to-cyan-400/10 text-white font-semibold border border-teal-200/30'
+                      : 'bg-gradient-to-r from-sky-400/20 to-cyan-400/10 text-white font-semibold border border-sky-200/30'
+                    : 'text-sky-100/85 hover:bg-white/10 hover:text-white border border-transparent'
+                }`}
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div
+                    className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
+                      isArsipWalasChildActive
+                        ? isGuru
+                          ? 'bg-gradient-to-br from-teal-300 to-cyan-300 text-slate-950 shadow-xs'
+                          : 'bg-gradient-to-br from-sky-300 to-cyan-300 text-slate-950 shadow-xs'
+                        : 'bg-white/10 text-sky-200 group-hover:bg-white/15 group-hover:text-white'
+                    }`}
+                  >
+                    <UserCheck className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-xs font-semibold leading-snug tracking-wide truncate">
+                      Arsip Wali Kelas
+                    </div>
+                    <div className={`text-[10px] leading-none truncate mt-0.5 ${
+                      isArsipWalasChildActive
+                        ? isGuru ? 'text-teal-100' : 'text-sky-100'
+                        : 'text-sky-200/70'
+                    }`}>
+                      {isGuru ? `Kelas Binaan ${homeroomClass || ''}` : 'Walas, Siswa & Buku Induk'}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md border tabular-nums bg-[#052344]/75 text-sky-100 border-sky-300/25">
+                    {walasDocsCount}
+                  </span>
+                  <ChevronDown
+                    className={`w-4 h-4 text-sky-200 transition-transform duration-200 ${
+                      isArsipWalasOpen ? 'rotate-180' : ''
+                    }`}
+                  />
+                </div>
+              </button>
+
+              {isArsipWalasOpen && (
+                <div className="ml-4 pl-2.5 border-l border-sky-300/25 space-y-1 py-0.5">
+                  {arsipWalasSubItems.map((sub) => {
+                    const isSubActive = activeView === sub.id;
+                    const SubIcon = sub.icon;
+                    return (
+                      <button
+                        key={sub.id}
+                        type="button"
+                        onClick={() => {
+                          onViewChange(sub.id);
+                          if (isOpenMobile) onCloseMobile();
+                        }}
+                        className={`group w-full flex items-center justify-between gap-2 px-2.5 py-2 rounded-lg text-left transition-all cursor-pointer ${
+                          isSubActive
+                            ? isGuru
+                              ? 'bg-teal-400/25 text-white font-semibold border border-teal-200/40'
+                              : 'bg-sky-400/25 text-white font-semibold border border-sky-200/40'
+                            : 'text-sky-100/85 hover:bg-white/10 hover:text-white border border-transparent'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <SubIcon
+                            className={`w-4 h-4 shrink-0 ${
+                              isSubActive
+                                ? isGuru ? 'text-teal-200' : 'text-sky-200'
+                                : 'text-sky-200/75 group-hover:text-white'
+                            }`}
+                          />
+                          <div className="min-w-0">
+                            <div className="text-xs font-semibold leading-tight truncate">
+                              {sub.label}
+                            </div>
+                            <div className="text-[10px] text-sky-200/75 leading-tight truncate mt-0.5">
+                              {sub.sublabel}
+                            </div>
+                          </div>
+                        </div>
+                        <span
+                          className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border tabular-nums shrink-0 ${
+                            isSubActive
+                              ? isGuru
+                                ? 'bg-teal-300/25 text-white border-teal-200/45'
+                                : 'bg-sky-300/25 text-white border-sky-200/45'
+                              : 'bg-[#052344]/75 text-sky-100 border-sky-300/20'
+                          }`}
+                        >
+                          {sub.badge}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 4. Remaining Menu Items (Waka Only) */}
           {afterArsipMenuItems.map((item) => {
             const isActive = activeView === item.id;
             const Icon = item.icon;

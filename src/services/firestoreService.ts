@@ -127,7 +127,7 @@ export async function seedFirestoreIfEmpty(seed: {
   return seedCheckPromise;
 }
 
-export interface DocumentSubscriptionFilter {
+interface DocumentSubscriptionFilter {
   teacherId?: string | null;
   academicYear?: string | null;
 }
@@ -438,9 +438,6 @@ export async function seedScopedCategoriesIfMissing(
   return promise;
 }
 
-export async function seedWalasCategoriesIfMissing(walasCategories: CategoryItem[]): Promise<void> {
-  return seedScopedCategoriesIfMissing('wali_kelas', walasCategories);
-}
 
 // Delete Category
 export async function deleteCategoryFromFirestore(categoryId: string): Promise<void> {

@@ -1,15 +1,13 @@
 import React, { useState, useMemo } from 'react';
 import {
-  LayoutGrid, ListFilter, ShieldCheck, FolderKanban, UploadCloud,
+  LayoutGrid, ListFilter, ShieldCheck, UploadCloud,
   Search, Eye, Pencil, Trash2, Printer, CheckCircle2, AlertTriangle,
   Clock, Plus, CheckCheck, Users, FileText
 } from 'lucide-react';
 import {
-  AppUserRole, CategoryItem, CurriculumDocument, SemesterType, Teacher, VerificationStatus, StudentRecord
+  AppUserRole, CategoryItem, CurriculumDocument, SemesterType, Teacher, VerificationStatus
 } from '../types/curriculum';
-import { CategoryManagementView } from './CategoryManagementView';
 import { HomeroomEntry } from './WalasUploadModal';
-import { WalasStudentsView } from './WalasStudentsView';
 
 interface WaliKelasViewProps {
   userRole: AppUserRole;
@@ -28,15 +26,7 @@ interface WaliKelasViewProps {
   onPrintValidationSheet: (doc: CurriculumDocument) => void;
   onUpdateDocumentStatus: (docId: string, newStatus: VerificationStatus, supervisorNotes: string) => void;
   onBatchApproveWalas: () => void;
-  onAddCategory: (cat: CategoryItem) => void;
-  onUpdateCategory: (cat: CategoryItem) => void;
-  onDeleteCategory: (catId: string) => void;
   onNavigateToTeachers?: () => void;
-  students: StudentRecord[];
-  onAddStudent: (student: StudentRecord) => Promise<void> | void;
-  onUpdateStudent: (student: StudentRecord) => Promise<void> | void;
-  onImportStudents: (students: StudentRecord[]) => Promise<void> | void;
-  onDeleteStudent: (studentId: string) => Promise<void> | void;
 }
 
 const STATUS_META: Record<VerificationStatus, { label: string; textClass: string; bgClass: string }> = {
@@ -99,18 +89,10 @@ export const WaliKelasView: React.FC<WaliKelasViewProps> = ({
   onPrintValidationSheet,
   onUpdateDocumentStatus,
   onBatchApproveWalas,
-  onAddCategory,
-  onUpdateCategory,
-  onDeleteCategory,
-  onNavigateToTeachers,
-  students,
-  onAddStudent,
-  onUpdateStudent,
-  onImportStudents,
-  onDeleteStudent
+  onNavigateToTeachers
 }) => {
   const isWaka = userRole === 'waka_kurikulum';
-  const [subTab, setSubTab] = useState<'matrix' | 'list' | 'students' | 'supervision' | 'categories'>('matrix');
+  const [subTab, setSubTab] = useState<'matrix' | 'list' | 'supervision'>('matrix');
 
   // Filter & search states for List & Supervision tabs
   const [searchQuery, setSearchQuery] = useState('');
@@ -140,12 +122,6 @@ export const WaliKelasView: React.FC<WaliKelasViewProps> = ({
     () => documents.filter(d => d.semester === currentSemester && d.academicYear === academicYear),
     [documents, currentSemester, academicYear]
   );
-
-  const scopedStudentsCount = useMemo(() => {
-    if (isWaka) return students.length;
-    const normalized = (activeHomeroomClass || '').trim().toUpperCase();
-    return students.filter(s => (s.homeroomClass || '').trim().toUpperCase() === normalized).length;
-  }, [students, isWaka, activeHomeroomClass]);
 
   const pendingCount = periodDocs.filter(d => d.status === 'diajukan').length;
   const verifiedCount = periodDocs.filter(d => d.status === 'diverifikasi').length;
@@ -359,52 +335,24 @@ export const WaliKelasView: React.FC<WaliKelasViewProps> = ({
             <span>Daftar Arsip ({periodDocs.length})</span>
           </button>
 
-          <button
-            type="button"
-            onClick={() => setSubTab('students')}
-            className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap ${
-              subTab === 'students'
-                ? 'bg-white text-slate-900 shadow-xs'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <Users className="w-3.5 h-3.5" />
-            <span>Peserta Didik ({scopedStudentsCount})</span>
-          </button>
-
           {isWaka && (
-            <>
-              <button
-                type="button"
-                onClick={() => setSubTab('supervision')}
-                className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap ${
-                  subTab === 'supervision'
-                    ? 'bg-white text-slate-900 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <ShieldCheck className="w-3.5 h-3.5" />
-                <span>Telaah &amp; Pengesahan</span>
-                {pendingCount > 0 && (
-                  <span className="font-mono font-bold text-amber-700 tabular-nums">
-                    ({pendingCount})
-                  </span>
-                )}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setSubTab('categories')}
-                className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap ${
-                  subTab === 'categories'
-                    ? 'bg-white text-slate-900 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <FolderKanban className="w-3.5 h-3.5" />
-                <span>Kategori Walas ({walasCategories.length})</span>
-              </button>
-            </>
+            <button
+              type="button"
+              onClick={() => setSubTab('supervision')}
+              className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap ${
+                subTab === 'supervision'
+                  ? 'bg-white text-slate-900 shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <ShieldCheck className="w-3.5 h-3.5" />
+              <span>Telaah &amp; Pengesahan</span>
+              {pendingCount > 0 && (
+                <span className="font-mono font-bold text-amber-700 tabular-nums">
+                  ({pendingCount})
+                </span>
+              )}
+            </button>
           )}
         </div>
 
@@ -478,7 +426,7 @@ export const WaliKelasView: React.FC<WaliKelasViewProps> = ({
           ) : matrixCategories.length === 0 ? (
             <div className="p-10 text-center space-y-2 text-slate-500">
               <div className="font-bold text-slate-800">Tidak Ada Kategori Matriks Wali Kelas Aktif</div>
-              <p>Aktifkan minimal satu kategori Wali Kelas pada tab Kategori Walas.</p>
+              <p>Aktifkan minimal satu kategori Wali Kelas pada sub-menu Kategori Walas di sidebar.</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -739,21 +687,6 @@ export const WaliKelasView: React.FC<WaliKelasViewProps> = ({
         </div>
       )}
 
-      {/* TAB 2B: PESERTA DIDIK WALI KELAS */}
-      {subTab === 'students' && (
-        <WalasStudentsView
-          userRole={userRole}
-          students={students}
-          academicYear={academicYear}
-          activeHomeroomClass={activeHomeroomClass}
-          teachers={teachers}
-          onAddStudent={onAddStudent}
-          onUpdateStudent={onUpdateStudent}
-          onImportStudents={onImportStudents}
-          onDeleteStudent={onDeleteStudent}
-        />
-      )}
-
       {/* TAB 3: SUPERVISI, TELAAH & PENGESAHAN WALI KELAS (WAKA ONLY) */}
       {isWaka && subTab === 'supervision' && (
         <div className="space-y-4">
@@ -917,17 +850,6 @@ export const WaliKelasView: React.FC<WaliKelasViewProps> = ({
             </div>
           )}
         </div>
-      )}
-
-      {/* TAB 4: KELOLA KATEGORI WALI KELAS (WAKA ONLY) */}
-      {isWaka && subTab === 'categories' && (
-        <CategoryManagementView
-          scope="wali_kelas"
-          categories={walasCategories}
-          onAddCategory={onAddCategory}
-          onUpdateCategory={onUpdateCategory}
-          onDeleteCategory={onDeleteCategory}
-        />
       )}
     </div>
   );

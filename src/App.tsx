@@ -44,6 +44,8 @@ import { SchoolProfileView } from './components/SchoolProfileView';
 import { CategoryManagementView } from './components/CategoryManagementView';
 import { TeacherManagementView } from './components/TeacherManagementView';
 import { WaliKelasView, buildHomeroomEntries } from './components/WaliKelasView';
+import { WalasStudentsView } from './components/WalasStudentsView';
+import { BukuIndukView } from './components/BukuIndukView';
 import { SuratIzinView } from './components/SuratIzinView';
 import { LainnyaView } from './components/LainnyaView';
 import { AutoUploadModal, WAKA_SELF_TEACHER_ID } from './components/AutoUploadModal';
@@ -182,6 +184,8 @@ export default function App() {
   const [walasUploadCategoryId, setWalasUploadCategoryId] = useState<string | null>(null);
   const [suratIzinUploadTrigger, setSuratIzinUploadTrigger] = useState(0);
   const [lainnyaUploadTrigger, setLainnyaUploadTrigger] = useState(0);
+  const [studentsAddTrigger, setStudentsAddTrigger] = useState(0);
+  const [bukuIndukAddTrigger, setBukuIndukAddTrigger] = useState(0);
   const [selectedDoc, setSelectedDoc] = useState<CurriculumDocument | null>(null);
   const [editDoc, setEditDoc] = useState<CurriculumDocument | null>(null);
   const [printDoc, setPrintDoc] = useState<CurriculumDocument | null>(null);
@@ -441,7 +445,11 @@ export default function App() {
         activeView === 'profile' ||
         activeView === 'categories' ||
         activeView === 'teachers' ||
-        (activeView === 'wali_kelas' && !isHomeroomGuru))
+        activeView === 'walas_categories' ||
+        ((activeView === 'wali_kelas' ||
+          activeView === 'walas_students' ||
+          activeView === 'buku_induk') &&
+          !isHomeroomGuru))
     ) {
       setActiveView('matrix');
     }
@@ -1158,8 +1166,16 @@ export default function App() {
   };
 
   const handleOpenGeneralUpload = () => {
-    if (activeView === 'wali_kelas') {
+    if (activeView === 'wali_kelas' || activeView === 'walas_categories') {
       handleOpenWalasUpload(null, null);
+      return;
+    }
+    if (activeView === 'walas_students') {
+      setStudentsAddTrigger(prev => prev + 1);
+      return;
+    }
+    if (activeView === 'buku_induk') {
+      setBukuIndukAddTrigger(prev => prev + 1);
       return;
     }
     if (activeView === 'surat_izin') {
@@ -1261,6 +1277,12 @@ export default function App() {
   const walasPendingCount = walasVisibleDocuments.filter(d => d.status === 'diajukan').length;
   const suratIzinPendingCount = suratIzinVisibleDocuments.filter(d => d.status === 'diajukan').length;
   const walasSemesterDocsCount = walasVisibleDocuments.filter(d => d.semester === currentSemester && d.academicYear === academicYear).length;
+  const scopedWalasStudentsCount =
+    currentUser.role === 'waka_kurikulum'
+      ? students.length
+      : students.filter(
+          s => (s.homeroomClass || '').trim().toUpperCase() === (activeHomeroomClass || '').trim().toUpperCase()
+        ).length;
   const revisionDocsForGuru = curriculumVisibleDocuments.filter(d => d.status === 'perlu_revisi');
   const isMainCurriculumView =
     activeView === 'matrix' ||
@@ -1319,6 +1341,8 @@ export default function App() {
         isHomeroomGuru={isHomeroomGuru}
         homeroomClass={activeHomeroomClass}
         walasDocsCount={walasSemesterDocsCount}
+        walasStudentsCount={scopedWalasStudentsCount}
+        walasCategoriesCount={walasCategories.length}
       />
 
       {/* Main Content Area (Offset by Sidebar on Desktop) */}
@@ -1454,7 +1478,6 @@ export default function App() {
               teachers={teachers}
               documents={suratIzinVisibleDocuments}
               categories={suratIzinCategories}
-              profile={profile}
               currentSemester={currentSemester}
               academicYear={academicYear}
               onSemesterChange={setCurrentSemester}
@@ -1495,7 +1518,7 @@ export default function App() {
             />
           )}
 
-          {/* Dedicated Menu: Arsip Wali Kelas (Waka Kurikulum + Designated Homeroom Teachers Only) */}
+          {/* Sub Menu Arsip Wali Kelas 1: Adm Wali Kelas */}
           {(currentUser.role === 'waka_kurikulum' || isHomeroomGuru) && activeView === 'wali_kelas' && (
             <WaliKelasView
               userRole={currentUser.role}
@@ -1514,15 +1537,51 @@ export default function App() {
               onPrintValidationSheet={setPrintDoc}
               onUpdateDocumentStatus={handleUpdateDocumentStatus}
               onBatchApproveWalas={handleBatchApproveWalas}
-              onAddCategory={handleAddCategory}
-              onUpdateCategory={handleUpdateCategory}
-              onDeleteCategory={handleDeleteCategory}
               onNavigateToTeachers={() => setActiveView('teachers')}
+            />
+          )}
+
+          {/* Sub Menu Arsip Wali Kelas 2: Peserta Didik */}
+          {(currentUser.role === 'waka_kurikulum' || isHomeroomGuru) && activeView === 'walas_students' && (
+            <WalasStudentsView
+              userRole={currentUser.role}
               students={students}
+              academicYear={academicYear}
+              activeHomeroomClass={activeHomeroomClass}
+              teachers={teachers}
               onAddStudent={handleAddStudent}
               onUpdateStudent={handleUpdateStudent}
               onImportStudents={handleImportStudents}
               onDeleteStudent={handleDeleteStudent}
+              externalAddTrigger={studentsAddTrigger}
+            />
+          )}
+
+          {/* Sub Menu Arsip Wali Kelas 3: Buku Induk Siswa */}
+          {(currentUser.role === 'waka_kurikulum' || isHomeroomGuru) && activeView === 'buku_induk' && (
+            <BukuIndukView
+              userRole={currentUser.role}
+              students={students}
+              profile={profile}
+              academicYear={academicYear}
+              activeHomeroomClass={activeHomeroomClass}
+              teachers={teachers}
+              onAddStudent={handleAddStudent}
+              onUpdateStudent={handleUpdateStudent}
+              onImportStudents={handleImportStudents}
+              onDeleteStudent={handleDeleteStudent}
+              externalAddTrigger={bukuIndukAddTrigger}
+            />
+          )}
+
+          {/* Sub Menu Arsip Wali Kelas 4: Kategori Walas (Waka Kurikulum Only) */}
+          {currentUser.role === 'waka_kurikulum' && activeView === 'walas_categories' && (
+            <CategoryManagementView
+              scope="wali_kelas"
+              categories={walasCategories}
+              onAddCategory={handleAddCategory}
+              onUpdateCategory={handleUpdateCategory}
+              onDeleteCategory={handleDeleteCategory}
             />
           )}
 

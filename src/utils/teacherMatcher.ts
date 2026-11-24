@@ -1,6 +1,6 @@
 import { CurriculumDocument, Teacher } from '../types/curriculum';
 
-export function getSamePersonTeachers(teacher: Teacher, allTeachers: Teacher[]): Teacher[] {
+function getSamePersonTeachers(teacher: Teacher, allTeachers: Teacher[]): Teacher[] {
   const normName = (teacher.name || '').trim().toLowerCase();
   const normNip = (teacher.nip || '').trim();
   const normEmail = (teacher.email || '').trim().toLowerCase();

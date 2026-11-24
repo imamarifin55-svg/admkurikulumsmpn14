@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   CurriculumDocument, SemesterType, Teacher, CategoryItem, VerificationStatus,
-  AppUser, AppUserRole, DocumentFile, SchoolProfile
+  AppUser, AppUserRole, DocumentFile
 } from '../types/curriculum';
 import {
   Plus, Search, Calendar, Clock, CheckCircle2, ShieldCheck, AlertTriangle,
@@ -49,7 +49,6 @@ interface SuratIzinViewProps {
   teachers: Teacher[];
   documents: CurriculumDocument[];
   categories: CategoryItem[];
-  profile: SchoolProfile;
   currentSemester: SemesterType;
   academicYear: string;
   onSemesterChange: (sem: SemesterType) => void;

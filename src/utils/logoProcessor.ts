@@ -4,7 +4,7 @@
  * berlebih agar logo tampil lebih besar, bersih, dan transparan.
  */
 
-export interface ProcessLogoOptions {
+interface ProcessLogoOptions {
   maxDim?: number;
   forceCornerColor?: boolean;
   tolerance?: number;

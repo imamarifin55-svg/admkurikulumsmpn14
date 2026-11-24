@@ -195,7 +195,6 @@ export interface AppUser {
   teacherId?: string;
   nip?: string;
   subject?: string;
-  photoUrl?: string;
 }
 
 export interface Teacher {
@@ -203,7 +202,6 @@ export interface Teacher {
   name: string;
   nip: string;
   subject: string;
-  avatarUrl?: string;
   email: string;
   isHomeroomTeacher?: boolean;
   homeroomClass?: string;
@@ -259,7 +257,6 @@ export interface AutoExtractionResult {
   detectedCompetencies: string[];
   confidenceScore: number; // 0 to 100
   sampleSnippet?: string;
-  rawText?: string;
 }
 
 export type StudentGender = 'L' | 'P';
@@ -272,12 +269,30 @@ export interface StudentRecord {
   nisn: string;
   name: string;
   gender: StudentGender;
+  religion?: string;
+  familyStatus?: string;
+  childOrder?: string;
   homeroomClass: string; // e.g. "7.1", "8.2", "9.4"
   birthPlace?: string;
   birthDate?: string;
   parentName?: string;
+  fatherName?: string;
+  motherName?: string;
+  guardianName?: string;
+  guardianJob?: string;
+  guardianAddress?: string;
+  parentJob?: string;
   parentPhone?: string;
+  parentAddress?: string;
   address?: string;
+  photoUrl?: string;
+  previousSchool?: string;
+  entryDate?: string;
+  entryClass?: string;
+  leaveDate?: string;
+  leaveReason?: string;
+  graduationDate?: string;
+  certificateNumber?: string;
   status: StudentStatus;
   notes?: string;
   academicYear: string;
