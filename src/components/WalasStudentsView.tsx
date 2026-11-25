@@ -260,8 +260,9 @@ export const WalasStudentsView: React.FC<WalasStudentsViewProps> = ({
   };
 
   return (
-    <div className="space-y-4">
-      {/* Summary Strip & Action Header */}
+    <>
+      <div className="space-y-4 [zoom:0.9]">
+        {/* Summary Strip & Action Header */}
       <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 space-y-4">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
           <div>
@@ -612,6 +613,7 @@ export const WalasStudentsView: React.FC<WalasStudentsViewProps> = ({
           </table>
         </div>
       </div>
+      </div>
 
       {/* Import Staging & Class Summary Preview Modal */}
       <StudentImportPreviewModal
@@ -635,6 +637,6 @@ export const WalasStudentsView: React.FC<WalasStudentsViewProps> = ({
         academicYear={academicYear}
         onSave={handleSaveStudent}
       />
-    </div>
+    </>
   );
 };
