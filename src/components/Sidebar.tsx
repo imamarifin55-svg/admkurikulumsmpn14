@@ -44,6 +44,7 @@ interface SidebarProps {
   homeroomClass?: string | null;
   walasDocsCount?: number;
   walasStudentsCount?: number;
+  bukuIndukCount?: number;
   walasCategoriesCount?: number;
 }
 
@@ -69,6 +70,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   homeroomClass,
   walasDocsCount = 0,
   walasStudentsCount = 0,
+  bukuIndukCount = 0,
   walasCategoriesCount = 0
 }) => {
   const currentTeacher = teachers.find(t => t.id === currentUser.teacherId);
@@ -132,7 +134,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     {
       id: 'walas_students' as const,
       label: 'Peserta Didik',
-      sublabel: isGuru ? `Siswa Kelas ${homeroomClass || ''}` : 'Daftar & Impor Siswa',
+      sublabel: 'Data Siswa Semua Kelas',
       icon: GraduationCap,
       badge: walasStudentsCount
     },
@@ -141,7 +143,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       label: 'Buku Induk',
       sublabel: 'Register Induk & Cetak A4',
       icon: BookUser,
-      badge: walasStudentsCount
+      badge: bukuIndukCount
     },
     ...(!isGuru ? [
       {
@@ -294,7 +296,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <span>
               {activeView === 'wali_kelas' || activeView === 'walas_categories'
                 ? 'Unggah Arsip Wali Kelas'
-                : activeView === 'walas_students'
+                : activeView === 'walas_students' && (!isGuru || isHomeroomGuru)
                 ? 'Tambah Peserta Didik'
                 : activeView === 'buku_induk'
                 ? 'Tambah Data Induk'
@@ -467,7 +469,58 @@ export const Sidebar: React.FC<SidebarProps> = ({
             )}
           </div>
 
-          {/* 3. Arsip Wali Kelas (Expandable Dropdown Sub Menu) */}
+          {/* 3A. Peserta Didik (Khusus Guru Non-Wali Kelas agar tetap bisa mengakses data peserta didik) */}
+          {!showWalasMenu && (() => {
+            const isActive = activeView === 'walas_students';
+            return (
+              <button
+                type="button"
+                onClick={() => {
+                  onViewChange('walas_students');
+                  if (isOpenMobile) onCloseMobile();
+                }}
+                className={`group w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl text-left transition-all cursor-pointer ${
+                  isActive
+                    ? 'bg-gradient-to-r from-teal-400/25 to-cyan-400/15 text-white font-semibold border border-teal-200/35 shadow-xs'
+                    : 'text-sky-100/85 hover:bg-white/10 hover:text-white border border-transparent'
+                }`}
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div
+                    className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
+                      isActive
+                        ? 'bg-gradient-to-br from-teal-300 to-cyan-300 text-slate-950 shadow-xs'
+                        : 'bg-white/10 text-sky-200 group-hover:bg-white/15 group-hover:text-white'
+                    }`}
+                  >
+                    <GraduationCap className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-xs font-semibold leading-snug tracking-wide truncate">
+                      Peserta Didik
+                    </div>
+                    <div className={`text-[10px] leading-none truncate mt-0.5 ${
+                      isActive ? 'text-teal-100' : 'text-sky-200/70'
+                    }`}>
+                      Data Siswa Semua Kelas
+                    </div>
+                  </div>
+                </div>
+
+                <span
+                  className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-md border tabular-nums shrink-0 ${
+                    isActive
+                      ? 'bg-teal-300/25 text-white border-teal-200/45'
+                      : 'bg-[#052344]/75 text-sky-100 border-sky-300/25'
+                  }`}
+                >
+                  {walasStudentsCount}
+                </span>
+              </button>
+            );
+          })()}
+
+          {/* 3B. Arsip Wali Kelas (Expandable Dropdown Sub Menu) */}
           {showWalasMenu && (
             <div className="space-y-1">
               <button

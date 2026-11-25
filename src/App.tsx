@@ -371,17 +371,9 @@ export default function App() {
             setActivityLogs([]);
           };
 
-    const unsubStudents =
-      currentUser.role === 'waka_kurikulum' || (currentUser.role === 'guru' && activeHomeroomClass)
-        ? subscribeToStudents(
-            (remoteStudents) => {
-              setStudents(remoteStudents);
-            },
-            currentUser.role === 'guru' ? activeHomeroomClass : null
-          )
-        : () => {
-            setStudents([]);
-          };
+    const unsubStudents = subscribeToStudents((remoteStudents) => {
+      setStudents(remoteStudents);
+    }, null);
 
     return () => {
       unsubCategories();
@@ -446,9 +438,7 @@ export default function App() {
         activeView === 'categories' ||
         activeView === 'teachers' ||
         activeView === 'walas_categories' ||
-        ((activeView === 'wali_kelas' ||
-          activeView === 'walas_students' ||
-          activeView === 'buku_induk') &&
+        ((activeView === 'wali_kelas' || activeView === 'buku_induk') &&
           !isHomeroomGuru))
     ) {
       setActiveView('matrix');
@@ -1170,7 +1160,7 @@ export default function App() {
       handleOpenWalasUpload(null, null);
       return;
     }
-    if (activeView === 'walas_students') {
+    if (activeView === 'walas_students' && (currentUser.role === 'waka_kurikulum' || isHomeroomGuru)) {
       setStudentsAddTrigger(prev => prev + 1);
       return;
     }
@@ -1277,7 +1267,8 @@ export default function App() {
   const walasPendingCount = walasVisibleDocuments.filter(d => d.status === 'diajukan').length;
   const suratIzinPendingCount = suratIzinVisibleDocuments.filter(d => d.status === 'diajukan').length;
   const walasSemesterDocsCount = walasVisibleDocuments.filter(d => d.semester === currentSemester && d.academicYear === academicYear).length;
-  const scopedWalasStudentsCount =
+  const allStudentsCount = students.length;
+  const scopedBukuIndukCount =
     currentUser.role === 'waka_kurikulum'
       ? students.length
       : students.filter(
@@ -1341,7 +1332,8 @@ export default function App() {
         isHomeroomGuru={isHomeroomGuru}
         homeroomClass={activeHomeroomClass}
         walasDocsCount={walasSemesterDocsCount}
-        walasStudentsCount={scopedWalasStudentsCount}
+        walasStudentsCount={allStudentsCount}
+        bukuIndukCount={scopedBukuIndukCount}
         walasCategoriesCount={walasCategories.length}
       />
 
@@ -1541,8 +1533,8 @@ export default function App() {
             />
           )}
 
-          {/* Sub Menu Arsip Wali Kelas 2: Peserta Didik */}
-          {(currentUser.role === 'waka_kurikulum' || isHomeroomGuru) && activeView === 'walas_students' && (
+          {/* Menu Peserta Didik (Dapat diakses oleh semua akun: Waka & seluruh Guru) */}
+          {activeView === 'walas_students' && (
             <WalasStudentsView
               userRole={currentUser.role}
               students={students}

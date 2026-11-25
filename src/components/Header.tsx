@@ -50,7 +50,9 @@ export const Header: React.FC<HeaderProps> = ({
           : 'Arsip Wali Kelas · Adm Wali Kelas';
       case 'walas_students':
         return currentUser.role === 'guru'
-          ? `Arsip Wali Kelas · Peserta Didik ${activeHomeroomClass || ''}`
+          ? activeHomeroomClass
+            ? `Arsip Wali Kelas · Peserta Didik ${activeHomeroomClass}`
+            : 'Data Peserta Didik (Semua Kelas)'
           : 'Arsip Wali Kelas · Peserta Didik';
       case 'buku_induk':
         return currentUser.role === 'guru'
@@ -133,7 +135,7 @@ export const Header: React.FC<HeaderProps> = ({
             <span className="hidden sm:inline">
               {activeView === 'wali_kelas' || activeView === 'walas_categories'
                 ? 'Unggah Arsip Walas'
-                : activeView === 'walas_students'
+                : activeView === 'walas_students' && (currentUser.role === 'waka_kurikulum' || Boolean(activeHomeroomClass))
                 ? 'Tambah Peserta Didik'
                 : activeView === 'buku_induk'
                 ? 'Tambah Data Induk'
@@ -144,7 +146,10 @@ export const Header: React.FC<HeaderProps> = ({
                 : 'Unggah Dokumen'}
             </span>
             <span className="sm:hidden">
-              {activeView === 'walas_students' || activeView === 'buku_induk' ? 'Tambah' : 'Unggah'}
+              {(activeView === 'walas_students' && (currentUser.role === 'waka_kurikulum' || Boolean(activeHomeroomClass))) ||
+              activeView === 'buku_induk'
+                ? 'Tambah'
+                : 'Unggah'}
             </span>
           </button>
         </div>

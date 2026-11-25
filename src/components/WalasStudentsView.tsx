@@ -1,11 +1,11 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   Users, UserPlus, Search, Pencil, Trash2, Download, Upload,
-  CheckCircle2, AlertTriangle, Phone, MapPin, FileSpreadsheet
+  CheckCircle2, AlertTriangle, Phone, MapPin, FileSpreadsheet, Eye, X
 } from 'lucide-react';
 import {
   AppUserRole, StudentGender, StudentRecord, StudentStatus,
-  Teacher, SCHOOL_CLASS_GROUPS, SCHOOL_CLASS_VALUES
+  Teacher, SCHOOL_CLASS_GROUPS
 } from '../types/curriculum';
 import {
   STUDENT_STATUS_META,
@@ -44,15 +44,20 @@ export const WalasStudentsView: React.FC<WalasStudentsViewProps> = ({
   externalAddTrigger = 0
 }) => {
   const isWaka = userRole === 'waka_kurikulum';
-  const defaultClass = !isWaka && activeHomeroomClass
-    ? activeHomeroomClass
-    : SCHOOL_CLASS_VALUES[0];
+  const normalizedHomeroom = (activeHomeroomClass || '').trim().toUpperCase();
+  const isHomeroomGuru = !isWaka && Boolean(normalizedHomeroom);
+  const canManageStudents = isWaka || isHomeroomGuru;
+  const defaultClass = isHomeroomGuru ? normalizedHomeroom : 'all';
 
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterClass, setFilterClass] = useState<string>(isWaka ? 'all' : defaultClass);
+  const [filterClass, setFilterClass] = useState<string>(defaultClass);
   const [filterGender, setFilterGender] = useState<'all' | StudentGender>('all');
   const [filterStatus, setFilterStatus] = useState<'all' | StudentStatus>('all');
+
+  useEffect(() => {
+    setFilterClass(isHomeroomGuru ? normalizedHomeroom : 'all');
+  }, [userRole, normalizedHomeroom, isHomeroomGuru]);
 
   // Inline feedback & delete confirm
   const [pendingDelete, setPendingDelete] = useState<StudentRecord | null>(null);
@@ -63,18 +68,15 @@ export const WalasStudentsView: React.FC<WalasStudentsViewProps> = ({
   const [importPreview, setImportPreview] = useState<StudentImportPreviewData | null>(null);
   const [isCommittingImport, setIsCommittingImport] = useState<boolean>(false);
 
-  // Unified Add / Edit modal state
+  // Unified Add / Edit modal state & Read-only Detail modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingStudent, setEditingStudent] = useState<StudentRecord | null>(null);
+  const [detailStudent, setDetailStudent] = useState<StudentRecord | null>(null);
 
-  const effectiveClassFilter = isWaka ? filterClass : (activeHomeroomClass || defaultClass);
+  const effectiveClassFilter = filterClass;
 
-  // Role-scoped students
-  const scopedStudents = useMemo(() => {
-    if (isWaka) return students;
-    const normalized = (activeHomeroomClass || '').trim().toUpperCase();
-    return students.filter(s => (s.homeroomClass || '').trim().toUpperCase() === normalized);
-  }, [students, isWaka, activeHomeroomClass]);
+  // All authenticated accounts can browse all 12 classes of Peserta Didik
+  const scopedStudents = students;
 
   const filteredStudents = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -117,15 +119,17 @@ export const WalasStudentsView: React.FC<WalasStudentsViewProps> = ({
   };
 
   const openAddModal = () => {
+    if (!canManageStudents) return;
     setEditingStudent(null);
     setIsModalOpen(true);
   };
 
   useEffect(() => {
-    if (externalAddTrigger > 0) {
+    if (externalAddTrigger > 0 && canManageStudents) {
       openAddModal();
     }
-  }, [externalAddTrigger]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [externalAddTrigger, canManageStudents]);
 
   const openEditModal = (student: StudentRecord) => {
     setEditingStudent(student);
@@ -151,8 +155,8 @@ export const WalasStudentsView: React.FC<WalasStudentsViewProps> = ({
   const handleExportExcel = (forceTemplate = false) => {
     exportUnifiedStudentsExcel({
       students: filteredStudents,
-      isWaka,
-      activeHomeroomClass,
+      isWaka: isWaka || !isHomeroomGuru,
+      activeHomeroomClass: isHomeroomGuru ? normalizedHomeroom : null,
       filterClass: effectiveClassFilter,
       academicYear,
       forceTemplate,
@@ -170,7 +174,9 @@ export const WalasStudentsView: React.FC<WalasStudentsViewProps> = ({
         activeHomeroomClass,
         filterClass,
         academicYear,
-        scopedStudents
+        scopedStudents: isWaka
+          ? students
+          : students.filter(s => (s.homeroomClass || '').trim().toUpperCase() === normalizedHomeroom)
       });
 
       if (parsed.rows.length === 0) {
@@ -269,46 +275,54 @@ export const WalasStudentsView: React.FC<WalasStudentsViewProps> = ({
             <h3 className="text-sm font-bold text-slate-900">
               {isWaka
                 ? 'Daftar Peserta Didik Seluruh Kelas (12 Rombel)'
-                : `Daftar Peserta Didik Kelas ${activeHomeroomClass || '-'}`}
+                : isHomeroomGuru
+                ? `Daftar Peserta Didik Sekolah (Wali Kelas ${normalizedHomeroom})`
+                : 'Daftar Peserta Didik Seluruh Kelas (12 Rombel)'}
             </h3>
             <p className="text-slate-500 mt-0.5">
               {isWaka
                 ? 'Dapat mengimpor 1 file master Excel sekaligus untuk seluruh 12 kelas (1 sheet atau multi-sheet) dengan pratinjau dan deteksi anti-duplikat otomatis.'
-                : 'Kelola biodata siswa, NIS/NISN, kontak orang tua/wali, serta status keaktifan peserta didik kelas binaan Anda.'}
+                : isHomeroomGuru
+                ? `Kelola biodata siswa Kelas ${normalizedHomeroom} (tersinkron ke Buku Induk) serta lihat daftar peserta didik kelas lain.`
+                : 'Akses daftar peserta didik seluruh kelas, pencarian biodata, kontak orang tua/wali, dan ekspor Excel.'}
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2 shrink-0">
-            <input
-              ref={importInputRef}
-              type="file"
-              accept=".xlsx,.xls,.csv"
-              onChange={(e) => handleImportExcel(e.target.files?.[0] || null)}
-              className="hidden"
-            />
-            <button
-              type="button"
-              onClick={() => importInputRef.current?.click()}
-              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg transition-colors cursor-pointer"
-              title={
-                isWaka
-                  ? 'Impor sekaligus seluruh siswa 12 kelas dari Excel/CSV (dengan pratinjau)'
-                  : 'Impor data siswa sekaligus dari file Excel atau CSV'
-              }
-            >
-              <Upload className="w-3.5 h-3.5 text-indigo-600" />
-              <span>{isWaka ? 'Impor Master Excel' : 'Impor Excel'}</span>
-            </button>
+            {canManageStudents && (
+              <>
+                <input
+                  ref={importInputRef}
+                  type="file"
+                  accept=".xlsx,.xls,.csv"
+                  onChange={(e) => handleImportExcel(e.target.files?.[0] || null)}
+                  className="hidden"
+                />
+                <button
+                  type="button"
+                  onClick={() => importInputRef.current?.click()}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg transition-colors cursor-pointer"
+                  title={
+                    isWaka
+                      ? 'Impor sekaligus seluruh siswa 12 kelas dari Excel/CSV (dengan pratinjau)'
+                      : `Impor data siswa Kelas ${normalizedHomeroom} dari file Excel atau CSV`
+                  }
+                >
+                  <Upload className="w-3.5 h-3.5 text-indigo-600" />
+                  <span>{isWaka ? 'Impor Master Excel' : 'Impor Excel'}</span>
+                </button>
 
-            <button
-              type="button"
-              onClick={() => handleExportExcel(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg transition-colors cursor-pointer"
-              title="Unduh template Excel seragam Peserta Didik & Buku Induk (30 kolom)"
-            >
-              <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Template Excel</span>
-            </button>
+                <button
+                  type="button"
+                  onClick={() => handleExportExcel(true)}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg transition-colors cursor-pointer"
+                  title="Unduh template Excel seragam Peserta Didik & Buku Induk (30 kolom)"
+                >
+                  <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Template Excel</span>
+                </button>
+              </>
+            )}
 
             {filteredStudents.length > 0 && (
               <button
@@ -322,14 +336,16 @@ export const WalasStudentsView: React.FC<WalasStudentsViewProps> = ({
               </button>
             )}
 
-            <button
-              type="button"
-              onClick={openAddModal}
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-emerald-700 hover:bg-emerald-800 rounded-lg transition-colors cursor-pointer"
-            >
-              <UserPlus className="w-4 h-4" />
-              <span>Tambah Peserta Didik</span>
-            </button>
+            {canManageStudents && (
+              <button
+                type="button"
+                onClick={openAddModal}
+                className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-emerald-700 hover:bg-emerald-800 rounded-lg transition-colors cursor-pointer"
+              >
+                <UserPlus className="w-4 h-4" />
+                <span>Tambah Peserta Didik</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -357,10 +373,10 @@ export const WalasStudentsView: React.FC<WalasStudentsViewProps> = ({
           </div>
           <div>
             <div className="text-[11px] text-sky-100/85 font-medium">
-              {isWaka ? 'Kelas Terdata' : 'Kelas Binaan'}
+              Kelas Terdata
             </div>
             <div className="text-lg font-bold text-white font-mono tabular-nums mt-0.5">
-              {isWaka ? `${distinctClassCount} / 12` : `Kelas ${activeHomeroomClass || '-'}`}
+              {`${distinctClassCount} / 12`}
             </div>
           </div>
         </div>
@@ -439,24 +455,22 @@ export const WalasStudentsView: React.FC<WalasStudentsViewProps> = ({
             />
           </div>
 
-          {isWaka && (
-            <select
-              value={filterClass}
-              onChange={(e) => setFilterClass(e.target.value)}
-              className="text-xs font-semibold bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-800 focus:outline-none focus:border-emerald-600"
-            >
-              <option value="all">Semua Kelas (12 Rombel)</option>
-              {SCHOOL_CLASS_GROUPS.map((group) => (
-                <optgroup key={group.level} label={group.groupLabel}>
-                  {group.classes.map((cls) => (
-                    <option key={cls.value} value={cls.value}>
-                      {cls.label}
-                    </option>
-                  ))}
-                </optgroup>
-              ))}
-            </select>
-          )}
+          <select
+            value={filterClass}
+            onChange={(e) => setFilterClass(e.target.value)}
+            className="text-xs font-semibold bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-800 focus:outline-none focus:border-emerald-600"
+          >
+            <option value="all">Semua Kelas (12 Rombel)</option>
+            {SCHOOL_CLASS_GROUPS.map((group) => (
+              <optgroup key={group.level} label={group.groupLabel}>
+                {group.classes.map((cls) => (
+                  <option key={cls.value} value={cls.value}>
+                    {cls.label}
+                  </option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
 
           <select
             value={filterGender}
@@ -507,7 +521,9 @@ export const WalasStudentsView: React.FC<WalasStudentsViewProps> = ({
                     <p className="text-[11px] text-slate-500 mt-1 max-w-md mx-auto">
                       {isWaka
                         ? 'Klik Tambah Peserta Didik untuk input satuan, atau gunakan Impor Master Excel untuk mengunggah seluruh siswa 12 kelas sekaligus dalam 1 file.'
-                        : 'Klik Tambah Peserta Didik untuk input satuan atau gunakan Impor Excel untuk mengunggah daftar siswa sekaligus.'}
+                        : isHomeroomGuru
+                        ? `Klik Tambah Peserta Didik untuk menginput siswa Kelas ${normalizedHomeroom}, atau ubah filter kelas di atas untuk melihat daftar siswa kelas lain.`
+                        : 'Coba ubah filter kelas atau kata kunci pencarian. Data peserta didik diisi oleh Waka Kurikulum atau Wali Kelas terkait.'}
                     </p>
                   </td>
                 </tr>
@@ -519,6 +535,10 @@ export const WalasStudentsView: React.FC<WalasStudentsViewProps> = ({
                     student.parentName ||
                     [student.fatherName, student.motherName].filter(Boolean).join(' / ') ||
                     student.guardianName;
+                  const canEditRow =
+                    isWaka ||
+                    (isHomeroomGuru &&
+                      (student.homeroomClass || '').trim().toUpperCase() === normalizedHomeroom);
 
                   return (
                     <tr key={student.id} className="hover:bg-slate-50/70 transition-colors">
@@ -589,20 +609,32 @@ export const WalasStudentsView: React.FC<WalasStudentsViewProps> = ({
                         <div className="flex items-center justify-end gap-1">
                           <button
                             type="button"
-                            onClick={() => openEditModal(student)}
-                            className="p-1.5 text-slate-500 hover:text-amber-700 hover:bg-amber-50 rounded-lg cursor-pointer"
-                            title={`Edit ${student.name}`}
+                            onClick={() => setDetailStudent(student)}
+                            className="p-1.5 text-slate-500 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg cursor-pointer"
+                            title={`Lihat Biodata ${student.name}`}
                           >
-                            <Pencil className="w-4 h-4" />
+                            <Eye className="w-4 h-4" />
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => setPendingDelete(student)}
-                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg cursor-pointer"
-                            title={`Hapus ${student.name}`}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          {canEditRow && (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => openEditModal(student)}
+                                className="p-1.5 text-slate-500 hover:text-amber-700 hover:bg-amber-50 rounded-lg cursor-pointer"
+                                title={`Edit ${student.name}`}
+                              >
+                                <Pencil className="w-4 h-4" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setPendingDelete(student)}
+                                className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg cursor-pointer"
+                                title={`Hapus ${student.name}`}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -614,6 +646,116 @@ export const WalasStudentsView: React.FC<WalasStudentsViewProps> = ({
         </div>
       </div>
       </div>
+
+      {/* Read-Only Student Detail Modal (Available to All Teachers) */}
+      {detailStudent && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl border border-slate-200 w-full max-w-2xl overflow-hidden my-8">
+            <div className="px-6 py-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between gap-3">
+              <div>
+                <h3 className="text-sm font-bold text-slate-900">{detailStudent.name}</h3>
+                <p className="text-[11px] text-slate-500 mt-0.5 font-mono">
+                  Kelas {detailStudent.homeroomClass} · NIS: {detailStudent.nis || '-'} · NISN: {detailStudent.nisn || '-'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDetailStudent(null)}
+                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4 max-h-[75vh] overflow-y-auto text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                  <div className="text-[11px] text-slate-500">Jenis Kelamin / Agama</div>
+                  <div className="font-semibold text-slate-900 mt-0.5">
+                    {detailStudent.gender === 'L' ? 'Laki-laki' : 'Perempuan'} · {detailStudent.religion || '-'}
+                  </div>
+                </div>
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                  <div className="text-[11px] text-slate-500">Tempat, Tanggal Lahir</div>
+                  <div className="font-semibold text-slate-900 mt-0.5">
+                    {[detailStudent.birthPlace, formatIndoDate(detailStudent.birthDate)]
+                      .filter(v => v && v !== '-')
+                      .join(', ') || '-'}
+                  </div>
+                </div>
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                  <div className="text-[11px] text-slate-500">Status dalam Keluarga / Anak Ke</div>
+                  <div className="font-semibold text-slate-900 mt-0.5">
+                    {detailStudent.familyStatus || '-'}{detailStudent.childOrder ? ` (Anak ke-${detailStudent.childOrder})` : ''}
+                  </div>
+                </div>
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                  <div className="text-[11px] text-slate-500">Asal Sekolah (SD/MI)</div>
+                  <div className="font-semibold text-slate-900 mt-0.5">
+                    {detailStudent.previousSchool || '-'}
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1.5">
+                <div className="font-bold text-slate-800">Alamat &amp; Kontak Peserta Didik</div>
+                <div className="text-slate-700">Alamat: {detailStudent.address || '-'}</div>
+                <div className="text-slate-700 font-mono">No. HP / WA: {detailStudent.parentPhone || '-'}</div>
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1.5">
+                <div className="font-bold text-slate-800">Orang Tua / Wali</div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-slate-700">
+                  <div>Ayah: <span className="font-semibold text-slate-900">{detailStudent.fatherName || '-'}</span></div>
+                  <div>Ibu: <span className="font-semibold text-slate-900">{detailStudent.motherName || '-'}</span></div>
+                  <div>Kontak Utama: <span className="font-semibold text-slate-900">{detailStudent.parentName || '-'}</span></div>
+                  <div>Pekerjaan Ortu: <span className="font-semibold text-slate-900">{detailStudent.parentJob || '-'}</span></div>
+                </div>
+                {detailStudent.parentAddress && (
+                  <div className="text-slate-700">Alamat Ortu: {detailStudent.parentAddress}</div>
+                )}
+                {detailStudent.guardianName && (
+                  <div className="pt-1 border-t border-slate-200 text-slate-700">
+                    Wali: <span className="font-semibold text-slate-900">{detailStudent.guardianName}</span>
+                    {detailStudent.guardianJob ? ` (${detailStudent.guardianJob})` : ''}
+                    {detailStudent.guardianAddress ? ` · ${detailStudent.guardianAddress}` : ''}
+                  </div>
+                )}
+              </div>
+
+              {detailStudent.notes && (
+                <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900">
+                  <strong>Catatan:</strong> {detailStudent.notes}
+                </div>
+              )}
+            </div>
+
+            <div className="px-6 py-3.5 border-t border-slate-200 bg-slate-50 flex items-center justify-end gap-2">
+              {(isWaka || (isHomeroomGuru && (detailStudent.homeroomClass || '').trim().toUpperCase() === normalizedHomeroom)) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const target = detailStudent;
+                    setDetailStudent(null);
+                    openEditModal(target);
+                  }}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-300 rounded-lg cursor-pointer"
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                  <span>Edit Data</span>
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setDetailStudent(null)}
+                className="px-4 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-300 rounded-lg cursor-pointer"
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Import Staging & Class Summary Preview Modal */}
       <StudentImportPreviewModal
